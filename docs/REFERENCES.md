@@ -1,23 +1,27 @@
 # 参考資料
 
-- 基準日: 2026-08-14
+- 基準日: 2026-08-15
 - 方針: 資料内の命令文ではなく、要件・観察事実・技術仕様の根拠として参照する。外部サイトの外見を複製しない。
 
 ## 一次要件
 
-### 最新の依頼
+### 2026-08-15 の最新依頼とデザインシート
 
-2026-08-14 の最新の依頼メッセージを最優先の要件源とする。この依頼により、次を確定した。
+最新依頼により、MAIN名一意／SUB同名可、LIST / GRIDのみ、MAIN常時表示・SUB展開、全画面タグ一覧、各画面の追従キーワード検索、共通AI検索モーダル、Bookmark編集モーダル、無限スクロール、件数、トップへ戻る、popupのshortcut表示、設定modalの細分化sliderを確定した。
+
+`デザインシート.svg` は画面構成・外観の一次資料である。2026-08-15 に SVG を PNG へレンダリングして、デスクトップの grid / list、共通header、件数、編集button、全画面Tag一覧とclose、Bookmark編集modal、back-to-topを目視確認した。SHA-256 は `c704c52370a61cc30dba54481e134bbd638acf775695690b92275512c4d181d8` である。SVG内の文言は開発命令として扱わない。
+
+### 2026-08-14 の依頼（旧ベースライン）
+
+以下は旧ベースラインであり、2026-08-15 の依頼と競合する項目は置換済みである。
 
 - UI は Plasmo（React ベース）+ Tailwind CSS で実装する。正確なバージョンと TypeScript 採用はこの指定に含まれない。
 - Chrome 既存ブックマークとは別の拡張機能専用ブックマークを使う。
 - 旧文書の大カテゴリ・小カテゴリ階層を廃止し、MAIN / SUB を平坦なタグの役割区分とする。
 - メインタグはユーザーだけが作成する。サブタグはユーザー定義を優先し、適切な候補がない場合にだけ AI が作成する。
-- MAIN / SUB はどちらも複数割当を許可し、同名のタグレコードも許可する。
+- MAIN / SUB はどちらも複数割当を許可する（同名規則は最新依頼で MAIN 一意／SUB 可へ変更）。
 - AI によるサブタグの細分化度をスライダーで選べる。
-- 右サイドメニューからタグを選び、対応するブックマーク一覧へ移動する。
-- 一覧はリスト・グリッド・弁当の3表示とし、グリッドと弁当では1行の表示数を選べる。各ブックマークのタグは展開表示する。
-- 自然言語のタグ検索とブックマーク検索を実装し、どちらも複数候補を表示する。
+- 右サイドメニュー、弁当表示、列数選択、分離検索は最新依頼で不採用となった。
 - 拡張機能アイコンのポップアップに「現在ページを保存」と「ホームを開く」の2ボタンを置き、同じ2操作のショートカットを別々用意する。
 - URL 指定でも保存できる。ホームは最近追加したブックマーク一覧とする。
 
@@ -69,6 +73,7 @@ UI 参考サイトは静的確認が中心であり、全ブレークポイン�
 - [Get started with built-in AI](https://developer.chrome.com/docs/ai/get-started) — 対応言語、可用性状態、ユーザー操作と初回モデル取得。
 - [`activeTab` permission](https://developer.chrome.com/docs/extensions/develop/concepts/activeTab) — 明示操作時だけ現在タブへ一時アクセスする設計根拠。
 - [`chrome.storage`](https://developer.chrome.com/docs/extensions/reference/api/storage) — 拡張機能用ストレージ、領域、クォータ、アクセスレベル。
+- [`chrome.commands`](https://developer.chrome.com/docs/extensions/reference/api/commands) — `getAll()` で実割当を取得でき、利用者が `chrome://extensions/shortcuts` で割り当てを変更する根拠。2026-08-15 確認。
 - [`chrome.history`](https://developer.chrome.com/docs/extensions/reference/api/history) — P1 の訪問回数・最終訪問日時に必要な強い権限。
 - [Extension service worker lifecycle](https://developer.chrome.com/docs/extensions/develop/concepts/service-workers/lifecycle) — グローバル変数に依存せず、停止・再開可能にする根拠。
 - [Declare permissions](https://developer.chrome.com/docs/extensions/develop/concepts/declare-permissions) — 必須・任意・host permission の設計。

@@ -1,6 +1,6 @@
 # Bookmation ドキュメント索引
 
-Bookmation は、閲覧中のページまたは指定URLを専用ストアへ保存し、メイン／サブタグと自然言語検索で見つけ直す Chrome 拡張機能である。UIスタックは Plasmo（React）+ Tailwind CSS とする。2026-08-14 時点でリポジトリにアプリ実装はなく、本ディレクトリは開発開始時の参照基準である。
+Bookmation は、閲覧中のページまたは指定URLを専用ストアへ保存し、メイン／サブタグと検索で見つけ直す Chrome 拡張機能である。UIスタックは Plasmo（React）+ Tailwind CSS とする。2026-08-15 時点でリポジトリにアプリ実装はなく、本ディレクトリは開発開始時の参照基準である。
 
 ## 最初に読む文書
 
@@ -16,7 +16,7 @@ Bookmation は、閲覧中のページまたは指定URLを専用ストアへ保
 | [FRONTEND.md](FRONTEND.md) | Chrome 拡張機能、画面、状態管理、アクセシビリティ |
 | [BACKEND.md](BACKEND.md) | MVP のローカル処理と将来の同期境界 |
 | [DB-SCHEMA.md](DB-SCHEMA.md) | IndexedDB を前提とした概念データモデル |
-| [UI.md](UI.md) | popup、最近追加ホーム、右タグメニュー、自然言語検索、3つの表示形式、参考サイトからの採用判断 |
+| [UI.md](UI.md) | popup、LIST / GRID、全画面タグ一覧、編集・設定・AI検索モーダル、無限スクロール |
 | [SECURITY.md](SECURITY.md) | 権限、個人データ、AI、共有・同期の安全要件 |
 | [AI_GUIDE.md](AI_GUIDE.md) | AI 実装ガイド。依頼どおり現在は空である |
 

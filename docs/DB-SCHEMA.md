@@ -123,6 +123,7 @@ interface TagRecord {
   id: Id
   name: string
   normalizedName: string
+  mainUniqueName?: string // 有効MAINだけに存在。SUB・論理削除MAINでは省略
   kind: "MAIN" | "SUB"
   origin: "USER" | "AI" | "IMPORT" | "SHARE"
   creationRequestId: string
@@ -138,10 +139,11 @@ interface TagRecord {
 
 - `kind` が `MAIN` なら `origin` は必ず `USER` とする。インポート等でMAINを作る場合も、ユーザーの明示確認後にユーザー作成操作として扱う。
 - `kind` が `SUB` なら `origin` は `USER`、`AI`、将来の `IMPORT` / `SHARE` を許す。P0で自動作成できる経路はAIだけであり、インポート・共有はユーザー確認を伴う別境界とする。
-- `normalizedName` は検索と候補提示に使う派生値であり、一意キーではない。同じ `kind`、同じ `normalizedName` の有効レコードを複数許可する。
-- AIは既存のユーザー作成Tagを優先して候補にし、適切な候補がない場合だけ `SUB` を作成する。名称一致だけを理由に新規作成を禁止したり、自動統合したりしない。
+- 有効な `MAIN` は `mainUniqueName = normalizedName` を必ず持ち、同じ正規化名の有効レコードを複数作らない。論理削除時は同じtransactionでこのプロパティを除去する。作成競合時は既存MAINを提示する。
+- `SUB` は `mainUniqueName` プロパティ自体を持たない。IndexedDBの索引対象外となるため、同じ `normalizedName` の別IDを複数許可する。
+- AIは既存のユーザー作成Tagを優先して候補にし、適切な候補がない場合だけ `SUB` を作成する。SUBの名称一致だけを理由に新規作成を禁止したり、自動統合したりしない。
 - AIはorigin USERのレコードを上書きしない。
-- `creationRequestId` は作成操作の冪等キーであり一意とする。意図した同名Tagの追加は新しいrequestId、同じ操作の再送は同じrequestIdを使う。AIは `jobId:proposalKey` から安定して生成する。
+- `creationRequestId` は作成操作の冪等キーであり一意とする。意図した同名SUBの追加は新しいrequestId、同じ操作の再送は同じrequestIdを使う。AIは `jobId:proposalKey` から安定して生成する。
 - 削除は初期段階でdeletedAtによる論理削除とし、参照中の即時物理削除を避ける。
 
 ### 索引
@@ -150,12 +152,13 @@ interface TagRecord {
 | --- | --- | --- |
 | byNormalizedName | normalizedName | false |
 | byKindAndName | kind, normalizedName | false |
+| byMainUniqueName | mainUniqueName | true |
 | byKindAndSortOrder | kind, sortOrder | false |
 | byOrigin | origin | false |
 | byCreationRequestId | creationRequestId | true |
 | byUpdatedAt | updatedAt | false |
 
-タグ検索の結果と右サイドバーの操作は、同名Tagを `id`、種別、作成元、利用件数で区別する。Repositoryは `findByName` を単一件返却にせず、常に候補配列を返す。
+タグ一覧と検索は、同名SUBを `id`、作成元、利用件数で区別する。MAIN作成・改名・論理削除・復元は `byMainUniqueName` と同じトランザクションで検証し、2件の有効MAINを許さない。復元時に同名MAINが存在すればCONFLICTとして利用者判断を求める。
 
 ## bookmarkTags
 
@@ -310,15 +313,11 @@ interface LocalSettings {
   settingsSchemaVersion: number
   aiEnabled: boolean
   aiGranularity: 1 | 2 | 3 | 4 | 5
-  viewMode: "LIST" | "GRID" | "BENTO"
-  gridColumns: number
-  bentoColumns: number
-  defaultSearchTarget: "TAGS" | "BOOKMARKS"
+  viewMode: "LIST" | "GRID"
   thumbnailEnabled: boolean
 }
 ~~~
 
-- 列数はUIが許可する範囲へclampする。
 - 不明なenum値は安全な既定値へ戻す。
 - 設定の破損でBookmarkデータを初期化しない。
 - 将来の同期対象にするかは設定ごとに決め、端末固有表示設定は同期しない初期案とする。
@@ -346,11 +345,11 @@ AI Hostが外形検証した結果をService Workerへメッセージ送信し�
 
 ### タグ統合
 
-sourceTagの関連をtargetTagへ移し、同じ `(bookmarkId, targetTagId)` が既にあればedgeを1件へまとめ、sourceTagを論理削除する。`MAIN` と `SUB` の間の統合は拒否する。同名Tagは正当な別レコードであるため、名称一致だけで自動統合しない。
+sourceTagの関連をtargetTagへ移し、同じ `(bookmarkId, targetTagId)` が既にあればedgeを1件へまとめ、sourceTagを論理削除する。`MAIN` と `SUB` の間の統合は拒否する。同名SUBは正当な別レコードであるため、名称一致だけで自動統合しない。
 
 ## 検索用データ
 
-自然言語検索は「Tag候補」と「Bookmark候補」を別の検索対象として扱い、それぞれ複数件を順位付きで返す。検索語、AIが展開した語、自由文の理由は既定で永続化しない。
+自然言語検索は1つの入力からTag候補とBookmark候補を同時に返す。候補集合は複数件を許すが、順位とスコアを契約に含めない。検索語、AIが展開した語、自由文の理由は既定で永続化しない。
 
 IndexedDBには全文検索がないため、正データから次の派生レコードを再生成する。規模計測前に外部全文検索ライブラリや埋め込みベクトルを導入しない。
 
@@ -366,13 +365,11 @@ interface SearchDocumentRecord {
   builtAt: EpochMs
 }
 
-interface RankedSearchCandidate {
+interface SearchCandidate {
   entityType: "TAG" | "BOOKMARK"
   entityId: Id
   entityRevision: number
-  rank: number
-  score: number
-  source: "LEXICAL" | "AI_RERANKED"
+  source: "LEXICAL" | "AI_SELECTED"
   matchedFields: string[]
 }
 ~~~
@@ -386,7 +383,7 @@ interface RankedSearchCandidate {
 | bySearchKey | searchKeys | false | `multiEntry: true` |
 
 - Bookmark文書はtitle、siteName、URL host/path等の本体文字列だけを持つ。
-- Tag文書はname、normalizedName、kind、originから生成する。同名Tagも別の `entityId` として別候補になる。
+- Tag文書はname、normalizedName、kind、originから生成する。同名SUBも別の `entityId` として別候補になる。
 - タグ名に一致したBookmark候補は、Tag文書で得た `tagId` から `bookmarkTags.byTag` をたどって生成する。Bookmark文書へタグ名を複製しないため、Tag改名時に全Bookmark文書を再構築する必要がない。
 - `sourceRevision` が正データと異なる文書は検索前または保守処理で再構築する。派生文書の欠損・破損を理由に正データを削除しない。
 - 日本語の部分一致、分かち書き、表記揺れ、ngram長は検索スキーマのバージョンを付けて変更できるようにする。
@@ -395,9 +392,9 @@ interface RankedSearchCandidate {
 
 1. AI Hostは自然言語を固定スキーマの検索語・意図へ変換する。AIが使えない場合は入力文字列をそのまま正規化する。
 2. Service Worker側で語数、文字数、対象種別を検証し、`searchDocuments` と `bookmarkTags` から上限付き候補集合を作る。
-3. 必要な場合だけAI Hostが候補集合を再順位付けする。AIへは候補IDと最小限の表示情報だけを渡す。
-4. AIが返せるのは提示済み候補IDの順序とスコアだけとし、Service Worker側でID、種別、revision、重複、件数上限を再検証する。
-5. 同点は決定的な規則で並べ、Tag検索もBookmark検索も0件以上の候補を配列で返す。候補が複数ある場合に1件へ暗黙確定せず、該当が1件だけなら1件の配列を返す。名称一致を単一IDへ暗黙変換しない。
+3. AI Hostは提示済み候補から可能性が高いID集合だけを選ぶ。AIへは候補IDと最小限の表示情報だけを渡す。
+4. Service Worker側でID、種別、revision、重複、件数上限を再検証する。AIが返した順序は捨てる。
+5. Tag / Bookmarkごとの決定的な中立順で返す。候補が複数でも1件へ暗黙確定せず、名称一致を単一IDへ暗黙変換しない。
 
 自然言語検索はDashboardが開いている間の対話操作であるため、分類Jobのような永続 `searchJobs` StoreはMVPでは設けない。AI Hostを閉じた場合は検索を中断でき、Bookmark保存や分類Jobへ影響させない。
 
@@ -419,8 +416,8 @@ interface BookmarkCursor {
 現時点の文書は未実装であるため、新規実装では本スキーマを最初の正本として作る。旧設計を試作済みの環境が存在する場合だけ、次の順序で移行する。
 
 1. 破壊的変更前にエクスポートを用意し、旧Storeをただちに削除しない。
-2. `tags` からカテゴリ参照と親Tag参照を読み飛ばせる新旧両対応Readerを先に導入する。名称のunique索引を削除し、`byKindAndName` 等の非unique索引と一意な `byCreationRequestId` を作る。
-3. 旧カテゴリは、旧仕様でユーザー作成が保証された各レコードを同名の `MAIN` Tagへ1対1変換する。旧Bookmarkがそのカテゴリを参照していた場合は対応するBookmarkTag edgeを追加する。既存Tagと同名でも統合しない。
+2. `tags` からカテゴリ参照と親Tag参照を読み飛ばせる新旧両対応Readerを先に導入し、`byMainUniqueName` と一意な `byCreationRequestId` を作る。
+3. 旧カテゴリは、旧仕様でユーザー作成が保証された各レコードを `MAIN` へ変換する。同名MAINが複数ある場合は自動削除せず競合一覧を作り、利用者が正本を選ぶまで `NEEDS_REVIEW` とする。
 4. 旧 `MAIN` Tagのうち `origin=USER` は `MAIN` のまま残す。AI等が作った旧 `MAIN` は新規則に違反するため `SUB` へ変換し、影響Bookmarkを `NEEDS_REVIEW` にする。旧 `SUB` は `SUB` のまま残し、親参照は移行後の分類に使わない。
 5. Bookmarkから旧カテゴリIDを除き、`source=CAPTURE` は取得経路が判定できる場合に `CURRENT_TAB`、判定できなければ互換値から安全な既定値へ変換する。
 6. BookmarkTagは `role` をTag.kindで再判定し、同じ `(bookmarkId, tagId)` が複数あれば最新の有効状態と監査情報を残して1件にまとめる。その後 `byBookmarkAndTag` unique索引を作る。
@@ -429,7 +426,7 @@ interface BookmarkCursor {
 9. `searchDocuments` を正データからバッチ再構築し、`migrationCursor` に完了位置を保存する。
 10. 件数、参照整合、MAIN作成元、edge一意性を確認してから新Readerへ切り替える。旧カテゴリStoreと旧フィールドは少なくとも1リリースの復旧期間後に別バージョンで削除する。
 
-変換は冪等にし、Object Store・索引変更と大量レコード変換を分ける。失敗時はUIに状態と復旧方法を示し、旧バージョン、空DB、同名Tag、複数MAIN/SUB、最大想定件数、途中中断でテストする。
+変換は冪等にし、Object Store・索引変更と大量レコード変換を分ける。失敗時はUIに状態と復旧方法を示し、旧バージョン、空DB、MAIN名競合、同名SUB、複数MAIN/SUB、最大想定件数、途中中断でテストする。
 
 未実装のため、マイグレーション成功を保証するものではない。
 
@@ -462,7 +459,8 @@ interface SyncEnvelope<T> {
 | BookmarkTagの追加同士 | 集合和 | 不要 |
 | 関連の追加と削除 | 操作時刻の新しい方。削除イベントを保持 | 不自然な結果なら必要 |
 | レコード更新と削除 | 新しい操作を採用。削除tombstoneを保持 | 多数の関連へ影響する場合は必要 |
-| 同名タグの同時作成 | 別IDの正当なTagとして両方を保持 | ユーザーが統合を選ぶ場合だけ必要 |
+| 同名MAINの同時作成 | `mainUniqueName` で1件だけ成立 | 競合側へ既存MAINを提示 |
+| 同名SUBの同時作成 | 別IDの正当なTagとして両方を保持 | ユーザーが統合を選ぶ場合だけ必要 |
 | 同じBookmarkTag edgeの同時追加 | `(bookmarkId, tagId)` で1件へ収束 | 不要 |
 | スキーマ不明 | 適用せず隔離 | 必要 |
 
@@ -498,10 +496,10 @@ interface SyncOperationRecord {
 
 - カテゴリStore・カテゴリID・Tag間の親参照が現行モデルに存在しない。
 - 同一Bookmarkに複数のMAIN、複数のSUBを割り当てられ、同じTag IDを複数Bookmarkで再利用できる。
-- 同じkind・同じnormalizedNameのTagを複数作成でき、候補が別IDのまま表示される。
+- 同じnormalizedNameの有効MAINは1件だけで、同名SUBは別IDの複数候補として表示される。
 - 同じ `(bookmarkId, tagId)` edgeは再送や同期後も1件だけである。
 - AI経路からMAIN Tagを新規作成・改名・削除できず、SUB新規作成は細分化上限と `creationRequestId` の冪等性を満たす。
-- 自然言語のTag検索とBookmark検索が候補配列を返し、AIが候補外ID、重複ID、古いrevisionを混入させても拒否する。
+- 1つの自然言語検索がTag / Bookmarkの無順位候補集合を返し、AIが候補外ID、重複ID、古いrevisionを混入させても拒否する。
 - favicon BlobはfaviconBlobIdから参照でき、参照中のBlobを回収しない。外部favicon URLを一覧表示のたびに自動読込しない。
 - AI失敗時もBookmarkが残る。
 - AI Hostを途中で閉じ、次の対応ページでJobを再開しても重複タグを作らない。

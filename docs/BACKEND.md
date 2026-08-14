@@ -37,10 +37,13 @@ PDF暫定 p.5にはバックエンド「Typescript」とある。本書ではこ
 | SaveBookmarkByUrl | ユーザーが入力したURL、任意タイトル | 保存済みBookmarkと分類Job |
 | OpenDashboardHome | popupまたはショートカットの要求 | 最近追加したBookmarkを表示する拡張機能ページ |
 | CreateUserTag | 名称、MAIN/SUB、作成要求ID | Tag。MAIN作成はこのユーザー操作だけ |
+| UpdateBookmark | bookmarkId、revision、名前、URL、Tag ID集合 | 検証済みのBookmarkと関連 |
+| DeleteBookmark | bookmarkId、revision、確認済み要求 | 論理削除結果 |
 | ClassifyBookmark | bookmarkId、細分化設定 | 既存タグ割当または検証済みの新規SUBタグ |
 | ReclassifyBookmark | bookmarkId、ユーザー指定のTag ID集合 | 新しい分類と監査記録 |
-| SearchTagsNaturalLanguage | 自然言語、件数上限 | 順位付きTag候補配列 |
-| SearchBookmarksNaturalLanguage | 自然言語、件数上限、カーソル | 順位付きBookmark候補配列 |
+| SearchAllNaturalLanguage | 自然言語、件数上限 | 無順位のTag候補集合とBookmark候補集合 |
+| SearchBookmarksByKeyword | キーワード、カーソル | Bookmarkだけのカーソルページ |
+| SearchTagsByKeyword | キーワード、カーソル | Tagだけのカーソルページ |
 | ChangeArchiveState | bookmarkId、利用者が明示した状態 | P0の手動アーカイブまたは復元後のBookmark |
 | MergeTags | sourceTagId、targetTagId | 付替え件数と結果 |
 | DeleteLocalData | 確認済みスコープ | 削除結果 |
@@ -78,7 +81,7 @@ interface ClassificationProvider {
 
 interface NaturalLanguageSearchProvider {
   plan(input: NaturalLanguageQuery): Promise<unknown>
-  rerank(input: SearchRerankInput): Promise<unknown>
+  selectLikely(input: SearchCandidateSet): Promise<unknown>
 }
 
 interface UnitOfWork {
@@ -112,6 +115,7 @@ URL指定で保存する場合はURLと任意タイトルを受け取る。`http
 - Manifestのcommandsには、現在タブ保存用とホーム表示用を別々に宣言する。受信したService Workerはコマンド名をallowlistで検証する。
 - ホーム表示は拡張機能内URLを開き、既定で `savedAt` 降順の最近追加一覧を表示する。同じホームが既に開いている場合に再利用するか新規タブにするかはUI実装で固定する。
 - popup、commands、DashboardのURL入力は別Entrypointだが、Bookmark作成、重複確認、Job永続化を重複実装しない。
+- popupは `chrome.commands.getAll()` で2 commandの現在キーを取得し、空なら未割り当てとして返す。キー変更はChromeの管理画面で利用者が行い、拡張機能内に更新APIを仮定しない。
 
 ### 重複
 
@@ -174,13 +178,13 @@ IDと名称を分け、AIが返した表示名だけで既存レコードを特�
 3. 適切なユーザー作成SUBがなければ既存のAI作成SUBを再利用する。
 4. 適切な既存SUBがなく、細分化設定で許可される場合だけ新しいSUBを提案する。
 
-AIはMAIN Tagを新規作成・改名・削除できない。既存MAINを選ぶ場合も列挙したID以外は拒否する。Tag名の重複は正当な状態であるため、名称一致だけで候補を自動統合しない。
+AIはMAIN Tagを新規作成・改名・削除できない。既存MAINを選ぶ場合も列挙したID以外は拒否する。MAINの正規化名は一意とし、同名作成要求は既存MAINを返す。SUBは同名の別IDを許し、名称一致だけで自動統合しない。
 
 ### 細分化
 
 - 細分化スライダーはAIが新規作成できるSUBの上限と、割当候補の細かさへだけ影響する。どの値でもMAINは新規作成しない。
 - 「既存のみ」では新規SUBを作らず、既存Tagだけで分類する。適切な候補がなければneeds_reviewまたはTagなしで保存する。
-- 新規SUB提案にはJob内で一意な `proposalKey` を持たせ、`creationRequestId = jobId:proposalKey` で再送を冪等にする。同名Tagを意図して追加する別Jobは別IDとして作成できる。
+- 新規SUB提案にはJob内で一意な `proposalKey` を持たせ、`creationRequestId = jobId:proposalKey` で再送を冪等にする。同名SUBを意図して追加する別Jobは別IDとして作成できる。
 - 既存Tag割当数、新規SUB数、名称長を別々に上限検証する。上限値は設定バージョンとJobへ固定する。
 - 低信頼度や候補が拮抗した場合は複数候補をneeds_reviewへ返し、名称だけで1件に決めない。
 
@@ -197,15 +201,15 @@ AIはMAIN Tagを新規作成・改名・削除できない。既存MAINを選ぶ
 
 ## 自然言語検索サービス
 
-Tag検索とBookmark検索は別ユースケースとし、どちらも0件以上の順位付き候補配列を返す。候補が複数あるときに1件へ勝手に確定せず、該当が1件だけならその1件を正直に表示する。検索結果はTag名やURLを識別子にせず、`entityType`、`entityId`、`entityRevision`、順位、スコア、照合項目を持つ。
+1つの自然言語入力からTagとBookmarkを同時に検索し、`tags` と `bookmarks` の2集合を返す。候補は「可能性が高い集合」であり、順位、スコア、最上位という契約を持たない。候補が複数でも1件へ勝手に確定しない。各候補は `entityType`、`entityId`、`entityRevision`、照合項目を持つ。
 
 ### 実行手順
 
-1. Dashboard内のAI Hostが検索対象、自然言語、件数上限を検証する。
+1. Dashboard内のAI Hostが自然言語と種類ごとの件数上限を検証する。
 2. Prompt APIが利用可能なら、AI Host内で検索意図を固定JSONスキーマの語句へ展開する。利用できなければ入力文字列をそのまま正規化する。
-3. Service Worker側が語数・長さを再検証し、IndexedDBの派生検索文書から字句候補を上限付きで取得する。Bookmark検索では一致Tag IDからBookmarkTag edgeもたどる。
-4. AI Hostは必要な場合だけ、提示された候補集合をPrompt APIで再順位付けする。AIへ候補外の作成・検索・外部アクセスを許可しない。
-5. Service Worker側が返却ID、対象種別、revision、重複、件数、スコア範囲を再検証し、最新レコードを取得して候補配列を返す。
+3. Service Worker側が語数・長さを再検証し、TagとBookmarkの字句候補集合を上限付きで取得する。Bookmark候補では一致Tag IDからBookmarkTag edgeもたどる。
+4. AI Hostは提示された候補から可能性が高いID集合だけを選ぶ。AIへ候補外の作成・検索・外部アクセスを許可しない。
+5. Service Worker側がID、対象種別、revision、重複、件数を再検証し、種類ごとの中立な決定的順序で最新レコードを返す。AIの配列順を関連度として保持しない。
 
 検索語、展開語、AIの自由文理由は既定でIndexedDB、chrome.storage.local、ログへ保存しない。自然言語検索はDashboardが開いている間だけ実行し、永続Jobにはしない。ページを閉じた場合は安全に中断し、分類Jobや保存済みBookmarkを変更しない。
 
@@ -233,7 +237,7 @@ AI Hostがclaimしたときにpendingからrunningへ条件付き更新し、att
 - SaveCurrentTabとSaveBookmarkByUrlはnormalizedUrlと保存要求IDで重複を抑止する。
 - ClassifyBookmarkはbookmarkId、分類対象のupdatedAt、設定バージョンからfingerprintを作る。
 - 同じfingerprintの成功済みJobを再適用しない。
-- Tag名の重複は許可し、作成要求IDだけを一意にする。同じユーザー操作または同じAI proposalの再送は同じTagを返し、意図した同名Tagの追加は新しい要求IDを使う。
+- MAIN名は正規化名で一意、SUB名は重複可とする。同じユーザー操作または同じAI proposalの再送は同じTagを返し、意図した同名SUBの追加は新しい要求IDを使う。
 - BookmarkTagは `(bookmarkId, tagId)` の一意索引で1件へ収束させる。
 - メッセージの再送をエラー扱いにしない。
 
@@ -258,9 +262,6 @@ AI Hostがclaimしたときにpendingからrunningへ条件付き更新し、att
 - aiEnabled
 - aiGranularity
 - viewMode
-- gridColumns
-- bentoColumns
-- defaultSearchTarget
 - thumbnailEnabled
 - settingsSchemaVersion
 
@@ -303,7 +304,8 @@ ShareEncoder Portを通じ、選択されたレコードだけをバージョン
 | AI_MODEL_NOT_READY | モデル準備未完了 | yes、対応ページとユーザー操作が必要な場合あり |
 | AI_HOST_REQUIRED | 対応するトップレベル拡張ページが開いていない | yes |
 | AI_INVALID_OUTPUT | スキーマ不正 | yes、回数制限 |
-| SEARCH_INVALID_OUTPUT | 検索計画または順位結果が不正 | no、字句検索へフォールバック |
+| SEARCH_INVALID_OUTPUT | 検索計画または候補集合が不正 | no、字句検索へフォールバック |
+| MAIN_NAME_CONFLICT | 同じ正規化名の有効MAINが存在 | no、既存MAINを選択 |
 | INVALID_URL | URL指定保存の構文またはスキームが不正 | no、入力修正 |
 | DB_QUOTA | 保存容量不足 | no、ユーザー対応 |
 | DB_TRANSACTION | DB処理失敗 | yes |
@@ -314,14 +316,14 @@ UI向けメッセージと診断情報を分ける。URL、ページタイトル
 
 ## テスト方針
 
-- Domain単体: MAINのAI作成拒否、複数main/sub、同名Tag、edge一意性、上限
+- Domain単体: MAINのAI作成拒否、MAIN名一意、SUB同名許可、複数main/sub、edge一意性、上限
 - Application単体: 現在タブ保存、URL指定保存、ホーム表示、AI失敗、再試行、重複要求
 - Repository契約: IndexedDB各実装で同じテストを実行
 - Service Worker結合: popupと2つのcommands、イベント途中の停止・再起動・メッセージ再送。Service WorkerからLanguageModelを呼ばないこと
-- AI Host結合: 分類・Tag検索・Bookmark検索の可用性、ユーザー操作、モデル取得、ページ終了、lease回収、結果再送
+- AI Host結合: 分類・共通AI検索の可用性、ユーザー操作、モデル取得、ページ終了、lease回収、結果再送
 - AIアダプター契約: 不正JSON、候補外ID、重複ID、古いrevision、長すぎる名称・検索語、プロンプト注入文字列
-- 検索: 同名Tagを別候補で返す、複数候補の安定順位、AI利用不可時の字句フォールバック
-- マイグレーション: 旧カテゴリ・親Tag・単一MAIN設計からの昇格、同名Tag、edge重複、失敗時のロールバック
+- 検索: 同名SUBを別候補で返す、Tag/Bookmarkの無順位集合、候補外ID拒否、AI利用不可時の字句フォールバック
+- マイグレーション: 旧カテゴリ・親Tag・単一MAIN設計からの昇格、MAIN名競合、同名SUB、edge重複、失敗時のロールバック
 - 将来同期: 同時編集、削除対編集、重複タグ、オフライン復帰
 
 現時点ではテストコードも実行結果も存在しない。

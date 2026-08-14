@@ -39,8 +39,8 @@
 | --- | --- | --- |
 | Webページ → 拡張機能 | URL、title、meta、画像、本文 | 長さ制限、スキーム検証、HTMLとして描画しない |
 | UI → Service Worker | message payload | schemaVersion、型、送信元、件数、IDの検証 |
-| AI Host Document → Service Worker | Job結果、検索順位、requestId、lease | 外形検証だけを信用せず、候補ID、対象種別、revision、Domain規則を再検証 |
-| AI → Application | 分類JSON、検索計画、順位、タグ名、ID | 固定スキーマ、候補ID制限、Domain再検証 |
+| AI Host Document → Service Worker | Job結果、検索候補集合、requestId、lease | 外形検証だけを信用せず、候補ID、対象種別、revision、Domain規則を再検証 |
+| AI → Application | 分類JSON、検索計画、候補集合、タグ名、ID | 固定スキーマ、候補ID制限、Domain再検証 |
 | QR/ファイル → Import | 外部ペイロード | サイズ、バージョン、チェックサム、全フィールド検証 |
 | Drive → Sync | 古い・改変・競合データ | ETag、スキーマ、競合マージ、tombstone |
 | IndexedDB → UI | 保存済み文字列 | Reactのテキスト描画、URLプロトコル検証 |
@@ -84,18 +84,18 @@ IndexedDB利用だけを理由に追加権限は要求しない。全サイト�
 
 ## プロンプトインジェクション対策
 
-Webページ由来のタイトル、URL、meta、将来の本文、およびユーザーが入力する自然言語検索には「以前の指示を無視せよ」などの命令が含まれ得る。ローカルモデルであっても、誤分類、不正な検索順位、不正なアプリ操作の危険は残る。
+Webページ由来のタイトル、URL、meta、将来の本文、およびユーザーが入力する自然言語検索には「以前の指示を無視せよ」などの命令が含まれ得る。ローカルモデルであっても、誤分類、不正な候補選択、不正なアプリ操作の危険は残る。
 
 ### 防御
 
 1. ページ由来データを命令ではなく引用されたデータとして区切る。
 2. システム側の固定指示と出力JSONスキーマをアプリ側で管理する。
-3. AIへ渡す既存Tagと検索対象をID付き候補リストに限定する。同名TagもIDを省略しない。
+3. AIへ渡す既存Tagと検索対象をID付き候補リストに限定する。同名SUBもIDを省略しない。
 4. AIはMAIN Tagの作成・改名・削除、BookmarkやTagの削除、共有、権限要求、外部アクセスを実行できない。
 5. 出力をJSONスキーマで検証し、候補外ID、過剰件数、長い名称、制御文字を拒否する。
 6. Tag.kind、Tag.origin、MAIN作成元、Bookmark revision、同一edge、件数上限をDomainで再検証する。
 7. AI生成タグに生成元を記録し、編集・統合・取り消しを可能にする。
-8. 低信頼度、候補外、同名候補の曖昧な選択は自動適用せずneeds_reviewへ送る。名称重複自体はエラーにしない。
+8. 低信頼度、候補外、同名SUB候補の曖昧な選択は自動適用せずneeds_reviewへ送る。MAINの正規化名重複はDomainで拒否する。
 9. AIが返したURL、Markdown、HTML、コードを実行またはリンク化しない。
 10. ページ本文の送信をMVP既定で行わず、必要性を別途検証する。
 
@@ -109,14 +109,14 @@ Webページ由来のタイトル、URL、meta、将来の本文、およびユ�
 - 候補にないtagIdまたはbookmarkId
 - AIによるMAIN新規作成要求
 - 上限を超えるsubTags
-- 検索順位への重複ID、別entityType、古いrevisionの混入
+- 検索候補集合への重複ID、別entityType、古いrevisionの混入
 - HTML、Markdownリンク、script文字列を含むタグ名
 
 ## AIとプライバシー
 
 - PDF確定 p.8はGemini Nano利用を定めているが、Prompt APIの実際のデータ処理、モデル取得、テレメトリ、対象環境は公式仕様で確認する。
 - Chrome Prompt APIのLanguageModelはWeb Workerから利用できないため、Service Workerで可用性確認、モデル取得、セッション作成、分類・検索実行を行わない。
-- AIによる分類、自然言語の検索計画、候補再順位付けは、対応を実証したトップレベル拡張ページ内だけで実行する。DashboardとSide Panelのどちらを使うかは [ISSUE-001](./ISSUES.md) で確認し、Offscreen Documentで使えるとは仮定しない。
+- AIによる分類、自然言語の検索計画、候補集合の選択は、対応を実証したトップレベル拡張ページ内だけで実行する。DashboardとSide Panelのどちらを使うかは [ISSUE-001](./ISSUES.md) で確認し、Offscreen Documentで使えるとは仮定しない。
 - 初回モデル取得にユーザーアクティベーションが必要な場合は、AI Hostの明示操作から開始する。
 - 「端末内AI」という表示は、実装した経路と公式仕様で確認できた場合だけ使う。
 - AIが利用不可でも、保存、手動タグ付け、正規化語による字句検索を使えるようにする。
@@ -148,7 +148,7 @@ Chromeプロファイルへアクセスできる同一端末の攻撃者から�
 
 ## 操作の安全性
 
-- タグ削除、統合、大量再分類は影響件数を表示する。同名Tagは別IDの正当なデータであり、名称一致だけで統合しない。
+- タグ削除、統合、大量再分類は影響件数を表示する。同名SUBは別IDの正当なデータであり、名称一致だけで統合しない。MAINの同名作成は拒否する。
 - アーカイブは削除と分け、元に戻せる。
 - 物理削除はUndo猶予またはごみ箱を検討する。
 - Tag削除時は参照中のBookmarkTag edge件数を示し、解除、統合、取消のいずれかを明示選択させる。
@@ -190,7 +190,7 @@ PDF確定 p.8の将来機能であり、MVPでは未実装である。
 - Manifestの権限が使用機能と一致し、不要なhost_permissionsがない。
 - popupと2つのcommandsがallowlist済み操作だけを起動し、URL指定保存が不正スキーム・過大入力を拒否する。
 - AIがMAIN Tagを新規作成・改名・削除できず、候補外Tag IDを選択できない。
-- 同名Tagを複数保持できる一方、同じ `(bookmarkId, tagId)` edgeや同じ作成要求の再送は重複しない。
+- MAIN名は一意、同名SUBは複数保持できる一方、同じ `(bookmarkId, tagId)` edgeや同じ作成要求の再送は重複しない。
 - 自然言語のTag検索とBookmark検索で、候補外ID、別entityType、重複ID、古いrevision、上限超過を拒否する。
 - Service Worker内にLanguageModelセッション作成・prompt実行コードがなく、AI Host候補の実行可否が実機で確認されている。
 - Prompt injection文字列からスクリプト実行、外部通信、削除、共有が起きない。

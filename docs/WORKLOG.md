@@ -127,6 +127,39 @@
 | `AI_GUIDE.md` | 0バイトのままである |
 | 実装検証 | `package.json`がないため、build、lint、Chrome実機確認は実行不能 |
 
+## 2026-08-15 — デザインシート準拠のUI要件更新
+
+### 目的
+
+最新の明示要件と `デザインシート.svg` をUI正本として、旧右サイドメニュー・弁当表示・分離AI検索を新しい画面構成へ置き換える。
+
+### 変更
+
+- SVGをPNGへ一時レンダリングして、grid / list、共通header、件数、各項目のedit、全画面Tag一覧、close、Bookmark編集modal、back-to-topを目視確認した。SVG自体は編集していない。
+- Bookmark listをsticky keyword header、AI button、件数、LIST / GRID、MAIN常時表示、SUB disclosure、全項目edit、cursor infinite scroll、back-to-topへ更新した。
+- Tag listを全画面、sticky tag-only keyword、AI button、close、infinite scroll、back-to-topへ更新した。
+- 共通AI検索を1フォーム、Bookmark / Tag別の無順位候補集合とし、rank / score / best表示と自動遷移を廃止した。
+- Bookmark editorをname、URL、MAIN / SUB、確認付きdeleteのmodal、AI細分化sliderをsettings modalとした。
+- popupへ `chrome.commands.getAll()` による実キー／未割当表示とChrome shortcut管理への変更案内を追加した。
+- Tag不変条件をMAIN正規化名一意、SUB同名別ID可へ変更し、DB、backend、security、task、運用文書へ反映した。
+- 2026-08-14のWORKLOGにある右sidebar、3表示、全tag一括展開、全tag同名許可は当時の履歴であり、本節と現行要件により置換済みである。
+
+### 検証
+
+| 確認項目 | 結果 |
+| --- | --- |
+| 差分形式 | `git diff --check` 成功 |
+| Markdown | 22ファイル、fence不整合0件、base nameは全て大文字規則に一致 |
+| リンク | fence内templateを除く相対リンク199件、見出しリンク11件、参照エラー0件 |
+| 旧UI識別子 | active specに旧search route/use case、ranked candidate、grid/bento列設定、BENTO enum、右追従sidebarの採用記述0件 |
+| `AI_GUIDE.md` | 0バイトを維持 |
+| SVG | SHA-256 `c704c52370a61cc30dba54481e134bbd638acf775695690b92275512c4d181d8`。確認前後で同一 |
+| 実装検証 | `package.json` とアプリソースがないためbuild、test、Chrome実機確認は未実施 |
+
+### 残課題
+
+- Prompt API host、shortcut管理画面の直接遷移可否、候補上限、page size、responsive gridは [ISSUES.md](ISSUES.md) のspikeで確定する。
+
 ## 追記テンプレート
 
 ```markdown

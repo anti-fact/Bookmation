@@ -24,11 +24,11 @@
 ## P1 — 最初のprototype前
 
 - [ ] **TODO-007: 分類fixtureを10件作る**
-  - 完了条件: 既存メインタグ一致/不一致、ユーザー定義サブタグ一致/不一致、同名の別IDタグ、細分化0〜4のサブタグ上限を含む、個人情報のないテストデータを用意する。
+  - 完了条件: 既存MAIN一致/不一致、MAIN同名拒否、USER SUB一致/不一致、同名SUB別ID、細分化0〜4の新規SUB上限を含むfixtureを用意する。
 - [ ] **TODO-008: 重複URLの期待動作を決める**
   - 完了条件: URL正規化、再保存、タグ統合、利用者確認の4ケースを [REQUIREMENTS.md](REQUIREMENTS.md) または [DB-SCHEMA.md](DB-SCHEMA.md) に記録する。
 - [ ] **TODO-009: 表示設定の初期値を決める**
-  - 完了条件: 初期表示形式、グリッド/弁当の列数、タグ展開状態、自然言語検索の初期モードを [UI.md](UI.md) に記録する。
+  - 完了条件: LIST / GRIDの初期値、SUB展開状態、sticky header、back-to-top表示閾値を [UI.md](UI.md) に記録する。
 - [ ] **TODO-010: 最小権限一覧をmanifest作成前にレビューする**
   - 完了条件: 各権限について利用機能、要求タイミング、権限なしの代替動作を [SECURITY.md](SECURITY.md) に記録する。
 - [ ] **TODO-011: service worker中断の手動テスト手順を書く**
@@ -37,8 +37,10 @@
   - 完了条件: [REFERENCES.md](REFERENCES.md) の参照日、確認済み事実、推測を区別し、変化した箇所を [UI.md](UI.md) に反映する。
 - [ ] **TODO-013: commandsの既定shortcut候補を検証する**
   - 完了条件: Chromeと主要OSで「現在ページを保存」「ホームを開く」の競合を確認し、変更方法と競合時の表示を [UI.md](UI.md) とmanifest設計へ記録する。
-- [ ] **TODO-014: 自然言語検索fixtureと順位評価を作る**
-  - 完了条件: タグ検索・ブックマーク検索それぞれ10件以上の質問、期待候補集合、AI利用不可時のfallbackを用意し、候補を複数返すことと未知IDを返さないことを検証できる。
+- [ ] **TODO-014: 共通AI検索fixtureと集合評価を作る**
+  - 完了条件: 10件以上の質問、期待Bookmark / Tag集合、AI不可時fallbackを用意し、順位に依存せず候補を複数返し未知IDを拒否できる。
+- [ ] **TODO-015: デザインシートのtokenを抽出する**
+  - 完了条件: 色、余白、文字、角丸、sticky header、dialogの再利用tokenを記録し、SVGを直接改変しない。
 
 ## 完了済み
 
