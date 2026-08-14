@@ -82,6 +82,51 @@
 - 依存バージョン、パッケージマネージャー、ショートカット初期値、自然言語検索の候補数・品質、細分化上限は [ISSUES.md](ISSUES.md) のスパイクで確定する。
 - 初期実装は [PLANS.md](PLANS.md) に従い、保存から最近追加ホームまでの縦切りPlanを先に作る。
 
+## 2026-08-14 — README整備と文書名の大文字化
+
+### 目的
+
+リポジトリを開いた人がBookmationの目的、主要機能、タグ規則、技術構成、現在の実装状態をREADMEだけで把握できるようにし、Markdown文書の命名を統一する。
+
+### 変更
+
+- `README.md` をプロダクト概要、主要機能、AI分類、技術構成、画面フロー、文書案内、現在の始め方を含む入口文書へ更新した。
+- `docs/index.md` を `docs/INDEX.md`、`docs/db-schema.md` を `docs/DB-SCHEMA.md`、`docs/tech-debt-tracker.md` を `docs/TECH-DEBT-TRACKER.md` へ変更した。
+- `AGENTS.md` と全Markdown文書の参照先・表示名を新しいファイル名へ更新した。
+
+### 検証
+
+| 確認項目 | 結果 |
+| --- | --- |
+| Markdownファイル名 | `README.md`、`AGENTS.md`、`docs/`直下19文書のベース名がすべて大文字規則に一致 |
+| Markdownリンク | README、AGENTS、docsを含む相対リンク192件、見出しリンク13件を検査し、参照先漏れ0件 |
+| 旧ファイル名参照 | 現行リンクへの `index.md`、`db-schema.md`、`tech-debt-tracker.md` の残存0件 |
+| `AI_GUIDE.md` | 0バイトのままである |
+| 実装検証 | `package.json` がないため、build、lint、Chrome実機確認は実行不能 |
+
+## 2026-08-14 — 実装タスク一覧の作成
+
+### 目的
+
+チームがBookmationの実装を依存順に分担できるよう、短期TODOや未決定事項とは別に、利用者へ届く成果と完了条件を持つワークパッケージを定義する。
+
+### 変更
+
+- `docs/TASKS.md`を追加し、文書の責務、状態、優先度、P0クリティカルパス、12件のP0 Task、4件のP1候補、直近の着手順、更新規則を記録した。
+- `AGENTS.md`、`README.md`、`docs/INDEX.md`から`TASKS.md`へ到達できるようにした。
+- `TODO.md`を小規模作業、`TASKS.md`を実装ワークパッケージ、`PLANS.md`を長時間作業の実行規約として区別した。
+
+### 検証
+
+| 確認項目 | 結果 |
+| --- | --- |
+| 文書数 | `docs/`直下のMarkdownは20ファイル |
+| Markdownリンク | README、AGENTS、docsを含む相対リンク213件、見出しリンク13件を検査し、参照先漏れ0件 |
+| 文書名 | 全Markdownのベース名が大文字規則に一致 |
+| `AGENTS.md` | `docs/`直下20文書を過不足なく列挙 |
+| `AI_GUIDE.md` | 0バイトのままである |
+| 実装検証 | `package.json`がないため、build、lint、Chrome実機確認は実行不能 |
+
 ## 追記テンプレート
 
 ```markdown

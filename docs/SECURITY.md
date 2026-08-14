@@ -4,7 +4,7 @@
 
 - 状態: **提案・未実装・未監査**
 - 対象: Chrome Manifest V3拡張機能、ローカル保存、ローカルAI、将来のQR共有とGoogle Drive同期
-- 関連: [全体設計](./DESIGN.md) / [バックエンド](./BACKEND.md) / [DBスキーマ](./db-schema.md) / [制約](./CONSTRAINTS.md) / [トラブル解決](./TROUBLESHOOTING.md)
+- 関連: [全体設計](./DESIGN.md) / [バックエンド](./BACKEND.md) / [DBスキーマ](./DB-SCHEMA.md) / [制約](./CONSTRAINTS.md) / [トラブル解決](./TROUBLESHOOTING.md)
 
 本書は安全性の目標と実装時の確認項目を定める。実装、脅威分析レビュー、侵入試験、Chrome Web Store審査はまだ行っていないため、安全性が確認済みであるとは示さない。
 
@@ -181,7 +181,7 @@ PDF確定 p.8の将来機能であり、MVPでは未実装である。
 - Drive側障害や認証失効でもローカル編集を継続し、同期状態を明示する。
 - データの追加暗号化が必要かは脅威モデルと復旧要件を踏まえて決める。
 
-競合規則は [DBスキーマ](./db-schema.md#将来同期の競合設計) に定義する。
+競合規則は [DBスキーマ](./DB-SCHEMA.md#将来同期の競合設計) に定義する。
 
 ## セキュリティ受入条件
 

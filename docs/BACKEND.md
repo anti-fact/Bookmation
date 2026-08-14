@@ -4,7 +4,7 @@
 
 - 状態: **提案・未実装**
 - MVP形態: リモートサーバーを持たない、Chrome拡張機能内のアプリケーション層
-- 関連: [全体設計](./DESIGN.md) / [DBスキーマ](./db-schema.md) / [フロントエンド](./FRONTEND.md) / [セキュリティ](./SECURITY.md) / [制約](./CONSTRAINTS.md)
+- 関連: [全体設計](./DESIGN.md) / [DBスキーマ](./DB-SCHEMA.md) / [フロントエンド](./FRONTEND.md) / [セキュリティ](./SECURITY.md) / [制約](./CONSTRAINTS.md)
 
 PDF暫定 p.5にはバックエンド「Typescript」とある。本書ではこれを独立サーバーの確定要件とは解釈せず、Manifest V3 Service Worker、アプリケーションサービス、Repository、トップレベル拡張ページ内のAIアダプターをTypeScriptで実装する提案とする。
 
@@ -249,7 +249,7 @@ AI Hostがclaimしたときにpendingからrunningへ条件付き更新し、att
 
 ### IndexedDB
 
-ブックマーク、タグ、関連、分類ジョブ、検索用派生文書を保存する。スキーマと索引は [DBスキーマ](./db-schema.md) に定義する。
+ブックマーク、タグ、関連、分類ジョブ、検索用派生文書を保存する。スキーマと索引は [DBスキーマ](./DB-SCHEMA.md) に定義する。
 
 ### chrome.storage.local
 

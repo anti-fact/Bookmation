@@ -5,7 +5,7 @@
 - 状態: **設計確定・実装前**
 - 対象: Chrome 拡張機能として開発する Bookmation の全体設計
 - 更新日: 2026-08-14
-- 関連: [要件](./REQUIREMENTS.md) / [制約](./CONSTRAINTS.md) / [フロントエンド](./FRONTEND.md) / [バックエンド](./BACKEND.md) / [DBスキーマ](./db-schema.md) / [UI設計](./UI.md) / [セキュリティ](./SECURITY.md)
+- 関連: [要件](./REQUIREMENTS.md) / [制約](./CONSTRAINTS.md) / [フロントエンド](./FRONTEND.md) / [バックエンド](./BACKEND.md) / [DBスキーマ](./DB-SCHEMA.md) / [UI設計](./UI.md) / [セキュリティ](./SECURITY.md)
 
 現時点のリポジトリには実装がない。本書は最新の確定要件を実装可能な境界へ落とした設計であり、コード、Chrome 実機、Gemini Nano の動作確認が完了したことを意味しない。
 
@@ -227,7 +227,7 @@ Service Worker はいつでも停止され得る前提で設計する。Prompt A
 
 MVP の Repository 境界を保ったまま、将来 SyncAdapter を追加する。保存先は appDataFolder を候補とする。OAuth scope、Chrome Web Store 審査、offline 競合は実装前に検証する。
 
-競合は黙って一方を消さず、共通祖先からの三者 merge を基本とする。scalar 値は更新時刻と deviceId、タグ関連は追加・削除 event を統合し、同名タグや名称競合は要確認として残す。詳細は [DBスキーマ](./db-schema.md#将来同期の競合設計) を参照する。
+競合は黙って一方を消さず、共通祖先からの三者 merge を基本とする。scalar 値は更新時刻と deviceId、タグ関連は追加・削除 event を統合し、同名タグや名称競合は要確認として残す。詳細は [DBスキーマ](./DB-SCHEMA.md#将来同期の競合設計) を参照する。
 
 ### QR 共有
 

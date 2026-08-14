@@ -21,7 +21,7 @@ Plan は実装の進行に合わせて更新する living document である。�
 
 ## 保存場所と名前
 
-Plan は `docs/plans/YYYY-MM-DD-短い名称.md` に置く。`AGENTS.md` にはPlan本文を書かず、必要なら [docs/index.md](index.md) から案内する。完了後も判断の履歴として残し、状態を `完了` に変更する。
+Plan は `docs/plans/YYYY-MM-DD-短い名称.md` に置く。`AGENTS.md` にはPlan本文を書かず、必要なら [docs/INDEX.md](INDEX.md) から案内する。完了後も判断の履歴として残し、状態を `完了` に変更する。
 
 ## 必須原則
 
@@ -142,4 +142,4 @@ Plan は `docs/plans/YYYY-MM-DD-短い名称.md` に置く。`AGENTS.md` にはP
 - 完了時: 実際に実行した検証と結果を記録し、「結果と残課題」を埋める。
 - 範囲変更時: 対象・対象外、受け入れ条件、マイルストーンを同時に更新する。
 
-Planから生じた小さな後続作業は [TODO.md](TODO.md)、未解決の不具合や判断待ちは [ISSUES.md](ISSUES.md)、意図的な暫定実装は [tech-debt-tracker.md](tech-debt-tracker.md) に移す。
+Planから生じた小さな後続作業は [TODO.md](TODO.md)、未解決の不具合や判断待ちは [ISSUES.md](ISSUES.md)、意図的な暫定実装は [TECH-DEBT-TRACKER.md](TECH-DEBT-TRACKER.md) に移す。

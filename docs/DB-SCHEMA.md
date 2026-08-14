@@ -4,7 +4,7 @@
 
 - 状態: **提案・未実装・マイグレーション未検証**
 - MVP保存先: ドメインデータはIndexedDB、設定はchrome.storage.local
-- 関連: [全体設計](./DESIGN.md) / [バックエンド](./BACKEND.md) / [セキュリティ](./SECURITY.md) / [技術的負債](./tech-debt-tracker.md)
+- 関連: [全体設計](./DESIGN.md) / [バックエンド](./BACKEND.md) / [セキュリティ](./SECURITY.md) / [技術的負債](./TECH-DEBT-TRACKER.md)
 
 本書は関係を表形式で説明するが、MVPはRDBではなくIndexedDBのObject Storeとして実装する提案である。SQL DDLではない。
 

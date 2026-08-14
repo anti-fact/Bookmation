@@ -8,7 +8,7 @@ Bookmationを長期間開発しても変わりにくいプロダクト知識と�
 - 未解決問題: [ISSUES.md](ISSUES.md)
 - 詳細要件: [REQUIREMENTS.md](REQUIREMENTS.md)
 - 設計判断: [DESIGN.md](DESIGN.md)
-- 暫定実装: [tech-debt-tracker.md](tech-debt-tracker.md)
+- 暫定実装: [TECH-DEBT-TRACKER.md](TECH-DEBT-TRACKER.md)
 
 ## 長期的に維持するプロダクト像
 
@@ -33,7 +33,7 @@ Bookmationを長期間開発しても変わりにくいプロダクト知識と�
 - 同一の `bookmarkId + tagId` 関連を1件に保つことは書込みの冪等性の問題であり、上記の同名タグや複数タグを禁止する意味ではない。
 - 自動分類は利用者が確定した割り当てを無断で上書きしない。由来を追跡できるようにする。
 
-詳細な関係は [db-schema.md](db-schema.md) を正本とする。
+詳細な関係は [DB-SCHEMA.md](DB-SCHEMA.md) を正本とする。
 
 ## UI・検索の不変条件
 
@@ -54,7 +54,7 @@ Bookmationを長期間開発しても変わりにくいプロダクト知識と�
 - 派生データや検索インデックスは、正本データから再構築できるようにする。
 - 破壊的な移行や削除には、事前確認、バックアップまたは復旧経路を用意する。
 
-詳細な脅威と権限方針は [SECURITY.md](SECURITY.md)、保存形式は [db-schema.md](db-schema.md) に置く。
+詳細な脅威と権限方針は [SECURITY.md](SECURITY.md)、保存形式は [DB-SCHEMA.md](DB-SCHEMA.md) に置く。
 
 ## 用語
 

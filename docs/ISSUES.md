@@ -8,7 +8,7 @@
 - `Open`: 判断材料または担当が不足している。
 - `Spike`: 小さな検証コードや実機確認が必要である。
 - `Decided`: 結論と根拠を関連文書へ反映済みである。
-- 実装中に意図して先送りした品質問題は [tech-debt-tracker.md](tech-debt-tracker.md) へ移す。
+- 実装中に意図して先送りした品質問題は [TECH-DEBT-TRACKER.md](TECH-DEBT-TRACKER.md) へ移す。
 - 1 PR 程度で判断不要な作業は [TODO.md](TODO.md) へ置く。
 
 ## 一覧

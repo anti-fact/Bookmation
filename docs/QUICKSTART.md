@@ -19,11 +19,11 @@ git status --short --branch
 次の順で読む。
 
 1. ルートの `AGENTS.md` — 文書への目次。詳細仕様の正本にはしない。
-2. [index.md](index.md) — 目的別の文書索引。
+2. [INDEX.md](INDEX.md) — 目的別の文書索引。
 3. [REQUIREMENTS.md](REQUIREMENTS.md) と [CONSTRAINTS.md](CONSTRAINTS.md) — 何を作るか、何が制約か。
-4. [DESIGN.md](DESIGN.md)、[FRONTEND.md](FRONTEND.md)、[BACKEND.md](BACKEND.md)、[db-schema.md](db-schema.md) — 実装方針。
+4. [DESIGN.md](DESIGN.md)、[FRONTEND.md](FRONTEND.md)、[BACKEND.md](BACKEND.md)、[DB-SCHEMA.md](DB-SCHEMA.md) — 実装方針。
 5. [SECURITY.md](SECURITY.md) と [UI.md](UI.md) — データ保護と画面挙動。
-6. [TODO.md](TODO.md)、[ISSUES.md](ISSUES.md)、[tech-debt-tracker.md](tech-debt-tracker.md) — 作業候補と既知の課題。
+6. [TODO.md](TODO.md)、[ISSUES.md](ISSUES.md)、[TECH-DEBT-TRACKER.md](TECH-DEBT-TRACKER.md) — 作業候補と既知の課題。
 
 作業を選ぶ前に、文書だけの小規模作業か、Execution Planが必要な作業かを [PLANS.md](PLANS.md) で判定する。実施内容と検証結果は [WORKLOG.md](WORKLOG.md) に追記する。
 
@@ -88,4 +88,4 @@ Prompt APIの初回モデル取得には利用者の操作、対応環境、空�
 - 小さな作業を選ぶ: [TODO.md](TODO.md)
 - 初期実装を計画する: [PLANS.md](PLANS.md)
 - 実装前の問題を確認する: [ISSUES.md](ISSUES.md)
-- 設計の暫定箇所を確認する: [tech-debt-tracker.md](tech-debt-tracker.md)
+- 設計の暫定箇所を確認する: [TECH-DEBT-TRACKER.md](TECH-DEBT-TRACKER.md)

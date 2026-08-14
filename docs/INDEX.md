@@ -15,7 +15,7 @@ Bookmation は、閲覧中のページまたは指定URLを専用ストアへ保
 | --- | --- |
 | [FRONTEND.md](FRONTEND.md) | Chrome 拡張機能、画面、状態管理、アクセシビリティ |
 | [BACKEND.md](BACKEND.md) | MVP のローカル処理と将来の同期境界 |
-| [db-schema.md](db-schema.md) | IndexedDB を前提とした概念データモデル |
+| [DB-SCHEMA.md](DB-SCHEMA.md) | IndexedDB を前提とした概念データモデル |
 | [UI.md](UI.md) | popup、最近追加ホーム、右タグメニュー、自然言語検索、3つの表示形式、参考サイトからの採用判断 |
 | [SECURITY.md](SECURITY.md) | 権限、個人データ、AI、共有・同期の安全要件 |
 | [AI_GUIDE.md](AI_GUIDE.md) | AI 実装ガイド。依頼どおり現在は空である |
@@ -25,9 +25,10 @@ Bookmation は、閲覧中のページまたは指定URLを専用ストアへ保
 | 文書 | 役割 |
 | --- | --- |
 | [PLANS.md](PLANS.md) | 長時間・複雑タスク用 Execution Plan の規約 |
+| [TASKS.md](TASKS.md) | チームで分担する実装ワークパッケージ、依存関係、完了条件 |
 | [TODO.md](TODO.md) | 1 PR 程度で完了できる小規模タスク |
 | [ISSUES.md](ISSUES.md) | 未決定事項・プロダクト上の問題 |
-| [tech-debt-tracker.md](tech-debt-tracker.md) | 意図して先送りする技術的負債 |
+| [TECH-DEBT-TRACKER.md](TECH-DEBT-TRACKER.md) | 意図して先送りする技術的負債 |
 | [TROUBLESHOOTING.md](TROUBLESHOOTING.md) | 症状から原因確認と復旧へ進む手引き |
 | [WORKLOG.md](WORKLOG.md) | 実施済み作業と検証結果の時系列記録 |
 | [MEMORY.md](MEMORY.md) | 長期間変えない用語・判断・不変条件 |
