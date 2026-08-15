@@ -6,11 +6,11 @@
 - MVP形態: リモートサーバーを持たない、Chrome拡張機能内のアプリケーション層
 - 関連: [全体設計](./DESIGN.md) / [DBスキーマ](./DB-SCHEMA.md) / [フロントエンド](./FRONTEND.md) / [セキュリティ](./SECURITY.md) / [制約](./CONSTRAINTS.md)
 
-PDF暫定 p.5にはバックエンド「Typescript」とある。本書ではこれを独立サーバーの確定要件とは解釈せず、Manifest V3 Service Worker、アプリケーションサービス、Repository、トップレベル拡張ページ内のAIアダプターをTypeScriptで実装する提案とする。
+独立したリモートサーバーは置かず、Manifest V3 Service Worker、アプリケーションサービス、Repository、トップレベル拡張ページ内のAIアダプターをTypeScriptで実装する。
 
 ## MVPでサーバーを置かない理由
 
-- PDF確定 p.8でAIはGemini Nano、同一ユーザー同期はGoogle Driveとされている。
+- P0は端末内AIとローカル保存を中心にする。
 - 拡張機能専用ブックマークをローカルで扱う確定要件と整合する。
 - ハッカソンMVPでアカウント、認証、サーバー運用、データ保護範囲を増やさずに済む。
 - AIが使えない場合も手動分類へフォールバックできる。
@@ -48,7 +48,7 @@ PDF暫定 p.5にはバックエンド「Typescript」とある。本書ではこ
 | MergeTags | sourceTagId、targetTagId | 付替え件数と結果 |
 | DeleteLocalData | 確認済みスコープ | 削除結果 |
 
-PDF確定 p.8の訪問回数候補、最終訪問日時に基づく自動アーカイブ候補、QR共有、Drive同期は将来ユースケースであり、MVPの完了条件に含めない。履歴を使わず利用者が明示実行する手動アーカイブと復元だけはP0に含める。
+訪問回数候補、自動アーカイブ候補、QR共有、Drive同期は削除済み旧資料由来の保留項目であり、再承認されるまで実装しない。履歴を使わず利用者が明示実行する手動アーカイブと復元だけはP0に含める。
 
 ## Portインターフェース案
 
@@ -140,7 +140,7 @@ Bookmark保存とClassificationJob作成を同じIndexedDBトランザクショ�
 
 ### Provider境界
 
-PDF確定 p.8のGemini Nanoを、分類と自然言語検索で共有するChromePromptProvider境界の後ろに置く。Chrome Prompt APIのLanguageModelはWeb Workerから利用できないため、このProviderをManifest V3 Service Workerで生成・実行してはならない。
+Chrome Prompt API / Gemini Nano候補を、分類と自然言語検索で共有するChromePromptProvider境界の後ろに置く。Chrome Prompt APIのLanguageModelはWeb Workerから利用できないため、このProviderをManifest V3 Service Workerで生成・実行してはならない。
 
 Providerは、対応を実証したトップレベル拡張機能ドキュメント内だけで生成する。DashboardとSide Panelを候補とし、正確なホスト、Prompt APIのメソッド、可用性、モデル準備、ユーザーアクティベーション、対象Chrome、配布要件は [ISSUE-001](./ISSUES.md) の技術スパイクで確認する。Offscreen Document対応を仮定せず、現時点では動作確認済みとしない。
 
@@ -272,7 +272,7 @@ AI Hostがclaimしたときにpendingからrunningへ条件付き更新し、att
 MVPの初期候補は storage と activeTab である。commandsはManifest宣言として「現在タブを保存」「ホームを開く」の2ショートカットを定義する。IndexedDB自体に拡張権限は不要である。
 
 - scripting、tabs、history、identity、alarms、広いhost_permissionsは必要性を技術スパイクで実証してから追加する。
-- PDF確定 p.8の訪問回数機能にはhistory権限が必要になる可能性が高いため、MVPと分け、実行直前の任意権限として設計する。
+- 保留中の訪問回数機能を再承認する場合は、history権限をMVPと分け、実行直前の任意権限として設計する。
 - Google Drive同期では将来identity/OAuthを追加するが、MVP Manifestには含めない。
 - サムネイル取得がactiveTabだけで成立するかを検証し、不足する場合は機能縮小を先に検討する。
 
@@ -282,7 +282,7 @@ MVPの初期候補は storage と activeTab である。commandsはManifest宣�
 
 ### 訪問回数と自動保存候補
 
-PDF確定 p.8の追加機能である。history権限を常時要求せず、機能をユーザーが有効にした時だけ任意権限として要求する。自動保存はせず、候補と根拠を提示して確認を得る。
+旧企画由来の保留機能である。再承認されるまでは実装しない。承認後もhistory権限を常時要求せず、機能をユーザーが有効にした時だけ任意権限として要求する。
 
 ### 休眠ブックマークのアーカイブ
 

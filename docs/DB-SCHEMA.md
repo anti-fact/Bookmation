@@ -17,7 +17,7 @@
 - 確定要件: 同じ表示名・正規化名のタグを複数作成できる。タグの同一性は名称ではなく `id` で判断する。
 - 確定要件: 1件のBookmarkへ `MAIN` と `SUB` をそれぞれ複数割り当てられ、同じTagを複数のBookmarkで再利用できる。
 - 設計判断: `MAIN` と `SUB` の間に親子関係を設けない。表示上の区分とAI作成権限だけを `Tag.kind` で表す。
-- PDF確定 p.8の訪問回数、最終訪問、QR、Drive同期向けフィールドは将来用とし、MVPで不要なデータは収集しない。
+- 訪問回数、最終訪問、QR、Drive同期向けフィールドは旧企画由来の保留案とし、MVPで収集しない。
 
 ## 関係
 
@@ -114,7 +114,7 @@ URL hashだけをuniqueにしない。hash衝突と、正規化規則の更新�
 
 faviconUrlは取得元の記録または未キャッシュ時の候補であり、一覧表示のたびに外部URLへアクセスするための値ではない。取得・検証できた画像はfaviconBlobIdでローカルBlobを参照し、取得できなければ文字ベースの代替表示を使う。
 
-lastVisitedAtとvisitCountはPDF確定 p.8の追加機能用である。history権限がないMVPではnullのままにし、推測値を入れない。`MANUAL_URL` でも入力値をそのまま信用せず、許可スキーム、長さ、正規化結果を検証する。
+lastVisitedAtとvisitCountは保留中の追加機能用である。history権限がないMVPではnullのままにし、推測値を入れない。`MANUAL_URL` でも入力値をそのまま信用せず、許可スキーム、長さ、正規化結果を検証する。
 
 ## tags
 
@@ -432,7 +432,7 @@ interface BookmarkCursor {
 
 ## 将来同期の競合設計
 
-PDF確定 p.8のGoogle Drive同期向けの提案であり、MVPでは関連Storeも同期処理も実装しない。
+旧企画由来のGoogle Drive同期案であり、再承認されるまで関連Storeも同期処理も実装しない。
 
 ### 同期Envelope
 

@@ -67,7 +67,7 @@
 - [ ] MAIN を常時表示し、SUB を click / keyboard disclosure、pointer hover preview で表示する。
 - [ ] 全項目に edit button を置き、name、URL、MAIN / SUB、確認付き delete の modal を実装する。
 - [ ] cursor infinite scroll、追加失敗 retry、終端、back-to-top を実装する。
-- [ ] 弁当表示、列数設定、右 sidebar がないことを確認する。
+- [ ] 弁当表示、列数設定、表示数変更プルダウン、右 sidebar がないことを確認する。
 - 完了条件: デザインシートに沿う LIST / GRID を keyboard で検索・閲覧・編集できる。
 
 ### TASK-006: Full-screen Tag UI
@@ -131,14 +131,16 @@
 - [ ] [REQUIREMENTS.md](REQUIREMENTS.md) の P0 を照合する。
 - 完了条件: 新規 Chrome profile で手順を再現し、未完了を明示できる。
 
-## P1 候補
+## 保留中の旧企画候補
+
+削除済みの旧資料に由来するため、再承認されるまで着手しない。
 
 | ID | Task | 状態 |
 | --- | --- | --- |
-| TASK-101 | 訪問回数から未保存ページを提案 | Backlog |
-| TASK-102 | 休眠 Bookmark の archive 候補を提案 | Backlog |
-| TASK-103 | 選択 Bookmark の QR 共有 | Backlog |
-| TASK-104 | Google Drive 端末間同期 | Backlog |
+| TASK-101 | 訪問回数から未保存ページを提案 | 保留 |
+| TASK-102 | 休眠 Bookmark の archive 候補を提案 | 保留 |
+| TASK-103 | 選択 Bookmark の QR 共有 | 保留 |
+| TASK-104 | Google Drive 端末間同期 | 保留 |
 
 ## 更新規則
 

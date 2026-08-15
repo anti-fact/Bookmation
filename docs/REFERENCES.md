@@ -25,16 +25,9 @@
 - 拡張機能アイコンのポップアップに「現在ページを保存」と「ホームを開く」の2ボタンを置き、同じ2操作のショートカットを別々用意する。
 - URL 指定でも保存できる。ホームは最近追加したブックマーク一覧とする。
 
-### 添付 PDF
+### 削除済みの旧企画 PDF
 
-[合同ハッカソン - Google ドキュメント.pdf](../合同ハッカソン%20-%20Google%20ドキュメント.pdf)
-
-- p.2–3「アイデア」: 複数案のブレインストーミング。確定要件として扱わない。
-- p.5–6「仮案」: Bookmation、ユーザー定義タグ、Plasmo + React + Tailwind、TypeScript、共有案等の候補。
-- p.8「確定事項」: Chrome 拡張、Gemini Nano、ワンアクション、カード UI、段階読込、訪問回数提案、アーカイブ、QR、Google Drive 同期。
-- p.10: 単一リポジトリ、担当案、Linear 利用希望。
-
-埋め込みテキストを `pypdf` で抽出し、10ページ構成として確認した。OCR は行っていない。区切りページを含み、外部リンク先の内容は PDF 要件として検証していない。PDF は 2026-08-14 時点で Git 未追跡であるため、共有方法は [ISSUES.md](ISSUES.md) の ISSUE-012 で扱う。
+旧企画 PDF は情報が古いため、2026-08-15 にリポジトリから削除した。現行要件・設計・実装判断の根拠には使わない。過去に参照した事実だけを [WORKLOG.md](WORKLOG.md) の履歴として残す。
 
 ## UI 参考サイト
 
@@ -74,15 +67,13 @@ UI 参考サイトは静的確認が中心であり、全ブレークポイン�
 - [`activeTab` permission](https://developer.chrome.com/docs/extensions/develop/concepts/activeTab) — 明示操作時だけ現在タブへ一時アクセスする設計根拠。
 - [`chrome.storage`](https://developer.chrome.com/docs/extensions/reference/api/storage) — 拡張機能用ストレージ、領域、クォータ、アクセスレベル。
 - [`chrome.commands`](https://developer.chrome.com/docs/extensions/reference/api/commands) — `getAll()` で実割当を取得でき、利用者が `chrome://extensions/shortcuts` で割り当てを変更する根拠。2026-08-15 確認。
-- [`chrome.history`](https://developer.chrome.com/docs/extensions/reference/api/history) — P1 の訪問回数・最終訪問日時に必要な強い権限。
 - [Extension service worker lifecycle](https://developer.chrome.com/docs/extensions/develop/concepts/service-workers/lifecycle) — グローバル変数に依存せず、停止・再開可能にする根拠。
 - [Declare permissions](https://developer.chrome.com/docs/extensions/develop/concepts/declare-permissions) — 必須・任意・host permission の設計。
 - [Remote hosted code violations](https://developer.chrome.com/docs/extensions/develop/migrate/remote-hosted-code) — Manifest V3 で実行コードを同梱する根拠。
 
-### 実装候補と同期
+### 実装基盤
 
-- [Plasmo Framework](https://docs.plasmo.com/framework) — PDF 仮案にもある Chrome 拡張開発基盤。Plasmo（React ベース）+ Tailwind CSS の採用は最新の利用者要件で確定した。対応バージョン、ビルド、CSP、lockfile は実装時に検証する。
-- [Google Drive: Store application-specific data](https://developers.google.com/drive/api/guides/appdata) — `appDataFolder`、`drive.appdata` scope、利用者 UI から隠れるアプリ専用データ。P1 同期の候補であり、共有用途には使わない。
+- [Plasmo Framework](https://docs.plasmo.com/framework) — Chrome 拡張開発基盤。Plasmo（React ベース）+ Tailwind CSS の採用は利用者要件で確定した。対応バージョン、ビルド、CSP、lockfile は実装時に検証する。
 
 ### アクセシビリティ
 
@@ -94,5 +85,5 @@ UI 参考サイトは静的確認が中心であり、全ブレークポイン�
 
 - 外部サイトと Chrome API は更新される。実装開始時とリリース前に公式資料を再確認する。
 - UI サイトの観察結果と Bookmation の採用判断は [UI.md](UI.md) で分けて記録する。
-- PDF の「仮案」を、動作確認済み技術や確定要件として表現しない。ただし、最新の利用者依頼で明示的に確定された Plasmo（React ベース）+ Tailwind CSS は例外である。
+- 削除済みの旧企画 PDF を現行要件の根拠として再導入しない。
 - Chrome Prompt API の端末要件を満たすことを、すべての利用者に仮定しない。

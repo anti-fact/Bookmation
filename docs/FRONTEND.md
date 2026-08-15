@@ -58,7 +58,7 @@ popup は `chrome.commands.getAll()` の `name` と `shortcut` を command allow
 
 ## LIST / GRID
 
-`ViewModeControl` は `LIST | GRID` のラジオグループとする。弁当 enum と列数設定を持たない。GRID は `grid-template-columns: repeat(auto-fit, minmax(...))` 等の responsive CSS で列数を決める。DOM 順と視覚順を一致させる。
+`ViewModeControl` は `LIST | GRID` のラジオグループとする。弁当 enum、列数設定、表示件数プルダウンを持たない。GRID は `grid-template-columns: repeat(auto-fit, minmax(...))` 等の responsive CSS で列数を決める。DOM 順と視覚順を一致させる。
 
 `BookmarkItem` は MAIN tag chip を常時描画する。SUB は button disclosure で開閉し、`aria-expanded` / `aria-controls` を設定する。hover preview を追加する場合も `@media (hover: hover)` に限定し、フォーカス／クリック経路を維持する。
 
