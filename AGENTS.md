@@ -10,6 +10,7 @@
 - [docs/DB-SCHEMA.md](docs/DB-SCHEMA.md)
 - [docs/UI.md](docs/UI.md)
 - [docs/SECURITY.md](docs/SECURITY.md)
+- [docs/TESTING.md](docs/TESTING.md)
 - [docs/PLANS.md](docs/PLANS.md)
 - [docs/TASKS.md](docs/TASKS.md)
 - [docs/QUICKSTART.md](docs/QUICKSTART.md)

@@ -11,24 +11,25 @@
 ## モデル上の判断
 
 - 確定要件: Chrome既存ブックマークとは別のBookmation専用レコードを使う。
-- 確定要件: 親子階層は持たず、分類ラベルはカテゴリ（`CATEGORY`）とタグ（`TAG`）の2種類だけにする。
+- 確定要件: カテゴリを親、タグを子とする1段階の階層を持つ。全TAGレコードは物理的に存在するCATEGORYレコードを1件参照し、ACTIVE TAGはACTIVE CATEGORYを親に持つ。削除済みTAGだけは削除済みCATEGORYを参照できる。カテゴリを持たないタグやタグの子要素は許可しない。
 - 確定要件: カテゴリを新規作成できるのはユーザーだけである。AIは既存カテゴリを選択できるが、作成・改名・削除はできない。
 - 確定要件: タグはユーザー定義を優先して再利用し、適切な候補がない場合だけAIが細分化設定の範囲内で作成できる。
-- 確定要件: カテゴリ名は正規化後に一意、タグ名は重複を許す。分類ラベルの同一性は名称ではなく `id` で判断する。
-- 確定要件: 1件のBookmarkへカテゴリとタグをそれぞれ複数割り当てられ、同じ分類ラベルを複数のBookmarkで再利用できる。
-- 設計判断: カテゴリとタグの間に親子関係を設けない。表示上の区分とAI作成権限だけを `Label.kind` で表す。
+- 確定要件: カテゴリ名とタグ名はそれぞれ正規化後に全体で一意とする。タグ名は親カテゴリをまたいでも重複を許さず、分類ラベルの同一性は名称ではなく `id` で判断する。
+- 確定要件: 1件のBookmarkへカテゴリとタグをそれぞれ複数割り当てられ、同じ分類ラベルを複数のBookmarkで再利用できる。ただしタグを割り当てる場合は、その親カテゴリも同じBookmarkへ割り当てる。
+- 設計判断: `Label.kind` と `parentCategoryId` で1段階の親子関係を表す。カテゴリは `parentCategoryId=null`、タグは有効なカテゴリIDを必須とし、タグの親変更は通常の名前編集とは分けた明示的な再配置操作が定義されるまで許可しない。
 - P1確定要件: 訪問回数・最終訪問日時、文字列のアーカイブ状態、リマインダー、インポート、QR共有、Drive同期を本スキーマで扱う。
 
 ## 関係
 
 | エンティティA | エンティティB | 多重度 | 規則 |
 | --- | --- | --- | --- |
+| Category Label | Tag Label | 1対多 | TagのparentCategoryIdで関連付ける。Tagは親を1件だけ持つ |
 | Bookmark | Label | 多対多 | BookmarkLabelで関連付ける。同じ組は1件だけ |
 | Bookmark | ClassificationJob | 1対多 | 再分類履歴をジョブ単位で残す |
 | Bookmark | BookmarkRevision | 1対多 | AI・ユーザー変更の監査とUndo候補 |
 | Bookmark / Label | SearchDocument | 1対0または1 | 再生成可能な検索用派生データ |
 
-カテゴリとタグはどちらも0件以上である。件数上限はAI出力と一括操作の安全上限として別に検証し、ドメインを単一カテゴリに制限しない。
+カテゴリとタグはどちらも0件以上であり、1件のBookmarkは複数カテゴリに所属できる。タグ関連の親カテゴリ関連は同じtransactionで補完し、カテゴリ関連を外す場合はそのカテゴリ配下のタグ関連も同時に外す。
 
 ## 共通型
 
@@ -38,6 +39,13 @@ type EpochMs = number
 type EntityOrigin = "USER" | "AI" | "IMPORT" | "SHARE"
 type LabelKind = "CATEGORY" | "TAG"
 type ArchiveState = "ACTIVE" | "ARCHIVED"
+type JsonValue =
+  | null
+  | boolean
+  | number
+  | string
+  | JsonValue[]
+  | { [key: string]: JsonValue }
 type ClassificationState =
   | "PENDING"
   | "RUNNING"
@@ -47,7 +55,7 @@ type ClassificationState =
   | "CANCELED"
 ~~~
 
-IDで保存するドメインJSONドキュメントは次の共通Envelopeを満たす。`schemaMeta` と設定等のkey-addressed documentは、固有keyと対応するschema versionを必須にする。
+通常のID付きドメインJSONドキュメントは次の共通Envelopeを満たす。`ArchivedBookmarkRecord` だけは、トップレベルの `id` / `archiveState`、版を持つ `metadata`、最小利用者データの `payload` を分離し、時刻・revision等を `ArchiveOperationRecord` に持たせる。`schemaMeta` と設定等のkey-addressed documentは、固有keyと対応するschema versionを必須にする。
 
 ~~~ts
 interface JsonDocumentEnvelope {
@@ -60,35 +68,65 @@ interface JsonDocumentEnvelope {
 
 - IDはUUID等の衝突しにくい文字列とする。生成方式は実装時に決定する。
 - 時刻はUTCのEpoch millisecondsで保存し、表示時にローカル時刻へ変換する。
-- 表示名とは別にnormalizedNameを持つ。Unicode正規化、前後空白除去、大小文字処理の規則をバージョン管理する。
+- 表示名とは別にnormalizedNameとnameNormalizationVersionを持つ。Label名の一意性用正規化は後述のv1へ固定し、検索token正規化と混同しない。
 - 同期対象になり得るレコードにはupdatedAt、revision、deviceId、deletedAtを追加できる共通Envelopeを用意する。
 - JSONに表現できない `undefined`、関数、循環参照、非有限数、BigIntを拒否する。日時は文字列化せずEpoch millisecondsへ統一する。
 - `BlobRecord.data` だけはJSON外のstructured clone値であり、JSON側からID参照する。QR、Drive、exportへBlob本体を暗黙に含めない。
+
+## Label名正規化v1
+
+カテゴリ／タグの一意性判定には、project内へvendorしたUnicode 15.1.0データbundleだけを正本として、次の順序を固定する。bundleはNFKCに必要な正規化・composition data、`White_Space`、`Default_Ignorable_Code_Point`、General Category、`CaseFolding.txt` を含める。runtime ICU、`String.prototype.normalize()`、実行環境のUnicode property escapeを正本として使わない。
+
+1. Unicode 15.1.0のvendored property tableで、raw入力にGeneral Category `Cs` または `Default_Ignorable_Code_Point` が1文字でもあれば変換前に拒否する。
+2. vendored normalization dataでUnicode 15.1.0のNFKCを実行する。
+3. vendored `White_Space` tableでTAB／LF等を含む連続文字をASCII space 1文字へ置換し、先頭末尾を除去する。
+4. 空白処理後に残るGeneral Category `Cc` / `Cs` または `Default_Ignorable_Code_Point` を拒否する。したがってNUL、ゼロ幅空白、方向制御、BOM、ZWJ、variation selectorはv1で許可しない。
+5. vendored Unicode 15.1.0 `CaseFolding.txt` のstatus CとFだけを使い、F mappingがある場合はF、なければCを適用するfull case foldを行う。status S / T、runtime locale、runtime lowercaseへ委ねない。
+6. 結果を同じ `Cc` / `Cs` / `Default_Ignorable_Code_Point` 集合で再検証する。結果が空、長さ上限超過、または禁止文字を含む場合は保存しない。禁止集合を実行環境のUnicode更新へ追随させず、normalization versionの更新として明示的に変更する。
+
+v1 fixtureは最低限次を固定し、Category／Tag作成、改名、Import、同期で同じ関数を使う。
+
+| raw input | v1結果 |
+| --- | --- |
+| `  Ｐｙｔｈｏｎ　入門 ` | `python 入門` |
+| `A\t\nB` | `a b` |
+| `Straße` | `strasse` |
+| `ab\u200Bcd` | reject |
+| `ab\u202Ecd` | reject |
+| `a\u0000b` | reject |
+| `a\u200Db` | reject |
+| `text\uFE0F` | reject |
+
+検索tokenの表記揺れ、ngram、読み仮名等は `searchSchemaVersion` の派生規則であり、LabelのnormalizedNameや一意性を変更しない。検索規則を更新してもLabel IDの統合・改名を起こさない。vendored bundleのSHA-256は実assetから実装時に生成してschemaMetaとbuild定数へ固定する。本書ではasset未作成のためhash値を捏造・例示しない。
 
 ## Object Store一覧
 
 | Store | Key path | MVP | 用途 |
 | --- | --- | --- | --- |
 | bookmarks | id | 必須 | 拡張機能専用ブックマーク |
-| labels | id | P0必須 | 平坦なカテゴリ／タグ |
-| bookmarkLabels | id | P0必須 | BookmarkとLabelの関連 |
+| labels | id | P0必須 | 親カテゴリと、そのカテゴリに所属するタグ |
+| bookmarkLabels | id | P0必須 | BookmarkとCategory／Tagの整合した関連 |
 | classificationJobs | id | 必須 | 中断・再試行可能なAIジョブ |
 | bookmarkRevisions | id | 推奨 | 直前分類のUndoと監査 |
-| searchDocuments | id | 必須 | BookmarkとTagの再生成可能な検索用データ |
+| searchDocuments | id | 必須 | BookmarkとCategory／Tagの再生成可能な検索用データ |
 | blobs | id | 条件付き | サムネイル等のBlobとメタ情報 |
 | schemaMeta | key | 必須 | DBバージョン、移行状態 |
 | visitReminders | id | P1必須 | 訪問閾値到達後の通知と再通知抑止 |
+| archiveOperations | id | P1必須 | アーカイブ理由・時刻・復元状態。最小payloadと分離 |
 | importJobs | id | P1必須 | Chrome標準Bookmark取込の進捗と結果 |
 | syncOutbox | id | P1必須 | Google Driveへの未同期操作 |
+| syncSnapshots | id | P1必須 | 競合のbase／local／remoteを再現するimmutable snapshot |
 | syncConflicts | id | P1必須 | 自動解決できない競合 |
 | syncState | key | P1必須 | deviceId、接続状態、最終同期状態 |
+| undoOperations | id | 必須 | Bookmark／Category／Tag論理削除の短期Undo |
 
 ## bookmarks
 
 ~~~ts
-interface BookmarkRecord {
+interface ActiveBookmarkRecord {
   schemaVersion: number
   id: Id
+  archiveState: "ACTIVE"
   rawUrl: string
   normalizedUrl: string
   urlHash: string
@@ -98,7 +136,6 @@ interface BookmarkRecord {
   faviconUrl: string | null
   faviconBlobId: Id | null
   thumbnailBlobId: Id | null
-  archiveState: "ACTIVE" | "ARCHIVED"
   classificationState:
     | "UNCLASSIFIED"
     | "PENDING"
@@ -115,21 +152,46 @@ interface BookmarkRecord {
     | "QR_IMPORT"
   savedAt: EpochMs
   updatedAt: EpochMs
-  archivedAt: EpochMs | null
-  archiveReason: "USER" | "INACTIVE" | null
   lastVisitedAt: EpochMs | null
   visitCount: number | null
   revision: number
   deletedAt: EpochMs | null
+  deleteOperationId: Id | null
+  deletedRevision: number | null
 }
+
+interface ArchivedBookmarkRecord {
+  id: Id
+  archiveState: "ARCHIVED"
+  metadata: {
+    schemaVersion: number
+  }
+  payload: {
+    title: string
+    url: string
+    categories: Array<{
+      categoryId: Id
+      name: string
+    }>
+    tags: Array<{
+      tagId: Id
+      name: string
+      parentCategoryId: Id
+    }>
+  }
+}
+
+type BookmarkRecord = ActiveBookmarkRecord | ArchivedBookmarkRecord
 ~~~
+
+`ARCHIVED` は保存制御用のトップレベルID／状態と `metadata`、利用者データの `payload` を構造上分離する。payloadにはカテゴリ、タグ、ページ名、URLだけを残す。アーカイブ理由、時刻、revision、同期状態は別の `archiveOperations` に分離する。アーカイブ時に `siteName`、favicon／thumbnail参照、訪問回数、最終訪問日時、分類状態、取得元をpayloadへ複製しない。
 
 ### 索引
 
 | 索引 | keyPath | unique | 用途 |
 | --- | --- | --- | --- |
 | byUrlHash | urlHash | false | 重複候補の高速検索。取得後にnormalizedUrlを比較 |
-| byArchiveStateSavedAt | archiveState, savedAt | false | 一覧とアーカイブ |
+| byArchiveState | archiveState | false | ACTIVE／ARCHIVEDの分離 |
 | byClassificationState | classificationState | false | 未分類・要確認キュー |
 | bySavedAt | savedAt | false | 追加読み込みカーソル |
 | byUpdatedAt | updatedAt | false | 差分・同期候補 |
@@ -138,7 +200,9 @@ URL hashだけをuniqueにしない。hash衝突と、正規化規則の更新�
 
 faviconUrlは取得元の記録または未キャッシュ時の候補であり、一覧表示のたびに外部URLへアクセスするための値ではない。取得・検証できた画像はfaviconBlobIdでローカルBlobを参照し、取得できなければ文字ベースの代替表示を使う。
 
-`lastVisitedAt` と `visitCount` は、利用者が訪問機能を有効化して `history` 権限を許可した場合だけChrome履歴から更新する。権限がない場合や履歴に該当URLがない場合は `null` とし、`savedAt` から推測しない。自動アーカイブは `lastVisitedAt=null` のBookmarkを変更しない。`MANUAL_URL` でも入力値をそのまま信用せず、許可スキーム、長さ、正規化結果を検証する。
+`lastVisitedAt` と `visitCount` は、利用者が訪問機能を有効化して `history` 権限を許可した場合だけACTIVEレコードへ更新する。権限がない場合や履歴に該当URLがない場合は `null` とし、`savedAt` から推測しない。自動アーカイブは `lastVisitedAt=null` のBookmarkを変更しない。`MANUAL_URL` でも入力値をそのまま信用せず、許可スキーム、長さ、正規化結果を検証する。
+
+`deletedAt=null` のActive Bookmarkでは `deleteOperationId` と `deletedRevision` もnullとする。論理削除済みなら両方を必須とし、`deletedRevision` は削除transactionで増分した現在revisionと一致させる。favicon／thumbnail参照はtombstoneへ残し、Undo期限と同期tombstone保持期間の双方が終わるまで参照Blobを回収しない。
 
 ## labels
 
@@ -148,8 +212,11 @@ interface LabelRecord {
   id: Id
   name: string
   normalizedName: string
-  categoryUniqueName?: string // 有効カテゴリだけに存在。タグ・論理削除カテゴリでは省略
+  nameNormalizationVersion: 1
+  categoryUniqueName?: string // CATEGORYなら論理削除後も保持。TAGでは省略
+  tagUniqueName?: string // TAGなら論理削除後も保持。CATEGORYでは省略
   kind: "CATEGORY" | "TAG"
+  parentCategoryId: Id | null // CATEGORYはnull、TAGは物理的に存在するCATEGORY IDが必須
   origin: "USER" | "AI" | "IMPORT" | "SHARE"
   creationRequestId: string
   sortOrder: number
@@ -157,19 +224,23 @@ interface LabelRecord {
   updatedAt: EpochMs
   revision: number
   deletedAt: EpochMs | null
+  deleteOperationId: Id | null
+  deletedRevision: number | null
 }
 ~~~
 
 ### 不変条件
 
-- `kind` がカテゴリを表す `CATEGORY` なら `origin` は必ず `USER` とする。インポート等でカテゴリを作る場合も、ユーザーの明示確認後にユーザー作成操作として扱う。
-- `kind` がタグを表す `TAG` なら `origin` は `USER`、`AI`、P1の `IMPORT` / `SHARE` を許す。P0で自動作成できる経路はAIだけであり、インポート・共有はユーザー確認を伴う別境界とする。
-- 有効カテゴリは `categoryUniqueName = normalizedName` を必ず持ち、同じ正規化名の有効レコードを複数作らない。論理削除時は同じtransactionでこのプロパティを除去する。作成競合時は既存カテゴリを提示する。
-- タグは `categoryUniqueName` プロパティ自体を持たない。IndexedDBの索引対象外となるため、同じ `normalizedName` の別IDを複数許可する。
-- AIは既存のユーザー作成タグを優先して候補にし、適切な候補がない場合だけ `TAG` を作成する。タグの名称一致だけを理由に新規作成を禁止したり、自動統合したりしない。
+- `kind="CATEGORY"` なら `parentCategoryId=null` かつ `origin="USER"` とする。インポート等でカテゴリを作る場合も、ユーザーの明示確認後にユーザー作成操作として扱う。
+- `kind="TAG"` なら `parentCategoryId` は物理的に存在する `CATEGORY` のIDを必須とし、`origin` は `USER`、`AI`、P1の `IMPORT` / `SHARE` を許す。ACTIVE TAGはACTIVE CATEGORYだけを参照できる。削除済みTAGはACTIVEまたは削除済みCATEGORYを参照できるが、親CATEGORY record自体が欠損してはならない。
+- CATEGORYは論理削除状態を問わず `categoryUniqueName = normalizedName` を持ち、同じ正規化名の別IDを作らない。論理削除でもunique keyを外さず、物理回収後だけ名前を再利用できる。
+- TAGは論理削除状態を問わず `tagUniqueName = normalizedName` を持ち、`categoryUniqueName` は持たない。親カテゴリが同じか異なるかを問わず、同じ正規化名の別IDを作らない。論理削除でもunique keyを外さない。
+- AIは意味候補の並びではorigin USERを優先するが、`tagUniqueName` の競合判定はoriginを問わず全TAGを対象にする。同じ正規化名があれば既存TAGを再評価し、親カテゴリと意味が適合する場合だけそのIDを再利用する。親または意味が適合しなければ別IDを作らずNEEDS_REVIEWにする。
 - AIはorigin USERのレコードを上書きしない。
-- `creationRequestId` は作成操作の冪等キーであり一意とする。意図した同名タグの追加は新しいrequestId、同じ操作の再送は同じrequestIdを使う。AIは `jobId:proposalKey` から安定して生成する。
-- 削除は初期段階でdeletedAtによる論理削除とし、参照中の即時物理削除を避ける。
+- `kind` とタグの `parentCategoryId` は通常の編集モーダルでは変更しない。現行P0は親カテゴリを読取専用表示し、変更要求を拒否する。親変更を将来実装する場合は [ISSUE-019](./ISSUES.md) を解決し、影響Bookmarkの親カテゴリ関連を再計算する専用transactionとUndoを必須にする。
+- `creationRequestId` は作成操作の冪等キーであり一意とする。同じ操作の再送は同じrequestIdを使い、別requestIdでも既存と同じ正規化タグ名なら新規作成を拒否する。AIは `jobId:proposalKey` から安定して生成する。
+- 削除は初期段階でdeletedAtによる論理削除とし、参照中の即時物理削除を避ける。CATEGORYの物理回収は、ACTIVE／削除済みを問わず `parentCategoryId` がそのIDであるTAG recordが0件になるまでBLOCKする。
+- `deletedAt=null` なら `deleteOperationId` / `deletedRevision` もnullとし、論理削除済みなら両方を必須にして `deletedRevision=revision` とする。復元後は両方をnullへ戻す。
 
 ### 索引
 
@@ -177,13 +248,16 @@ interface LabelRecord {
 | --- | --- | --- |
 | byNormalizedName | normalizedName | false |
 | byKindAndName | kind, normalizedName | false |
+| byParentCategory | parentCategoryId | false |
+| byParentCategoryAndName | parentCategoryId, normalizedName | false |
 | byCategoryUniqueName | categoryUniqueName | true |
+| byTagUniqueName | tagUniqueName | true |
 | byKindAndSortOrder | kind, sortOrder | false |
 | byOrigin | origin | false |
 | byCreationRequestId | creationRequestId | true |
 | byUpdatedAt | updatedAt | false |
 
-カテゴリ一覧と検索は、同名タグを `id`、作成元、利用件数で区別する。カテゴリの作成・改名・論理削除・復元は `byCategoryUniqueName` と同じトランザクションで検証し、同名の有効カテゴリを許さない。復元時に同名カテゴリが存在すればCONFLICTとして利用者判断を求める。
+カテゴリ／タグの作成・改名・論理削除・復元は、それぞれ `byCategoryUniqueName` / `byTagUniqueName` と同じtransactionで検証する。タグ作成は有効な親カテゴリも同時に再確認する。同名の論理削除済みLabelがあれば別ID作成を拒否し、既存IDの明示的な復元または別名を案内する。unique keyがtombstoneに予約されるため、削除後の同名作成によってUndo競合を生じさせない。
 
 ## bookmarkLabels
 
@@ -200,16 +274,20 @@ interface BookmarkLabelRecord {
   updatedAt: EpochMs
   revision: number
   deletedAt: EpochMs | null
+  deleteOperationId: Id | null
+  deletedRevision: number | null
 }
 ~~~
 
 ### 不変条件
 
 - 同じ `bookmarkId` と `labelId` の組は、論理削除済みも含めて1レコードだけとする。再割当時は既存レコードの `deletedAt` を戻し、別レコードを追加しない。
-- 同じBookmarkにはカテゴリとタグをそれぞれ複数割り当てられる。種別は参照先 `Label.kind` から取得し、関連側に重複保持しない。
-- 同じLabelを複数のBookmarkから参照できる。名称が同じ別タグは別の `labelId` として扱う。
+- 同じBookmarkにはカテゴリとタグをそれぞれ複数割り当てられる。TAG edgeを追加または復元する時は、その `parentCategoryId` のCATEGORY edgeも同じtransactionで追加または復元する。
+- CATEGORY edgeを解除する時は、同じBookmarkに付いた配下TAGのedgeも同じtransactionで論理削除する。TAG edgeだけを解除した場合、親CATEGORY edgeは自動解除せず、カテゴリ欄とタグ欄を独立編集できるようにする。
+- 同じLabelを複数のBookmarkから参照できる。名称変更や同期後も関連は表示名ではなく `labelId` で維持する。
 - AI適用はユーザーが割り当てた関連を暗黙に削除しない。置換操作は対象差分を明示し、BookmarkRevisionへ残す。
 - confidenceはAI割当時だけ0〜1の値を許し、それ以外はnull。
+- `deletedAt=null` なら `deleteOperationId` / `deletedRevision` もnullとし、論理削除済みなら両方を必須にして `deletedRevision=revision` とする。
 
 ### 索引
 
@@ -220,11 +298,18 @@ interface BookmarkLabelRecord {
 | byLabel | labelId | false |
 | byClassificationJob | classificationJobId | false |
 
-`byBookmarkAndLabel` は名称重複を禁止する索引ではなく、同じ2つのIDを結ぶedgeの二重作成だけを禁止する。tombstoneを同じレコードで再有効化するため、論理削除とも両立する。
+`byBookmarkAndLabel` はLabel名の一意性を担う索引ではなく、同じ2つのIDを結ぶedgeの二重作成だけを禁止する。名称一意性はlabelsのkind別一意索引で扱う。tombstoneを同じレコードで再有効化するため、論理削除とも両立する。
 
 ## classificationJobs
 
 ~~~ts
+type ClassificationPolicySnapshot =
+  | { policyVersion: 1; granularity: 0; maxNewTags: 0 }
+  | { policyVersion: 1; granularity: 1; maxNewTags: 1 }
+  | { policyVersion: 1; granularity: 2; maxNewTags: 2 }
+  | { policyVersion: 1; granularity: 3; maxNewTags: 4 }
+  | { policyVersion: 1; granularity: 4; maxNewTags: 6 }
+
 interface ClassificationJobRecord {
   schemaVersion: number
   id: Id
@@ -239,8 +324,7 @@ interface ClassificationJobRecord {
   inputFingerprint: string
   bookmarkRevision: number
   settingsVersion: number
-  granularity: 1 | 2 | 3 | 4 | 5
-  maxNewTags: number
+  policy: ClassificationPolicySnapshot
   maxAssignedCategories: number
   maxAssignedTags: number
   provider: "CHROME_PROMPT"
@@ -265,7 +349,7 @@ interface ClassificationJobRecord {
 - byBookmarkCreatedAt: bookmarkId, createdAt
 - byFingerprint: inputFingerprint
 
-同じ入力fingerprintのSUCCEEDEDがある場合は再適用しない。JobはService Worker内でAI実行しない。長時間RUNNINGのJobはAI Hostのトップレベル拡張ページが閉じた可能性があるため、lease期限後、attempt上限内でPENDINGへ戻せる。
+同じ入力fingerprintのSUCCEEDEDがある場合は再適用しない。Job作成時に設定値から上記discriminated unionを生成し、`granularity` と `maxNewTags` の任意の組合せを受け付けない。policyVersionをfingerprintへ含め、後から設定や対応表が変わっても実行中Jobの上限を変えない。JobはService Worker内でAI実行しない。長時間RUNNINGのJobはAI Hostのトップレベル拡張ページが閉じた可能性があるため、lease期限後、attempt上限内でPENDINGへ戻せる。
 
 ## bookmarkRevisions
 
@@ -292,7 +376,7 @@ interface BookmarkRevisionRecord {
 }
 ~~~
 
-完全なBookmarkスナップショットを無期限保存せず、Undoに必要な分類差分だけを短期間保持する。保持件数と期間は実測後に決める。
+完全なBookmarkスナップショットを無期限保存せず、Undoに必要な分類差分だけを短期間保持する。CATEGORY／TAGの階層整合を検証し、`tagIds` の全親が `categoryIds` に含まれる状態だけを記録する。保持件数と期間は実測後に決める。
 
 ## blobs
 
@@ -325,15 +409,22 @@ interface SchemaMetaRecord {
   key: "database"
   schemaVersion: number
   normalizationVersion: number
+  unicodeVersion: "15.1.0"
+  unicodeDataAssetSha256: string
   searchSchemaVersion: number
   migrationState: "IDLE" | "RUNNING" | "FAILED"
   migrationId: string | null
-  migrationCursor: { store: string; lastKey: IDBValidKey | null } | null
+  migrationCursor: {
+    store: string
+    lastKey: string | number | Array<string | number> | null
+  } | null
   updatedAt: EpochMs
 }
 ~~~
 
-IndexedDBのversionとアプリ内部のschemaVersionを対応付ける。途中失敗を検知できるよう、長いデータ変換は小さい段階に分ける。
+IndexedDBのversionとアプリ内部のschemaVersionを対応付ける。`normalizationVersion=1` は `unicodeVersion="15.1.0"` とproject-vendored data bundleの実SHA-256を必須とする。`unicodeDataAssetSha256` は実asset生成後にbuild工程で算出・固定し、読込時にbuild定数と照合する。本書やfixtureへ仮hashを置かない。不一致ならLabelの作成・改名・Import・同期を停止し、破壊的な自動再正規化を行わない。
+
+途中失敗を検知できるよう、長いデータ変換は小さい段階に分ける。migrationCursor.lastKeyはJSON round-trip可能な文字列、有限数、またはそれらだけの配列に限定し、Date、ArrayBuffer、binary key、NaN、Infinity、undefined、入れ子配列を保存しない。対象Storeのkeyをこの型へ可逆変換できない移行は、別の明示的cursor形式をschema version付きで定義する。
 
 ## chrome.storage.localの設定
 
@@ -342,20 +433,30 @@ IndexedDBのversionとアプリ内部のschemaVersionを対応付ける。途中
 ~~~ts
 interface LocalSettings {
   settingsSchemaVersion: number
+  onboardingState: {
+    status: "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED"
+    currentStepId: string | null
+    initializedBy: "INSTALL"
+    updatedAt: EpochMs
+  }
   aiEnabled: boolean
-  aiGranularity: 1 | 2 | 3 | 4 | 5
+  aiGranularity: 0 | 1 | 2 | 3 | 4
   viewMode: "LIST" | "GRID"
   thumbnailEnabled: boolean
   frequentVisitReminderEnabled: boolean
   frequentVisitThreshold: number
-  autoArchiveEnabled: boolean
   archiveAfterDays: number
+  archiveHistoryAccess: "NOT_REQUESTED" | "GRANTED" | "DENIED"
 }
 ~~~
 
 - 不明なenum値は安全な既定値へ戻す。
 - 設定の破損でBookmarkデータを初期化しない。
-- 閾値と日数は安全な整数範囲を検証する。端末固有表示設定は同期せず、行動履歴関連の設定を同期するかは同期Planで固定する。
+- `frequentVisitThreshold` と `archiveAfterDays` は数値入力から受けるが、有限の整数、安全な最小値・最大値、単位を保存前に検証する。空文字、指数表記、NaN、Infinity、範囲外を設定値へ変換しない。
+- `aiGranularity` だけを0〜4のスライダー値として扱う。Job作成時にpolicyVersion 1の対応 `0→0`、`1→1`、`2→2`、`3→4`、`4→6` でmaxNewTagsを固定する。0でもAIによる既存カテゴリ／既存タグの自動割当は実行する。
+- `frequentVisitReminderEnabled=false` の間は新規候補の生成と通知を行わない。端末固有表示設定は同期せず、行動履歴関連の設定を同期するかは同期Planで固定する。
+- `onboardingState` は `runtime.onInstalled` の `reason="install"` でレコードがない時だけ初期化する。update、startup、Service Worker再起動で上書きせず、currentStepIdから途中再開し、完了後もCOMPLETEDを保持する。端末固有のためDrive同期しない。
+- アーカイブは確定機能であり、`archiveAfterDays` の検証済み閾値に従って評価する。現行設定に別の有効化フラグを持たせない。初回開始または閾値確定時に目的説明後 `history` だけを要求し、拒否時も閾値を保持して `archiveHistoryAccess="DENIED"` とし判定を停止する。この値はUI表示と再要求導線用のcacheであり、実行前にChromeの実権限を再確認して取消も反映する。アーカイブを理由に `notifications` を要求しない。
 
 ## visitReminders
 
@@ -368,7 +469,7 @@ interface VisitReminderRecord {
   normalizedUrlHash: string
   normalizedUrl: string
   visitCountAtReminder: number
-  state: "PENDING" | "SAVED" | "SNOOZED" | "DISMISSED"
+  state: "PENDING" | "SAVED" | "SNOOZED" | "DISMISSED" | "SUPPRESSED"
   remindedAt: EpochMs
   nextEligibleAt: EpochMs | null
   createdAt: EpochMs
@@ -376,7 +477,34 @@ interface VisitReminderRecord {
 }
 ~~~
 
-同じ正規化URLに有効な `PENDING` を複数作らない。`SAVED` へ変えるのは利用者が通知または確認UIの `保存` を選び、Bookmark保存がcommitした後だけとする。
+同じ正規化URLに有効な `PENDING` を複数作らない。リマインダーの「次回以降表示しない」は候補URL単位で `SUPPRESSED` にし、グローバル設定 `frequentVisitReminderEnabled` は変更しない。履歴件数がさらに増えても同じ正規化URLの候補を再生成しない。`SAVED` へ変えるのは利用者が通知または確認UIの `保存` を選び、Bookmark保存がcommitした後だけとする。
+
+## archiveOperations
+
+アーカイブされたBookmarkの利用者データを最小に保つため、判定・復元・同期用メタデータを分離する。
+
+~~~ts
+interface ArchiveOperationRecord {
+  schemaVersion: number
+  id: Id
+  bookmarkId: Id
+  state: "ARCHIVED" | "RESTORED"
+  reason: "USER" | "INACTIVE"
+  sourceBookmarkRevision: number
+  archivedAt: EpochMs
+  restoredAt: EpochMs | null
+  createdAt: EpochMs
+  updatedAt: EpochMs
+  revision: number
+}
+~~~
+
+設定内一覧は `ArchivedBookmarkRecord` の最小payloadとこの操作メタデータをIDで結合する。同期Envelopeやtombstoneも操作側で扱い、利用者payloadへ訪問統計等を戻さない。
+
+### 索引
+
+- byBookmarkCreatedAt: bookmarkId, createdAt
+- byStateArchivedAt: state, archivedAt
 
 ## importJobs
 
@@ -399,6 +527,34 @@ interface ImportJobRecord {
 
 標準BookmarkのURL、title、folder pathはプレビュー時の未信頼入力として検証する。元のChrome Bookmark IDを正本IDにせず、取り込んだBookmarkには `source="CHROME_IMPORT"` を記録する。元データを変更・削除しない。
 
+## undoOperations
+
+Bookmark、Category、Tagの削除要求と、その操作で変更した正確なレコード集合を結ぶ短期Undo情報を保存する。
+
+~~~ts
+interface UndoOperationRecord {
+  schemaVersion: number
+  id: Id
+  kind: "DELETE_BOOKMARK" | "DELETE_CATEGORY" | "DELETE_TAG"
+  rootEntityType: "BOOKMARK" | "LABEL"
+  rootEntityId: Id
+  targets: Array<{
+    entityType: "BOOKMARK" | "LABEL" | "BOOKMARK_LABEL"
+    entityId: Id
+    deleteOperationId: Id
+    deletedRevision: number
+  }>
+  createdAt: EpochMs
+  updatedAt: EpochMs
+  expiresAt: EpochMs
+  consumedAt: EpochMs | null
+}
+~~~
+
+削除transactionは対象Bookmark／Labelとedgeの各レコードでrevisionを増やし、同じ `deleteOperationId`、その結果の `deletedRevision`、`deletedAt` を保存する。UndoOperation.targetsにはその完全な集合を記録し、完了後にUIへUndo tokenを返す。
+
+Undoは期限切れなら `UNDO_EXPIRED`、それ以外で対象欠損、`deleteOperationId` 不一致、revisionが `deletedRevision` から変化、一意名・親子・edge整合の再検証失敗があれば `UNDO_CONFLICT` とする。Tag復元では `parentCategoryId` のCATEGORYが存在しACTIVEであることを必須とし、親が削除済みなら `UNDO_CONFLICT` を返して親CATEGORYの復元を先に求める。全targetsが一致した場合だけ、同じtransactionで正確な削除集合の `deletedAt` / `deleteOperationId` / `deletedRevision` を解除してrevisionを進め、UndoOperationをconsumedにする。1件でも不一致なら一部復元しない。期限後も即座に物理削除せず、Drive tombstone保持期間と復旧方針に従って回収する。
+
 ## トランザクション
 
 ### 保存
@@ -410,10 +566,10 @@ Service Worker側のアプリケーション層がbookmarksとPENDING classifica
 AI Hostが外形検証した結果をService Workerへメッセージ送信し、Service Worker側のアプリケーション層が次を実行する。
 
 1. requestId、lease、BookmarkのrevisionがJob開始時と一致するか確認する。
-2. 返却された既存Label IDがJob開始時に提示した候補内で、有効なレコードか確認する。同名候補を名称だけで特定しない。
-3. 既存カテゴリはユーザー作成Labelだけ、新規作成候補はタグだけであることを確認する。
-4. 新規 `TAG` は件数・文字列・細分化上限を確認し、`creationRequestId = jobId:proposalKey` で作成または同じ作成結果を再利用する。
-5. `byBookmarkAndLabel` を使って既存edgeを差分更新する。ユーザー割当を暗黙に削除せず、同じedgeの再送は更新として扱う。
+2. 返却された既存Label IDがJob開始時に提示した候補内で、有効なレコードか確認する。表示名だけで特定せず、kind、ID、revisionを確認し、TAGは候補時点の `parentCategoryId` と一致することも確認する。
+3. 既存カテゴリはユーザー作成Labelだけ、新規作成候補はタグだけであることを確認する。TAGの親は有効なユーザー作成カテゴリに限定する。
+4. JobのClassificationPolicySnapshotを検証し、granularity / maxNewTags / policyVersionが定義済みunionと完全一致することを確認する。上限0なら新規タグ出力を拒否する。上限1／2／4／6では新規 `TAG` の件数・文字列・親カテゴリを確認し、originを問わず論理削除済みを含む `tagUniqueName` と競合しない場合だけ `creationRequestId = jobId:proposalKey` で作成する。同じrequestIdの再送は同じ作成結果を再利用する。同名の有効TAGは親・意味が適合する時だけ再利用し、不適合または論理削除済みならNEEDS_REVIEWにする。
+5. `byBookmarkAndLabel` を使って既存edgeを差分更新する。TAG edgeごとに親CATEGORY edgeを追加または復元し、ユーザー割当を暗黙に削除せず、同じedgeの再送は更新として扱う。
 6. BookmarkのclassificationStateとrevisionを更新する。
 7. bookmarkRevisionsを追加する。
 8. classificationJobsをSUCCEEDEDへ更新する。
@@ -422,15 +578,31 @@ AI Hostが外形検証した結果をService Workerへメッセージ送信し�
 
 ### タグ統合
 
-sourceLabelの関連をtargetLabelへ移し、同じ `(bookmarkId, targetLabelId)` が既にあればedgeを1件へまとめ、sourceLabelを論理削除する。カテゴリとタグの間の統合は拒否する。同名タグは正当な別レコードであるため、名称一致だけで自動統合しない。
+sourceLabelの関連をtargetLabelへ移し、同じ `(bookmarkId, targetLabelId)` が既にあればedgeを1件へまとめ、sourceLabelを論理削除する。カテゴリとタグの間、および異なる親カテゴリに属するタグ同士の統合は拒否する。現行スキーマでは同名の有効タグを作れないため、重複が見つかった場合は旧データまたは破損として隔離し、名称一致だけで自動統合しない。
+
+### カテゴリ／タグの作成・編集・削除
+
+- カテゴリ作成とタグ作成は種類ごとの正規化名一意性を同じtransactionで検証し、タグは `parentCategoryId` の有効性も確認する。作成モーダルから連続作成しても各送信に別 `creationRequestId` を使い、同じ送信の再送だけを冪等化する。既存Labelを選択して「作成済み」に数える操作や、既存と同名の新規作成は提供しない。
+- ブックマーク編集は `categoryIds` と `tagIds` を別入力として受ける。入力中の候補は種類を混ぜず最大8件にし、TAG候補には親カテゴリIDを含める。保存時はTAGの親CATEGORYを補完し、CATEGORYを外した場合はその配下TAGも外す。
+- Label作成・改名の名称入力でもkind別候補を最大8件まで提示できるが、候補IDの選択を作成・改名・merge commandへ暗黙変換しない。同じkindの正規化名が一致すれば一意索引で拒否する。
+- 名前変更で `kind` や `parentCategoryId` を変えない。カテゴリ改名は `byCategoryUniqueName`、タグ改名は `byTagUniqueName` で重複を拒否し、いずれもrevisionを検証する。
+- タグ削除は対象タグと全BookmarkLabel edgeを1 transactionで論理削除する。カテゴリの論理削除はACTIVEな子タグが1件でもあれば `CATEGORY_NOT_EMPTY` で拒否し、子タグの管理または削除を先に求める。現行P0ではタグの親変更を受け付けないため、再配置を案内・実行しない。ACTIVE子タグが0件の場合だけ対象カテゴリとそのBookmarkLabel edgeを論理削除でき、削除済み子TAGはそのtombstoneを親として参照し続ける。CATEGORYの物理GCは削除済みを含む子TAG recordが0件になるまでBLOCKする。UIは確認画面を挟まないが、削除操作IDと `undoOperations` を作り、成功後に元へ戻せるようにする。確認なし削除を理由に暗黙cascadeを行わない。
+
+### Bookmark削除
+
+`DeleteBookmark` は対象のACTIVE Bookmarkとその全BookmarkLabel edgeを1 transactionで論理削除し、同じ削除操作IDを持つ `undoOperations` を作ってUndo tokenと影響件数を返す。同じtransactionで対応するSearchDocumentを削除または無効化し、削除済みBookmarkを通常検索から除外する。SearchDocumentは正データから再生成できる派生物なのでUndo targetsには含めず、Undo commit時に復元Bookmarkから再生成する。pending／running分類Jobの結果適用時はBookmarkの `deletedAt` とrevisionを再検証し、削除済みまたはrevision不一致なら正本変更を拒否する。
+
+Bookmarkのfavicon／thumbnail IDはtombstoneに保持する。Blob回収は有効Bookmarkだけでなく未回収tombstoneの参照も数え、Undo期限と同期tombstone保持期間の双方が満了して物理回収可能になる前に参照Blobを削除しない。
 
 ### 訪問判定とアーカイブ
 
-履歴照会はDB transaction外で行い、検証済みの `visitCount` / `lastVisitedAt` だけを短いtransactionで更新する。アーカイブ判定時はBookmarkのrevisionを再確認し、設定期間を超えた `ACTIVE` だけを `archiveState="ARCHIVED"`、`archiveReason="INACTIVE"` へ変更する。`lastVisitedAt=null`、既にARCHIVED、更新競合の項目は自動変更しない。Bookmark更新、BookmarkRevision、同期Outboxを同じtransactionへ含める。
+履歴照会はDB transaction外で行い、検証済みの `visitCount` / `lastVisitedAt` だけを短いtransactionで更新する。アーカイブ判定時はBookmarkのrevisionを再確認し、設定期間を超えた `ACTIVE` だけを `ArchivedBookmarkRecord` へ置換する。置換前に有効edgeからカテゴリ／タグのID・表示名・親カテゴリIDを固定し、ページ名とURLを加えた最小スナップショットだけを残す。`lastVisitedAt=null`、既にARCHIVED、更新競合の項目は自動変更しない。Bookmark置換、関連edgeの論理削除、BookmarkRevision、archiveOperations、同期Outboxを同じtransactionへ含める。理由・時刻・revision等は利用者payloadではなくarchiveOperationsへ書く。
+
+設定内のアーカイブ一覧から復元する時は、URLを再検証・再正規化し、スナップショットのIDが現在も有効なら再利用する。削除済み／競合Labelは名称と親関係を表示して利用者判断へ送り、自動で別IDへ結び付けない。復元したActive recordではfavicon、thumbnail、訪問統計を `null` から再構築し、復元可能なCATEGORY／TAG edgeだけを親子整合付きで再有効化し、archiveOperationsをRESTOREDへ更新する。
 
 ## 検索用データ
 
-自然言語検索は1つの入力からカテゴリ／タグ候補とBookmark候補を同時に返す。候補集合は複数件を許すが、順位とスコアを契約に含めない。検索語、AIが展開した語、自由文の理由は既定で永続化しない。
+通常検索はフルページの検索画面で扱い、どの画面から遷移しても1つの入力からカテゴリ／タグ候補とBookmark候補を同時に返す。入力中のキーワード候補はGoogle検索型のautocompleteとして一致度の高い順に最大8件を返す。一方、AI自然言語検索の最終候補集合は複数件を許すが、順位とスコアを契約に含めない。検索語、AIが展開した語、AI入力ポップアップ内の会話と自由文の理由は既定で永続化しない。
 
 IndexedDBには全文検索がないため、正データから次の派生レコードを再生成する。規模計測前に外部全文検索ライブラリや埋め込みベクトルを導入しない。
 
@@ -457,12 +629,31 @@ interface SearchCandidate {
   matchedFields: string[]
 }
 
+interface AutocompleteCandidate {
+  entityType: "LABEL" | "BOOKMARK"
+  entityId: Id
+  entityRevision: number
+  labelKind: "CATEGORY" | "TAG" | null
+  parentCategoryId: Id | null
+  displayText: string
+  matchedFields: string[]
+}
+
 interface UnifiedSearchResult {
   schemaVersion: number
   queryId: Id
   labels: SearchCandidate[]
   bookmarks: SearchCandidate[]
   source: "KEYWORD" | "AI" | "LEXICAL_FALLBACK"
+}
+
+interface AiAssistantResponse {
+  schemaVersion: number
+  requestId: Id
+  intent: "SEARCH_LIBRARY" | "PRODUCT_HELP" | "OUT_OF_SCOPE"
+  answerText: string
+  searchResult: UnifiedSearchResult | null
+  capabilityCatalogVersion: number
 }
 ~~~
 
@@ -477,10 +668,17 @@ interface UnifiedSearchResult {
 | bySearchKey | searchKeys | false | `multiEntry: true` |
 
 - Bookmark文書はtitle、siteName、URL host/path等の本体文字列だけを持つ。
-- Label文書はname、normalizedName、kind、originから生成する。同名タグも別の `entityId` として別候補になる。
+- Bookmark検索文書はACTIVEだけを対象にし、アーカイブtransactionで該当文書を削除する。ARCHIVEDは設定内アーカイブ一覧からだけ検索・復元する。
+- Label文書はname、normalizedName、kind、origin、TAGのparentCategoryIdから生成する。TAG候補では所属を確認できるよう親カテゴリ名を添える。
 - カテゴリ／タグ名に一致したBookmark候補は、Label文書で得た `labelId` から `bookmarkLabels.byLabel` をたどって生成する。Bookmark文書へ名称を複製しないため、Label改名時に全Bookmark文書を再構築する必要がない。
 - `sourceRevision` が正データと異なる文書は検索前または保守処理で再構築する。派生文書の欠損・破損を理由に正データを削除しない。
 - 日本語の部分一致、分かち書き、表記揺れ、ngram長は検索スキーマのバージョンを付けて変更できるようにする。
+
+### 入力中のautocomplete
+
+- 検索画面の共通検索ボックスはカテゴリ、タグ、Bookmarkを対象にし、前方一致、完全一致、部分一致等の決定的規則で候補を並べ、最大8件で打ち切る。
+- ブックマーク編集のカテゴリ欄はCATEGORYだけ、タグ欄はTAGだけを最大8件返す。TAG候補には親カテゴリを必ず含め、現在選択中のカテゴリを優先できる。
+- autocompleteはAIを待たず字句索引だけで応答し、スコア自体はUIや永続データへ公開しない。選択後は表示名ではなくIDとrevisionを送る。
 
 ### 自然言語検索の候補と検証
 
@@ -488,9 +686,11 @@ interface UnifiedSearchResult {
 2. Service Worker側で語数、文字数、対象種別を検証し、`searchDocuments` と `bookmarkLabels` から上限付き候補集合を作る。
 3. AI Hostは提示済み候補から可能性が高いID集合だけを選ぶ。AIへは候補IDと最小限の表示情報だけを渡す。
 4. Service Worker側でID、種別、revision、重複、件数上限を再検証する。AIが返した順序は捨てる。
-5. Label / Bookmarkごとの決定的な中立順で返す。候補が複数でも1件へ暗黙確定せず、名称一致を単一IDへ暗黙変換しない。
+5. Label / Bookmarkごとの決定的な中立順で返す。候補が複数でも1件へ暗黙確定せず、名称一致後も種類、ID、revision、TAG親を検証する。
 
-自然言語検索はDashboardが開いている間の対話操作であるため、分類Jobのような永続 `searchJobs` StoreはMVPでは設けない。AI Hostを閉じた場合は検索を中断でき、Bookmark保存や分類Jobへ影響させない。
+自然言語検索はAI入力ポップアップが開いている間の対話操作であり、入力とレスポンスを同じポップアップ内に表示する。AIアシスタントは検索に加え、アプリに同梱した版付きCapability Catalogを根拠としてBookmationの機能全般・使い方を説明できる。任意の外部知識検索、Chrome API操作、設定変更、削除、共有は回答生成から実行しない。
+
+分類Jobのような永続 `searchJobs` / `conversation` StoreはMVPでは設けない。ポップアップまたはトップレベル拡張ページを閉じた場合は会話を破棄して安全に中断し、Bookmark保存や分類Jobへ影響させない。`SEARCH_LIBRARY` はsearchResult、`PRODUCT_HELP` はCapability Catalogに基づくanswerText、`OUT_OF_SCOPE` は対応範囲外の固定案内を返す。回答文中のIDやURLを実行指示として扱わない。
 
 ## カーソルページング
 
@@ -510,23 +710,65 @@ interface BookmarkCursor {
 現時点の文書は未実装であるため、新規実装では本スキーマを最初の正本として作る。旧設計を試作済みの環境が存在する場合だけ、次の順序で移行する。
 
 1. 破壊的変更前にエクスポートを用意し、旧Storeをただちに削除しない。
-2. 旧 `tags` Storeから親参照を読み飛ばせる新旧両対応Readerを先に導入し、新 `labels` Storeへ移す。`byCategoryUniqueName` と一意な `byCreationRequestId` を作る。
-3. 旧階層の親カテゴリは、ユーザー作成が保証された各レコードだけを現行カテゴリへ変換する。同名カテゴリが複数ある場合は自動削除せず競合一覧を作り、利用者が正本を選ぶまで `NEEDS_REVIEW` とする。
-4. 旧メイン種別のうち `origin=USER` はカテゴリへ変換する。AI等が作った旧メイン種別は現行規則に違反するためタグへ変換し、影響Bookmarkを `NEEDS_REVIEW` にする。旧サブ種別はタグへ変換し、親参照は移行後の分類に使わない。
-5. Bookmarkから旧階層カテゴリIDを除き、`source=CAPTURE` は取得経路が判定できる場合に `CURRENT_TAB`、判定できなければ互換値から安全な既定値へ変換する。
-6. BookmarkLabelは `role` を `Label.kind` で再判定し、同じ `(bookmarkId, labelId)` が複数あれば最新の有効状態と監査情報を残して1件にまとめる。その後 `byBookmarkAndLabel` unique索引を作る。
-7. 各Labelへ安定した `creationRequestId` を割り当てる。移行値は既存IDから `migration:<labelId>` のように決定的に生成し、再実行で変えない。
-8. BookmarkRevisionの旧単一分類IDを `categoryIds` / `tagIds` の配列へ変換する。
-9. `searchDocuments` を正データからバッチ再構築し、`migrationCursor` に完了位置を保存する。
-10. 件数、参照整合、カテゴリ作成元、edge一意性を確認してから新Readerへ切り替える。旧階層Storeと旧フィールドは少なくとも1リリースの復旧期間後に別バージョンで削除する。
+2. 旧平坦 `labels` を読める新旧両対応Readerを先に導入し、`parentCategoryId` と親索引を追加した新documentへ移す。Label名をproject-vendored Unicode 15.1.0 dataのv1で再正規化し、`nameNormalizationVersion=1`、`unicodeVersion="15.1.0"`、実assetから生成したSHA-256を記録する。`byCategoryUniqueName`、`byTagUniqueName`、一意な `byCreationRequestId` を作る前に、論理削除済みも含めた重複と禁止文字を検出する。
+3. 旧カテゴリは `parentCategoryId=null` とする。同名カテゴリが複数ある場合は自動削除せず競合一覧を作り、利用者が正本を選ぶまで `NEEDS_REVIEW` とする。
+4. 旧TAGには親が存在しないため、既存Bookmarkとの共起、旧データの由来、利用者選択から親カテゴリを1件決める。確定できないTAGは自動で架空カテゴリへ寄せず、隔離して `NEEDS_REVIEW` とする。同じnormalizedNameの旧TAGが複数ある場合も自動削除・統合せず、改名または正本選択まで隔離する。
+5. BookmarkLabelは `Label.kind` で再判定し、各有効TAG edgeに対応する親CATEGORY edgeを追加または復元する。同じ `(bookmarkId, labelId)` が複数あれば最新の有効状態と監査情報を残して1件にまとめ、その後 `byBookmarkAndLabel` unique索引を作る。
+6. 各Labelへ安定した `creationRequestId` を割り当てる。移行値は既存IDから `migration:<labelId>` のように決定的に生成し、再実行で変えない。
+7. 旧 `aiGranularity=1..5` は意味対応表を固定して0〜4へ変換する。単純な `value-1` とするかは旧段階の意味を確認してから決め、未確認値は安全に新規AIタグ作成なしへ倒す。
+8. 旧ARCHIVED Bookmarkは `metadata` と `payload { title, url, categories, tags }` を構造上分けた最小スナップショットへ変換し、favicon、thumbnail、訪問統計等をpayloadへ残さない。理由・時刻・revision等はarchiveOperationsへ分離し、復元テストが通るまで旧値を回収しない。
+9. `searchDocuments` を親カテゴリ情報付きでバッチ再構築し、`migrationCursor` に完了位置を保存する。lastKeyはJSON round-trip可能な文字列、有限数、またはそれらだけの一次元配列へ限定し、表現できないkeyには別のversion付きcursor形式を定義する。
+10. 件数、参照整合、カテゴリ作成元、全TAGの親CATEGORY record存在、ACTIVE TAGのACTIVE親、Bookmarkの親CATEGORY edge、edge一意性を確認してから新Readerへ切り替える。旧平坦フィールドは少なくとも1リリースの復旧期間後に別バージョンで削除する。
 
-変換は冪等にし、Object Store・索引変更と大量レコード変換を分ける。失敗時はUIに状態と復旧方法を示し、旧バージョン、空DB、カテゴリ名競合、同名タグ、複数カテゴリ／タグ、最大想定件数、途中中断でテストする。
+変換は冪等にし、Object Store・索引変更と大量レコード変換を分ける。失敗時はUIに状態と復旧方法を示し、旧バージョン、空DB、カテゴリ名競合、タグ名競合、親不明タグ、複数カテゴリ／タグ、最大想定件数、途中中断でテストする。
 
 未実装のため、マイグレーション成功を保証するものではない。
 
+## QR共有payload
+
+設定の共有画面では検索とチェックボックスで、カテゴリ単位、タグ単位、個別Bookmarkを選択する。選択条件そのものではなく、生成操作開始時に固定したBookmark ID集合をpayloadへ展開する。
+
+~~~ts
+interface QrSharePayload {
+  format: "BOOKMATION_QR"
+  version: number
+  payloadId: Id
+  createdAt: EpochMs
+  bookmarks: Array<{
+    title: string
+    url: string
+    categories: Array<{ name: string }>
+    tags: Array<{ name: string; parentCategoryName: string }>
+  }>
+  checksum: string
+}
+~~~
+
+カテゴリ選択はそのカテゴリに関連するBookmark、タグ選択はそのタグに関連するBookmark、個別選択はそのBookmarkを集合へ加え、IDで重複排除する。QRにはローカルID、訪問履歴、サムネイル、AI会話、OAuth情報を含めない。checksumは搬送中の破損・欠落・切詰め検出だけに使い、送信者の真正性、改ざん耐性、認証を保証する値として表示しない。
+
+読み取りImportはpayload全体を検証してpreviewを作り、カテゴリ／タグのkind別名称一意性、タグ親、URL重複を利用者が確認した後だけ通常のImport transactionへ渡す。payload内部でv1正規化後に同名となるTAGが複数の `parentCategoryName` を持つ場合はpreview前に構造不正として拒否し、暗黙renameや親選択を行わない。Import Tagと同名の既存Tagが別parentCategoryIdを持つ場合も、既存Tagの自動reuse、rename、parent移動を行わない。利用者はその項目をskip、Import全体をcancel、または競合Tagへ別名を明示入力する。別名入力後はv1正規化と一意性を再検証し、新しいImport plan fingerprintと全件previewを再生成してからcommitする。
+
 ## Google Drive同期の競合設計
 
-同一ユーザーの複数端末を、明示接続したGoogle Drive `appDataFolder` で同期するP1確定設計である。`syncOutbox`、`syncConflicts`、`syncState` はP1実装時に作成し、OAuth未接続でもローカル正本を利用できる。
+同一ユーザーの複数端末を、設定で明示選択したGoogleアカウントのDriveで同期するP1確定設計である。`syncOutbox`、`syncSnapshots`、`syncConflicts`、`syncState` はP1実装時に作成し、OAuth未接続でもローカル正本を利用できる。通常の同一アカウント同期は `appDataFolder` を使う。appDataFolder内の項目は共有できないため、別アカウント間で所有権／権限のあるデータセットを選ぶ要件は、通常Drive file、別接続mode、file capabilityとowner／permission検証を使う。両経路を同じfile IDやscopeとして扱わない。
+
+~~~ts
+interface SyncStateRecord {
+  key: "google-drive"
+  schemaVersion: number
+  deviceId: Id
+  selectedAccountSubjectHash: string | null
+  datasetFileId: string | null
+  datasetOwnerSubjectHash: string | null
+  connectionMode: "APP_DATA_SAME_ACCOUNT" | "OWNED_DATASET" | null
+  state: "DISCONNECTED" | "CONNECTED" | "REAUTH_REQUIRED" | "ERROR"
+  lastSyncCursor: string | null
+  lastSyncedAt: EpochMs | null
+  updatedAt: EpochMs
+}
+~~~
+
+OAuth tokenはこのレコードへ保存しない。アカウント表示名やメールアドレスを永続化する場合は目的を追加で定義し、既定ではOAuth subjectの不可逆な識別値だけを保存する。接続先を切り替える時は未送信Outboxと対象データセットを確認し、別アカウントへ無言でpushしない。
 
 ### 同期Envelope
 
@@ -545,21 +787,128 @@ interface SyncEnvelope<T> {
 
 各端末はdeviceIdを持ち、lastSyncedSnapshotまたはそのハッシュを保存する。Drive更新にはETag等の前提条件を使い、競合時は再取得して三者マージする。
 
+### syncSnapshots
+
+競合の再現と利用者previewに必要なbase／local／remoteを、検証済み・immutableなJSON snapshotとして保存する。
+
+~~~ts
+interface SyncSnapshotRecord {
+  schemaVersion: number
+  id: Id
+  datasetIdentityHash: string
+  entityType: string
+  entityId: Id
+  revision: number
+  updatedAt: EpochMs
+  deletedAt: EpochMs | null
+  canonicalJsonVersion: 1
+  contentHash: string
+  document: JsonValue
+  capturedAt: EpochMs
+}
+~~~
+
+snapshotは生成前にentity別schemaとJSON上限を検証し、canonical JSONのcontentHashを計算する。保存後に上書きせず、同じIDで内容が変われば破損として隔離する。OAuth token、Blob、AI会話、検索履歴を含めない。
+
+索引は `byEntityRevision: [entityType, entityId, revision]`、`byContentHash: contentHash`、`byCapturedAt: capturedAt` を非uniqueで持つ。同じrevisionでも内容が異なる競合を保存できるよう、entity／revisionだけをuniqueにしない。
+
+### syncConflicts
+
+~~~ts
+interface SyncVersionReference {
+  snapshotId: Id
+  entityType: string
+  entityId: Id
+  revision: number
+  operationId: Id | null
+  contentHash: string
+  deleted: boolean
+}
+
+type SyncResolutionOperation =
+  | {
+      kind: "APPLY_SNAPSHOT"
+      snapshotId: Id
+      targetEntityType: string
+      targetEntityId: Id
+      expectedTargetRevision: number | null
+    }
+  | {
+      kind: "RENAME_LABEL"
+      labelId: Id
+      expectedLabelRevision: number
+      newName: string
+    }
+  | {
+      kind: "REASSIGN_BOOKMARK_LABEL"
+      bookmarkId: Id
+      fromLabelId: Id
+      toLabelId: Id
+      expectedFromEdgeRevision: number
+      expectedToEdgeRevision: number | null
+    }
+  | {
+      kind: "APPLY_TOMBSTONE"
+      targetEntityType: string
+      targetEntityId: Id
+      expectedTargetRevision: number
+    }
+
+interface SyncConflictRecord {
+  schemaVersion: number
+  id: Id
+  entityType: string
+  entityId: Id
+  reason:
+    | "SCALAR_DIVERGED"
+    | "EDGE_ADD_DELETE"
+    | "UPDATE_DELETE"
+    | "CATEGORY_NAME_CONFLICT"
+    | "TAG_NAME_CONFLICT"
+    | "TAG_PARENT_INVALID"
+    | "SCHEMA_UNSUPPORTED"
+  base: SyncVersionReference | null
+  local: SyncVersionReference
+  remote: SyncVersionReference
+  status: "OPEN" | "RESOLVED" | "CANCELED"
+  revision: number
+  resolution: null | {
+    expectedConflictRevision: number
+    expectedBase: { snapshotId: Id; revision: number; contentHash: string } | null
+    expectedLocal: { snapshotId: Id; revision: number; contentHash: string }
+    expectedRemote: { snapshotId: Id; revision: number; contentHash: string }
+    operations: [SyncResolutionOperation, ...SyncResolutionOperation[]]
+    committedOperationIds: Id[]
+  }
+  createdAt: EpochMs
+  updatedAt: EpochMs
+  resolvedAt: EpochMs | null
+  snapshotRetainUntil: EpochMs | null
+}
+~~~
+
+各SyncVersionReferenceは実在する `syncSnapshots` recordを指し、entity、revision、contentHashが一致しなければ競合を表示・解決しない。解決要求はconflict revisionとbase／local／remoteのsnapshot ID・revision・hashをすべて照合し、allowlist済みの明示operationsだけを実行する。`RENAME_LABEL` はNormalizer v1で再計算し、`REASSIGN_BOOKMARK_LABEL` は利用者が選んだ既存ID間のedge差替えだけを行う。同名／異親TAGを名称だけで同一視し、負けたIDを勝ったIDへ暗黙remapしてはならない。
+
+全operationへLabel名一意性、TAG親の存在・状態、BookmarkLabel edge、delete marker、期待revisionを再適用した後だけ、ローカル正本、Outbox、conflict resolution／statusを1 transactionでcommitする。不一致なら1件も適用せずOPENのまま再読込する。RESOLVED commit時に `resolvedAt` と `snapshotRetainUntil = resolvedAt + 30日` を保存する。
+
+OPEN conflictが参照するbase／local／remote snapshotはGC禁止とする。RESOLVED後も最低30日保持し、保持期限を過ぎ、他のOPEN conflict、Outbox、復旧処理から参照されず、hash検証が完了したsnapshotだけを回収できる。CANCELEDは未解決として参照snapshotを保持し、別の明示的な破棄方針なしにGCしない。
+
 ### マージ規則
 
 | 競合 | 自動処理案 | 人の確認 |
 | --- | --- | --- |
 | 別フィールドの編集 | 両方を統合 | 不要 |
-| 同じスカラーの編集 | updatedAt、同値ならdeviceIdで決定 | 重要フィールドは履歴から戻せるようにする |
+| 同じスカラーの編集 | `SCALAR_DIVERGED` としてsyncConflictsへ | 必須 |
 | BookmarkLabelの追加同士 | 集合和 | 不要 |
-| 関連の追加と削除 | 操作時刻の新しい方。削除イベントを保持 | 不自然な結果なら必要 |
-| レコード更新と削除 | 新しい操作を採用。削除tombstoneを保持 | 多数の関連へ影響する場合は必要 |
-| 同名カテゴリの同時作成 | `categoryUniqueName` で1件だけ成立 | 競合側へ既存カテゴリを提示 |
-| 同名タグの同時作成 | 別IDの正当なタグとして両方を保持 | ユーザーが統合を選ぶ場合だけ必要 |
+| 同じedgeの追加と削除 | `EDGE_ADD_DELETE` としてsyncConflictsへ | 必須 |
+| レコード更新と削除 | `UPDATE_DELETE` としてsyncConflictsへ | 必須 |
+| 同名カテゴリの同時作成 | unique keyを予約したまま `CATEGORY_NAME_CONFLICT` | 必須 |
+| 同名タグの同時作成 | unique keyを予約したまま `TAG_NAME_CONFLICT` | 必須 |
 | 同じBookmarkLabel edgeの同時追加 | `(bookmarkId, labelId)` で1件へ収束 | 不要 |
+| TAGの親とBookmarkのCATEGORY edge | TAGのparentCategoryIdを正とし、親CATEGORY edgeを補完 | 親削除・親不明なら必要 |
 | スキーマ不明 | 適用せず隔離 | 必要 |
 
-最終書き込みだけでデータを黙って失わない。自動解決できないものはsyncConflictsへ保存し、同期全体を破壊せずUIで解決する。
+同じscalar、edge add/delete、update/delete、一意名競合へupdatedAt/deviceIdによるLWWを適用しない。負けたCategory／Tag IDのBookmarkLabelを勝ったIDへ暗黙付替えせず、syncConflictsで明示解決する。別フィールドの自動統合も、統合後の名前一意性・TAG親・edge整合を再検証できた場合だけcommitする。
 
 ### tombstone
 
@@ -567,6 +916,8 @@ interface SyncEnvelope<T> {
 - 全既知端末が削除を確認した後、または十分な保持期間後に回収する。
 - 長期間オフライン端末による復活を防ぐ。
 - tombstone回収前にエクスポートと復旧方針を決める。
+- CATEGORY tombstoneはACTIVE／削除済みを問わず子TAG recordが1件でもあれば物理回収しない。
+- OPEN／CANCELED syncConflictが参照するsnapshotとtombstoneは回収しない。RESOLVED conflictのsnapshotは解決後30日と他参照の消滅を両方満たしてから回収する。
 
 ### syncOutbox
 
@@ -593,22 +944,27 @@ interface SyncOperationRecord {
 
 - Blobを除く全正本documentがJSON stringify/parseで情報を失わずround-tripし、read/write時にschemaVersionとruntime schemaを検証する。
 - 不明schemaVersion、非JSON値、過大documentを正本へ適用せず、Blob本体をQR／Drive JSONへ暗黙に含めない。
-- 旧階層カテゴリStore・親参照が現行モデルに存在しない。
-- 同一Bookmarkに複数のカテゴリ、複数のタグを割り当てられ、同じLabel IDを複数Bookmarkで再利用できる。
-- 同じnormalizedNameの有効カテゴリは1件だけで、同名タグは別IDの複数候補として表示される。
+- 全TAGが物理的に存在するCATEGORYの `parentCategoryId` を1件だけ持ち、ACTIVE TAGの親はACTIVE、削除済みTAGの親はACTIVEまたは削除済みであり、CATEGORYのparentCategoryIdはnullである。
+- 同一Bookmarkに複数のカテゴリ、複数のタグを割り当てられ、TAG edgeがある時は親CATEGORY edgeも存在する。CATEGORY edgeの解除で配下TAG edgeだけが残らない。
+- Label名正規化v1がproject-vendored Unicode 15.1.0 dataだけでNFKC、`White_Space` collapse、残存 `Cc` / `Cs` / `Default_Ignorable_Code_Point` 拒否、`CaseFolding.txt` status C+F full mapping、最終再検証を実行し、作成、改名、Import、同期で同じfixture結果になる。runtime ICU／localeを変えても結果が変わらず、検索token正規化の変更でも一意性判定が変わらない。
+- schemaMetaの `unicodeVersion="15.1.0"` と `unicodeDataAssetSha256` がbuildへvendorした実assetと一致する。hashは実装時に実assetから生成・固定し、仮値や文書上の偽hashを受け入れない。asset改変・hash不一致時はLabel writeを停止する。
+- 同じnormalizedNameのカテゴリは論理削除状態を問わずCATEGORY内で1件だけ、同じnormalizedNameのタグは論理削除状態と親カテゴリを問わずTAG内で1件だけである。CategoryとTag相互の同名は禁止しない。tombstoneの物理回収前は同名別IDを作れず、同じIDの明示復元または別名だけを選べる。
 - 同じ `(bookmarkId, labelId)` edgeは再送や同期後も1件だけである。
-- AI経路からカテゴリを新規作成・改名・削除できず、タグ新規作成は細分化上限と `creationRequestId` の冪等性を満たす。
-- 1つの自然言語検索がLabel / Bookmarkの無順位候補集合を返し、AIが候補外ID、重複ID、古いrevisionを混入させても拒否する。
+- AI経路からカテゴリを新規作成・改名・削除できず、タグ新規作成はグローバルなタグ名一意性、親カテゴリ、`creationRequestId` の冪等性を満たす。policyVersion 1は `0→0 / 1→1 / 2→2 / 3→4 / 4→6` のdiscriminated union以外を拒否し、細分化0でも既存Labelの自動割当は継続する。同名TAGはoriginを問わず再評価し、USER候補を優先する一方、親・意味不適合はNEEDS_REVIEWにする。
+- autocompleteは種類・親情報付き候補を一致度順に最大8件だけ返す。1つの自然言語検索はLabel / Bookmarkの無順位候補集合を返し、AIが候補外ID、重複ID、古いrevisionを混入させても拒否する。
 - favicon BlobはfaviconBlobIdから参照でき、参照中のBlobを回収しない。外部favicon URLを一覧表示のたびに自動読込しない。
 - AI失敗時もBookmarkが残る。
 - AI Hostを途中で閉じ、次の対応ページでJobを再開しても重複タグを作らない。
 - Service WorkerからLanguageModelを実行せず、PENDING JobはAI Hostが開くまで保持される。
 - URL hash衝突でも異なるURLを誤って同一扱いしない。
-- 設定破損でIndexedDBを初期化しない。
-- `archiveState` が文字列 `ACTIVE` / `ARCHIVED` で保存され、自動アーカイブは最終訪問日時がない項目を変更せず、復元できる。
-- 同じURLの訪問リマインダーを重複生成せず、利用者が保存を選ぶまでBookmarkを作らない。
+- 設定破損でIndexedDBを初期化しない。onboardingStateはinstall時だけ初期化され、途中stepと完了状態をupdate／startup／Service Worker再起動後も保持する。
+- `archiveState` が文字列 `ACTIVE` / `ARCHIVED` で保存され、ARCHIVEDはmetadataと `payload { title, url, categories, tags }` が分離され、設定から復元できる。自動アーカイブは最終訪問日時がない項目を変更しない。archive専用toggleを持たず、history拒否時もarchiveAfterDaysを保持して判定を権限待ち停止し、notificationsを要求しない。
+- 同じURLの訪問リマインダーを重複生成せず、利用者が保存を選ぶまでBookmarkを作らない。「次回以降表示しない」にしたURLはグローバル設定を変えず再候補化しない。
+- Bookmark／Category／Tag削除は確認画面なしでも全対象へ同じdeleteOperationIdとdeletedRevisionを記録した論理削除になり、全targetが一致する時だけ短期Undoで原子的に戻る。期限切れはUNDO_EXPIRED、期限内の対象・marker・revision・不変条件不一致はUNDO_CONFLICTとなり、部分復元しない。Tag復元時に親CATEGORYが削除済みならUNDO_CONFLICTとなり、親復元後だけ再試行できる。削除→同名別ID作成はtombstoneのunique keyで拒否され、元LabelのUndoを妨げない。Bookmark削除でSearchDocumentが同時に除外され、Undo時に再生成され、参照BlobはUndo／tombstone保持中に回収されない。
+- ACTIVEな子TAGを持つカテゴリの論理削除はBLOCKされ、P0で再配置を案内せず、暗黙cascadeや子TAG孤立が起きない。CATEGORYの物理GCは削除済みを含む子TAG recordが0件になるまでBLOCKされる。
+- QRは検索・チェック選択を固定集合へ展開し、checksumを真正性保証に使わない。読取Importで破損、過大、カテゴリ／タグ名競合、親不明タグを適用前に拒否または確認へ送り、payload内部の同名TAG・複数親はpreview前に拒否する。既存の別親同名TAGは自動reuse／rename／moveせず、skip／cancelまたは明示別名後の全件再previewだけを許す。
 - 標準Bookmarkインポートは元データを書き換えず、中断・再送後も重複を抑止する。
 - タグ統合と大量edge更新が途中失敗時に部分適用されない。
-- Drive同期で削除、同時名称変更、オフライン復帰を再現できる。
+- Drive同期で同じscalar、同じedgeのadd/delete、update/delete、一意名競合をLWWせず、検証済みimmutable syncSnapshotsとsyncConflictsへ保存する。解決は期待conflict／snapshot revision・hashと非空の明示operation listを照合し、全不変条件再検証後だけatomic commitする。同名／異親TAGや競合したLabel IDを暗黙remapしない。OPEN／CANCELED conflictのsnapshotはGCされず、RESOLVED後も30日以上かつ全参照消滅まで保持される。削除、同時名称変更、オフライン復帰も再現できる。
 
 すべて実装後に検証する項目であり、現時点では未確認である。

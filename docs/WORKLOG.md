@@ -263,6 +263,136 @@
 - ISSUE-007 のハッカソン日程
 - CI は TASK-011（TD-001 は対応中）
 
+## 2026-08-16 — Webプレビュー／AIエージェント／人間受入のテスト仕様
+
+### 目的
+
+拡張機能UIを人間が通常Webページで確認できるようにしつつ、Chrome固有動作をWebプレビューだけで合格にしない受入順序を確定する。
+
+### 変更
+
+- remoteのTASK-001 scaffoldをfast-forwardで取り込み、Plasmo、Vitest、品質scriptが存在する最新状態を正本にした。
+- [TESTING.md](TESTING.md) を追加し、production UIをfake Adapterとfixtureで通常Webページへ表示する仕様を定義した。
+- AIエージェントがビルド済み拡張機能をPlaywrightで確認し、report、screenshot、trace、skipを人間へ渡すことを必須にした。
+- 人間はAIエージェント確認後、同じcommit／buildを実Chromeで確認して承認または差戻しを記録する最終gateとした。
+- REQUIREMENTS、CONSTRAINTS、DESIGN、FRONTEND、SECURITY、PLANS、TASKS、BACKEND_TASKS、QUICKSTART、索引、長期MEMORY、ISSUES、技術的負債、参考資料へ横断反映した。
+- TASK-013としてWebプレビュー／Playwright harness実装を登録し、Storybook等のrunner、Playwright版、artifact保持条件はISSUE-018で追跡する。
+
+### 検証
+
+- `git diff --check`: 成功。
+- Markdown: 相対リンクと見出しanchor、code fence、上位Markdown basenameを静的検査し、参照エラー0件。
+- `AI_GUIDE.md`: 0バイトを維持。
+- 環境: Node v22.23.2。PATHにpnpm／Corepackがなかったため、`npx pnpm@10.15.1`でlockfileどおり依存を導入した。
+- `npx pnpm@10.15.1 lint`: 成功。
+- `npx pnpm@10.15.1 typecheck`: 成功。
+- `npx pnpm@10.15.1 test`: 成功（1 file、2 tests）。
+- `npx pnpm@10.15.1 build`: 成功（Plasmo 0.90.5、chrome-mv3）。
+- UI Webプレビュー、Playwright拡張E2E、人間の実Chrome受入: harness未実装のため未実施。仕様追加だけで成功扱いにしない。
+
+### 残課題
+
+- TASK-013で `ui:preview`、`ui:build`、`test:e2e`、`test:e2e:ui` と必須fixtureを実装する。
+- AIエージェントの最初のPlaywright証拠と人間の受入記録は、実装後の同じcommit／buildに対して作成する。
+
+## 2026-08-17 — 最新UI・設定・分類・共有仕様とテスト契約の更新
+
+### 目的
+
+更新されたデザイン正本と利用者の最新指示に合わせ、カテゴリ親／タグ子、設定入力、検索、AIアシスタント、作成・管理、初回ホーム、archive、Drive／QR共有を実装タスクとテスト受入へ反映する。
+
+### 変更
+
+- カテゴリを親、タグを子とする固定2階層へ更新した。最終指示によりCATEGORY／TAG各namespaceの正規化名をglobal uniqueとし、タグは親をまたいでも同名別IDを禁止した。カテゴリ名とタグ名の相互一致は許可する。作成画面はcreate-onlyとし、競合時は既存選択元または別名へ案内する。
+- タグ編集では親カテゴリを読取専用とし、親変更はISSUE-019決定後の別タスクとした。過去のWORKLOGにあるタグ同名別ID可は当時の履歴であり、本節で置換済みである。
+- Bookmark／カテゴリ／タグ削除を確認画面なしsoft-delete＋undoとし、カテゴリ／タグ管理にはhover／focus鉛筆、子タグ残存カテゴリの削除BLOCK、cascadeなしをタスク・障害対応・fixtureへ反映した。
+- 訪問回数とarchive日数を正整数入力、AI細分化だけを `0`〜`4` sliderとし、新規AIタグ上限 `0 / 1 / 2 / 4 / 6` へ対応付けた。`0` でも既存タグの自動付与を続ける。
+- 検索を両一覧から移るフルページとし、入力中のkeyword候補を最大8件にした。AIは入力ポップアップ内で検索と応答確認を完結し、Bookmark探索に加えてBookmationの機能説明を扱う。
+- Bookmark編集のカテゴリ／タグ別入力、最大8件候補、説明横の新規作成ボタン、同じmodal内side view、カテゴリ・タグ一覧での種類選択と連続作成をタスク化した。
+- `runtime.onInstalled` の `reason=INSTALL` だけで初回ホーム状態を初期化し、UPDATEや通常起動では再初期化しない契約を追加した。
+- 自動Bookmarkリマインダーの有効toggleと「次回以降表示しない」、カテゴリ・タグ／ページ名／URLだけのarchive、設定一覧からの選択復元を反映した。
+- QRはカテゴリ／タグ／個別Bookmarkを検索とcheckboxで選択し、生成／読取previewを行う。Driveは同一accountの `appDataFolder` 同期と、別accountの通常Drive file＋permissions/capabilities共有を別経路にした。
+- README、バックエンドフロー、Execution Plan規約、TASKS／TODO、QUICKSTART、技術的負債、トラブルシューティング、TESTINGのfixture／Playwright／人間受入を同じ仕様へ更新した。
+
+### 検証
+
+| 確認項目 | 結果 |
+| --- | --- |
+| 差分形式 | 担当11文書への `git diff --check` 成功 |
+| Markdown | Nodeによる担当11文書のfenceと相対リンク172件、現行仕様assertionの検査に成功 |
+| lint | `node_modules/.bin/eslint .` 成功 |
+| 型検査 | `node_modules/.bin/tsc --noEmit` 成功 |
+| unit test | `node_modules/.bin/vitest run` 成功（1 file、2 tests） |
+| build | `node_modules/.bin/plasmo build` 成功（Chrome MV3） |
+| `AI_GUIDE.md` | 0バイトを維持し、編集していない |
+
+PATH上に `pnpm` がなかったため、同じcheckoutの `node_modules/.bin` にある固定済み実行ファイルで品質確認した。UI Webプレビュー、Playwright拡張E2E、人間の実Chrome確認、Prompt API、OS通知、QRカメラ、実Googleアカウント／Driveは未実装または未実施であり、文書更新だけで動作確認済みとはしない。
+
+### 残課題
+
+- TASK-013で最新画面状態のWeb fixtureとPlaywright harnessを実装し、AIエージェントの証拠を人間受入へ引き渡す。
+- Drive通常file共有の権限粒度、QR容量、設定の正整数範囲は対応Plan／Issueで確定し、実アカウントと実機で確認する。
+
+## 2026-08-17 — 最終監査: 名前予約・Undo・正規化・共有競合
+
+### 目的
+
+実装着手前の最終監査として、名前の一意性、削除からの復元、AI分類snapshot、訪問／archive権限、QR／Drive競合の境界を、実装タスク、fixture、障害対応、利用開始手順で同じ契約にそろえる。
+
+### 変更
+
+- Label Normalizer v1を、NFKC、Unicode whitespaceのtrim／collapse、固定localeに依存しないcase fold、制御／禁止不可視文字拒否、版番号を持つ規則としてfixture化した。CATEGORY／TAGは各namespaceでglobal uniqueとし、tombstone中も正規化名を予約する。同名作成では削除済み同一IDの明示復元または別名を求め、物理回収後だけ再利用できる。
+- Bookmark／Category／Tagのsoft-deleteとundoを `deleteOperationId`＋revision照合へ統一し、`UNDO_EXPIRED` と `UNDO_CONFLICT` を分けた。削除→同名作成拒否→undoを必須fixtureにした。P0ではTagの親Category変更を扱わず、子Tagが残るCategoryの削除では「子Tagを削除」「中止」だけを案内する。
+- AI細分化を `{ granularity, maxNewTags }` のdiscriminated snapshotとして `0→0 / 1→1 / 2→2 / 3→4 / 4→6` の5組へ限定した。`tagUniqueName` 競合はoriginを問わず既存Tagを再評価し、USER由来を優先しつつ親／意味不適合を `NEEDS_REVIEW` にする。
+- 「次回以降表示しない」を対象canonical URLだけの `SUPPRESSED` とし、globalな `frequentVisitReminderEnabled` と別URLを維持する契約へ統一した。archive専用toggleは追加せず、初回開始時にhistory権限の目的を説明し、拒否時は入力日数を保持して「権限待ち」で停止する。notifications権限はリマインダーだけに使用する。
+- QR checksumを破損／切詰め検出だけに限定し、真正性保証には使わないと明示した。異親同名Tagは既存再利用／親変更をせず、別名／skip／cancel後に再previewする。Driveの同一field更新、update-delete、add-delete、名前競合は自動LWWせず `syncConflicts` へ隔離する。
+- CorepackまたはPATH上のpnpmを利用できない環境向けに、READMEとQUICKSTARTへ `npx --yes pnpm@10.15.1 ...` の固定版fallbackを追加した。
+
+### 検証
+
+| 確認項目 | 結果 |
+| --- | --- |
+| 差分形式 | 担当11文書への `git diff --check` 成功 |
+| Markdown | Nodeによる担当11文書の相対リンク172件、code fence 30 markerを検査し、エラー0件 |
+| 現行仕様assertion | 必須監査語と旧global抑止／旧設定名等の禁止表現を検査し、エラー0件 |
+| lint | `node_modules/.bin/eslint .` 成功 |
+| 型検査 | `node_modules/.bin/tsc --noEmit` 成功 |
+| unit test | `node_modules/.bin/vitest run` 成功（1 file、2 tests） |
+| build | `node_modules/.bin/plasmo build` 成功（Plasmo 0.90.5、Chrome MV3） |
+| `AI_GUIDE.md` | 0バイトを維持し、編集していない |
+
+UI Webプレビュー、Playwright拡張E2E、人間の実Chrome確認、Prompt API、OS通知、QRカメラ、実Googleアカウント／Driveは未実装または未実施である。静的検査と現行scaffoldのbuild成功を、これらの動作確認済みとは扱わない。
+
+### 残課題
+
+- TASK-013で今回固定したfixtureとWebプレビュー／Playwright harnessを実装し、同じcommit／buildを人間が確認する。
+- archiveのhistory権限待ち、canonical URL単位の抑止、QR import解決、Drive `syncConflicts` は実装後に実Chrome／実アカウントで検証する。
+
+## 2026-08-17 — 最終監査: Unicode asset・Tag tombstone親子・Drive解決証跡
+
+### 目的
+
+名称一意性を端末差から守り、Tagのsoft-delete／restore／GC順序とDrive競合解決の証跡を、要件・制約・実装タスク・fixtureで同じ契約に固定する。
+
+### 変更
+
+- Label Normalizer v1をproject-vendored Unicode 15.1.0のNFKC、`White_Space`、`Default_Ignorable_Code_Point`、`CaseFolding.txt` C＋F assetへ固定し、runtime ICUへ依存しない契約にした。生成asset hashは実装時に固定してgolden fixtureで照合する。
+- active Tagだけにactive親Categoryを必須とした。tombstone Tagはdeleted親を参照できるが、Tag restoreは親Category restore後に限定し、全子Tag tombstoneが消滅するまで親Categoryの物理GCをblockする。
+- P1 Drive競合をimmutable `syncSnapshots` と明示resolution planで扱い、open中のsnapshot GCを禁止した。解決後も30日保持し、Label ID／Bookmark-Label edgeを暗黙にremapしない契約とfixtureを追加した。
+- CATEGORY／TAG各namespaceの正規化名global unique、tombstone中の名前予約、同名別ID禁止は維持した。
+
+### 検証
+
+- `git diff --check`（対象10文書）: 成功。
+- Markdown静的検査（対象10文書）: 相対リンク109件、code fence 10 marker、エラー0件。
+- 3契約の必須語と、同名別ID許可・tombstone親必須・runtime ICU依存・open中GC許可・暗黙remap許可の矛盾表現を静的検査し、エラー0件。
+- 文書だけの変更であり、runtime test、Webプレビュー、Playwright、実Chrome／Drive確認は未実施。
+
+### 残課題
+
+- TASK-003／TODO-023でUnicode asset生成・hash固定とgolden vectorを実装する。
+- TASK-104で競合snapshot、resolution plan、保持期限、明示解決UIを実装し、実Driveアカウントで確認する。
+
 ## 追記テンプレート
 
 ```markdown

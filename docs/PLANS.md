@@ -14,6 +14,8 @@ Plan は実装の進行に合わせて更新する living document である。�
 - 半日を超える見込み、または複数人・複数日に分かれる。
 - DBスキーマ変更、データ移行、権限変更、外部連携を含む。
 - Prompt API、Manifest V3のservice worker、同期など、不確実性の高い技術を含む。
+- カテゴリ親／タグ子へのデータ移行、アーカイブ時の項目縮退、初回表示状態など既存データの意味を変える。
+- Chrome履歴・通知、Google Driveアカウント選択、QR読取のように権限または利用者確認を伴う。
 - 失敗時にブックマーク消失、互換性破壊、復旧困難が起こり得る。
 - 調査結果によって実装方針や範囲が変わり得る。
 
@@ -78,6 +80,10 @@ Plan は `docs/plans/YYYY-MM-DD-短い名称.md` に置く。`AGENTS.md` にはP
 
 データの流れ、責務境界、重要なインターフェースを文章で説明する。判断済み事項と仮説を区別する。
 
+設定を扱うPlanでは、訪問回数／archive日数の正整数検証、`frequentVisitReminderEnabled`、canonical URL単位のSUPPRESSED、AI細分化 `0`〜`4` と上限 `0 / 1 / 2 / 4 / 6` のdiscriminated snapshotを列挙する。最新UIにない `autoArchiveEnabled` は要求しない。カテゴリ／タグを扱うPlanでは、project-vendored Unicode 15.1.0に固定したLabel Normalizer v1、tombstone中の名前予約、active Tag／active親、親先行restore、子Tag tombstoneが残る親の物理回収拒否、最大8件候補、`deleteOperationId`＋revision undo、`UNDO_EXPIRED`／`UNDO_CONFLICT`、子タグが残るカテゴリの削除BLOCKと連鎖削除禁止を記載する。タグ親変更はISSUE-019決定前に実装範囲へ入れない。検索を扱うPlanでは、フルページkeyword検索と、入力・応答をポップアップ内で完結するAIアシスタントを別状態として扱う。
+
+QRを扱うPlanはchecksumを破損／切詰め検出に限定し、真正性を保証しないことを明記する。異なる親の同名Tag競合は別名／skip／cancel後の再previewとする。Driveを扱うPlanは同一field更新、update-delete、add-delete、名前競合を自動LWWせず `syncConflicts` へ送り、immutableな `syncSnapshots` と明示的なresolution planを使う。OPEN中のsnapshotは回収せず、解決後も30日保持し、Label IDやedgeを暗黙に付け替えない。
+
 ## マイルストーン
 
 ### M1: <独立して確認できる成果>
@@ -111,9 +117,15 @@ Plan は `docs/plans/YYYY-MM-DD-短い名称.md` に置く。`AGENTS.md` にはP
 ## 検証と受け入れ条件
 
 - [ ] 自動検証: `<command>` が成功する。
+- [ ] Webプレビュー: production componentとfixtureで対象画面・状態を通常Webページから確認する。
+- [ ] AIエージェントE2E: ビルド済み拡張機能をPlaywrightで確認し、report、screenshot、trace、skipを記録する。
 - [ ] 手動検証: <操作> の結果、<観察可能な結果> になる。
+- [ ] 人間受入: AIエージェント確認後、同じcommit／buildを人間が承認または差戻しする。
+- [ ] 状態fixture: 初回／再訪、0件／8件／9件以上候補、Normalizer v1、設定境界値、AI snapshot、権限拒否、削除→同名作成→undo、undo期限／競合、archive復元、QR／Drive競合を必要に応じて含める。
 - [ ] エラー経路: <条件> でも保存済みデータを失わず、<案内> を表示する。
 - [ ] 文書: 関連文書と実装が一致する。
+
+UIまたは利用者導線を変更するPlanは [TESTING.md](TESTING.md) の順序を省略しない。段階が対象外または実行不能なら、理由と未実証範囲を明記し、完了扱いにしない。
 
 ## 再実行・復旧
 
@@ -130,7 +142,8 @@ Plan は `docs/plans/YYYY-MM-DD-短い名称.md` に置く。`AGENTS.md` にはP
 
 1. 手動入力したURLを専用ストアへ保存し、再読込後も一覧に残る。
 2. 保存時にPrompt APIの可用性を判定し、利用不可でも手動タグ付けへ進める。
-3. ユーザーだけが定義する一意名カテゴリと、既存ユーザー定義を優先してAIが必要時だけ作る同名可タグを、版付きJSON documentとして保存する。両一覧の統合検索がカテゴリ・タグを上、Bookmarkを下に返し、AI候補が無順位であることを確認する。
+3. ユーザーだけが定義する一意名の親カテゴリと、既存ユーザー定義を優先してAIが必要時だけ作る一意名の子タグを、版付きJSON documentとして保存する。カテゴリ名とタグ名は別namespace、タグ名は親をまたいでglobal uniqueである。フルページ検索の入力候補が最大8件で、カテゴリ・タグを上、Bookmarkを下に返すことを確認する。
+4. AI細分化 `0`〜`4` が新規タグ上限 `0 / 1 / 2 / 4 / 6` に対応し、`0` でも既存タグの自動付与は続くこと、AI入力ポップアップ内で検索結果とBookmationの機能説明を確認できることを実証する。
 
 各マイルストーンには、成功時だけでなく失敗時の期待動作も含める。
 

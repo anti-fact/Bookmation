@@ -1,7 +1,7 @@
 # 問題・未決定事項
 
 - 状態: Open の項目は実装前または対象フェーズ開始前に決定する。
-- 基準日: 2026-08-16
+- 基準日: 2026-08-17
 
 ## 運用規約
 
@@ -17,39 +17,53 @@
 | --- | --- | --- | --- | --- |
 | ISSUE-001 | Spike | P0 | Gemini Nano / Prompt API の対応条件が端末と Chrome に依存し、Web Worker では実行できない | Dashboard または Side Panel 等の対応ドキュメントで、日本語分類、ユーザー操作、最低 Chrome 版、モデル取得 UX、構造化出力、Workerとのメッセージングを確認する |
 | ISSUE-002 | Open | P0 | サムネイルの取得はプライバシー、CSP、容量、失敗率に影響する | `og:image` 参照、ローカル取得、画面キャプチャ、代替面のどれを既定にするか決める |
-| ISSUE-004 | Open | P0 | AI タグ細分化5段階の上限は仮値である | 代表データセットで過剰生成率・修正率・候補再利用率を測り、段階名と新規タグ上限を確定する |
-| ISSUE-005 | Open | P0 | TAGは同名を許可するため、候補の見分けと手動統合の UX が必要である | ID、作成元、関連件数の表示と、明示的なTAG統合・復元を決める。CATEGORYは同名作成を拒否する |
 | ISSUE-007 | Open | P0 | ハッカソンの締切・審査基準・デモ環境が資料にない | チームで一次情報を確認し、P0 の日程・成功指標・デモ端末を Execution Plan に記録する |
-| ISSUE-008 | Open | P1 | 訪問リマインダーは確定したが、閾値の既定値、集計期間、除外、再通知間隔が未定である | 権限説明、既定値、対象除外、cooldownを決める。保存は利用者確認後だけという要件は変更しない |
-| ISSUE-009 | Open | P1 | 自動アーカイブは確定したが、既定日数と履歴がない項目の再確認UIが未定である | 既定日数、実行頻度、結果通知、復元導線を決める。`lastVisitedAt=null` は自動変更しない |
-| ISSUE-010 | Open | P1 | QR共有は確定したが、容量と分割方式が未定である | バージョン付きJSON payload、最大件数、分割、改ざん検知、受信確認を試験する |
-| ISSUE-011 | Open | P1 | Google Drive同期は確定したが、競合UI、tombstone期間、追加暗号化が未定である | `drive.appdata`、JSON形式、差分方式、tombstone、競合UI、バックアップを決める |
+| ISSUE-008 | Open | P1 | 自動Bookmarkリマインダーの有効化と対象URLの `次回以降表示しない` は確定したが、数値閾値の既定値、集計期間、再通知間隔が未定である | 権限説明、既定値・上限、対象除外、cooldown、除外URLの管理／再許可UIを決める。保存は利用者確認後だけという要件は変更しない |
+| ISSUE-009 | Open | P1 | 自動アーカイブは確定したが、数値閾値の既定日数、実行頻度、履歴がない項目の扱いが未定である | 既定値・上限、実行頻度、結果通知を決める。設定内のリスト選択復元と、`lastVisitedAt=null` を自動変更しない境界は維持する |
+| ISSUE-010 | Open | P1 | QR共有／読取インポートは確定したが、容量、分割方式、送信者真正性の要否が未定である | カテゴリ別・タグ別・個別選択を版付きJSON payloadへ落とし込み、最大件数、分割、checksumによる破損／切詰め検出、受信確認を試験する。真正性が必要ならchecksumとは別に署名またはMAC方式を決める |
+| ISSUE-011 | Open | P1 | Google Driveは同一アカウント同期と別アカウント共有で保存領域が異なる | 同一アカウントは `appDataFolder`、所有権／共有権限を確認できる別アカウントは通常Drive fileとする境界を守る。immutable syncSnapshots、明示resolution plan、open中GC禁止、解決後30日保持、暗黙Label／edge remap禁止を変更せず、アカウント選択、OAuth scope、permissions／capabilities、競合UI、バックアップの残件を決める |
 | ISSUE-013 | Open | 運用 | タスク管理を Linear にする希望はあるが確定していない | チームのアカウントと運用責任を確認し、正本を一つに決める |
-| ISSUE-014 | Open | P0 | 共通AI検索の候補上限・応答時間・AI非対応時の縮退が未確定である | 1入力、種類別の無順位集合、最大件数、理由、応答時間、lexical fallbackをprototypeで決める |
+| ISSUE-014 | Open | P0 | AIポップアップの検索候補上限、製品機能説明の正本、応答時間、AI非対応時の縮退が未確定である | 同じDialog内の入力／応答、種類別の無順位集合、最大件数、説明の参照データ、応答時間、lexical fallbackをprototypeで決める |
 | ISSUE-015 | Open | P0 | URL 指定保存で取得できるメタデータと通信権限の境界が未確定である | URL 検証、タイトル入力の代替、ファビコン・サムネイル取得、host permission 不要の縮退動作を決める |
-| ISSUE-016 | Open | P1 | Chrome標準BookmarkのFolderをカテゴリ／タグへどう対応するか未定である | tagなし取込、folder path保持、利用者確認付きカテゴリ化を比較し、元tree非変更と重複規則を固定する |
+| ISSUE-016 | Open | P1 | Chrome標準BookmarkのFolderを親カテゴリ／子タグへどう対応するか未定である | tagなし取込、folder path保持、利用者確認付き階層化を比較し、元tree非変更と重複規則を固定する |
 | ISSUE-017 | Open | P1 | QRへ収まらない共有をどう扱うか未定である | 分割QRまたは別の明示exportを決め、無言の切捨てを禁止する |
+| ISSUE-018 | Open | P0 | UI Webプレビューのrunner、Playwright／Chromium版、CI artifact保持条件が未確定である | Storybookまたは同等preview appを比較し、`ui:preview` / `ui:build` / `test:e2e` / `test:e2e:ui`、visual baseline、report／trace保持期間をTASK-013で固定する。通常Webページ、AIエージェント先行、人間最終受入という要件は変更しない |
+| ISSUE-019 | Open | P0 | Tagの親Categoryを後から変更できるかが未確定である | Tag名のglobal uniqueを守り、親変更時のBookmark割当、検索表示、AI再利用、履歴を決める |
+| ISSUE-020 | Open | P0 | keyword autocompleteは最大8件で確定したが、一致度と種類混在時の配分が未定である | 正規化、前方一致／部分一致、カテゴリ・タグ・Bookmarkの配分、同点規則、IME中の挙動を固定し、キーボード操作を試験する |
+| ISSUE-021 | Open | P0 | 削除確認画面を使わないため、undoの有効時間と復元入口が未定である | Bookmark／Category／Tagごとのundo期限、設定／管理画面からの復元、同期競合、子Tag残存でCategory削除をblockした時の案内を決める |
 
 ## 決定済み
 
 | ID | 状態 | 決定 | 根拠 |
 | --- | --- | --- | --- |
-| ISSUE-D01 | Decided | 左フォルダツリーを採用しない | 現行UIは全画面カテゴリ一覧を正本とする |
+| ISSUE-D01 | Decided | 左フォルダツリーを採用しない | 現行UIは全画面カテゴリ・タグ一覧を正本とする |
 | ISSUE-D02 | Decided | P0 はブラウザ標準ブックマークを変更しない | 拡張機能専用ブックマークという今回の要件 |
 | ISSUE-D03 | Decided | AI 非対応時に外部APIへ自動送信せず、手動分類へフォールバックする | プライバシーと P0 スコープを守るため |
 | ISSUE-D04 | Decided | 旧企画資料由来で保留していた訪問、archive、QR、DriveをP1確定機能へ昇格する | 2026-08-16の利用者による明示的な再承認 |
-| ISSUE-D05 | Decided | 旧階層を廃止し、カテゴリ／タグを平坦な役割区分とする | 最新の利用者依頼は旧メインタグをカテゴリ、旧サブタグをタグへ改称した |
+| ISSUE-D05 | Decided | カテゴリを親、タグを子とする | 2026-08-17の利用者による明示要件。平坦モデルを置き換える |
 | ISSUE-D06 | Decided | カテゴリはユーザー作成のみ、タグはユーザー定義優先で必要時だけAI作成とする | 最新の利用者依頼 |
-| ISSUE-D07 | Decided | カテゴリ／タグは複数割当可。カテゴリ名は一意、タグ名は重複可 | 2026-08-16の正式用語変更後も規則を維持する |
+| ISSUE-D07 | Decided | カテゴリ名とTag名はそれぞれ論理削除中を含めて正規化後にglobal uniqueとし、Tagは親カテゴリが異なっても同名別IDを許可しない。既存Labelは複数Bookmarkで再利用できる | 2026-08-17の最新上書き。作成時は既存候補の選択、削除済み元IDの復元、または別名を案内する |
 | ISSUE-D08 | Decided | UI 実装基盤は Plasmo（React ベース）+ Tailwind CSS とする | 最新の利用者依頼 |
 | ISSUE-D09 | Decided | ポップアップの2ボタン、2ショートカット、URL指定保存、最近追加ホームをP0に含める | 利用者依頼 |
-| ISSUE-D10 | Decided | デザインシートをUI正本とし、LIST / GRID、全画面カテゴリ一覧、sticky header、edit modal、infinite scroll、back-to-topを採用する | 2026-08-15 の依頼と添付SVG |
-| ISSUE-D11 | Decided | 両一覧の検索ボックスはkeyword／AIともLabelとBookmarkを検索し、カテゴリ・タグを上、Bookmarkを下に表示する | 2026-08-16の利用者依頼 |
-| ISSUE-D12 | Decided | 弁当、列数選択、右Tag sidebar、分離AI検索は廃止する | 2026-08-15 の依頼 |
-| ISSUE-D13 | Decided | 頻繁に訪問する未保存サイトは閾値到達後にリマインダーを出し、保存確認後だけBookmationへ保存する | 2026-08-16の利用者依頼と無断保存を避ける安全境界 |
-| ISSUE-D14 | Decided | 最終訪問日時と設定期間で休眠Bookmarkを判定し、文字列 `archiveState` で自動archive・復元する | 2026-08-16の利用者依頼 |
-| ISSUE-D15 | Decided | ユーザー間共有はQR、同一ユーザー同期はGoogle Drive appDataFolderを使う | 2026-08-16の利用者依頼 |
+| ISSUE-D10 | Decided | 更新済みデザインシートをUI配置正本とし、LIST / GRID、全画面カテゴリ・タグ一覧、初回ウェルカム、設定の一般／アーカイブ／共有、sticky header、edit modal、infinite scroll、back-to-topを採用する | 2026-08-17の依頼と更新済みSVG |
+| ISSUE-D11 | Decided | 両一覧のkeyword検索は全画面検索へ切り替え、カテゴリ・タグを上、Bookmarkを下に表示する。入力中は最大8候補とする | 2026-08-17の利用者依頼 |
+| ISSUE-D12 | Decided | AI自然言語検索は専用全画面ページを作らず入力元画面のポップアップ内で入力／応答し、検索と製品機能説明を扱う | 2026-08-17の利用者依頼 |
+| ISSUE-D13 | Decided | 頻繁に訪問する未保存サイトは設定でリマインダーを有効にした場合だけ通知し、保存確認後だけBookmationへ保存する。対象URLは `次回以降表示しない` で除外できる | 2026-08-17の利用者依頼と無断保存を避ける安全境界 |
+| ISSUE-D14 | Decided | 最終訪問日時と数値入力した期間で休眠Bookmarkを判定し、アーカイブ後はページ名、URL、カテゴリ、タグだけを利用者データとして残し、設定内リストから選択復元する | 2026-08-17の利用者依頼 |
+| ISSUE-D15 | Decided | ユーザー間共有は選択式QR生成／読取インポート、同一Googleアカウントの端末間同期は `appDataFolder`、所有権／共有権限を確認できる別アカウントとの共有は通常Drive fileとする | 2026-08-17の利用者依頼とDriveの共有境界。詳細はISSUE-011で閉じる |
 | ISSUE-D16 | Decided | 標準Bookmarkは明示操作でBookmationへコピーし、元データを変更しない | 2026-08-16の利用者依頼 |
 | ISSUE-D17 | Decided | page／linkのcontext menu保存を通常保存use caseへ合流させる | 2026-08-16の利用者依頼 |
 | ISSUE-D18 | Decided | DB正本はIndexedDB上の版付きJSON互換documentとし、Blobは別Storeにする | 2026-08-16の利用者依頼 |
+| ISSUE-D19 | Decided | 本番UIを通常Webページでモック表示し、AIエージェントがPlaywrightで実拡張を確認した後、人間が最終受入する | 2026-08-16の利用者による明示要件。詳細はTESTING.mdを正本とする |
+| ISSUE-D20 | Decided | 訪問回数閾値とアーカイブ閾値は数値入力、AI細分化度だけは0〜4のスライダーとする。0でも既存カテゴリ／タグの自動付与は続ける | 2026-08-17の利用者依頼 |
+| ISSUE-D21 | Decided | `runtime.onInstalled` の `reason=INSTALL` だけで初回ウェルカム画面を表示し、開始後の通常ホームを最近追加一覧にする | 2026-08-17の利用者依頼と更新済みSVG。更新／開発時reloadを初回扱いしない |
+| ISSUE-D22 | Decided | Bookmark編集のカテゴリ／タグ入力を分け、それぞれ既存候補の選択と同一モーダル内サイドビューでの新規作成を提供する | 2026-08-17の利用者依頼 |
+| ISSUE-D23 | Decided | カテゴリ・タグ一覧の新規作成プルダウン、閉じるまでの連続作成、管理モード、項目選択編集、hover／focus時の鉛筆表示を採用する | 2026-08-17の利用者依頼と更新済みSVG |
+| ISSUE-D24 | Decided | Bookmark、カテゴリ、タグの削除では確認画面を表示しない | 2026-08-17の利用者依頼。論理削除、undo、復元の詳細はISSUE-021で閉じる |
+| ISSUE-D25 | Decided | AI細分化度0／1／2／3／4の1件あたり新規Tag上限を0／1／2／4／6件とし、0でも既存カテゴリ／タグの自動付与を続ける | 2026-08-17の0〜4要件を実装可能な上限へ具体化した |
+| ISSUE-D26 | Decided | 有効な子Tagが残るCategoryの削除はblockし、cascade deleteしない | 親子階層を壊さず、削除確認なしでも子Tagの意図しない一括削除を防ぐため |
+| ISSUE-D27 | Decided | Label名称正規化v1はproject-vendored Unicode 15.1.0のNFKC／`White_Space`／`Default_Ignorable_Code_Point`／`CaseFolding.txt` C＋F assetだけを使い、runtime ICUへ依存しない。生成assetのhashは実装時に固定する | 端末・入力経路によって「同名」判定が変わらないようにする。検索queryのtoken正規化とは分離し、version更新時は再索引前に競合を隔離する |
+| ISSUE-D28 | Decided | 自動archiveの設定は日数の数値入力だけとし、独立した有効／無効toggleは現行UIへ追加しない。toggleを持つのは自動Bookmarkリマインダーだけとする | 2026-08-17の最新設定要件と更新済みデザインシート |
+| ISSUE-D29 | Decided | active Tagだけにactive親Categoryを必須とする。tombstone Tagはdeleted親を参照できるが、Tag restoreは親Category restore後に限り、親Categoryの物理GCは全子Tag tombstoneが消滅するまでblockする | soft-delete中の参照と復元順を保ち、孤立Tagまたは復元不能Tagを作らないため |
+| ISSUE-D30 | Decided | P1 Drive競合はimmutable syncSnapshotsと明示resolution planで扱う。open中は参照snapshotをGCせず、解決後30日保持し、Label ID／edgeを暗黙にremapしない | 競合解決の監査性と巻戻し余地を保ち、同名禁止・親子edgeを暗黙処理で破壊しないため |
 | ISSUE-006 | Decided | pnpm 10.15.1、Plasmo 0.90.5、React 18.3.1、Tailwind 3.4.17、TypeScript 5.9.2。推奨 Node 22。品質コマンドは `dev` / `build` / `lint` / `typecheck` / `test` | TASK-001 の scaffold と lockfile。`engines` は Plasmo/Parcel の解決バグを避けるため置かない |

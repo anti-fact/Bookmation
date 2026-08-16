@@ -1,133 +1,188 @@
 # フロントエンド設計
 
-- 状態: 提案・未実装
-- 更新日: 2026-08-16
+- 状態: 設計決定・popup確認用scaffoldのみ実装済み
+- 更新日: 2026-08-17
 - 採用: Plasmo + React + TypeScript + Tailwind CSS
-- 関連: [UI](./UI.md) / [設計](./DESIGN.md) / [要件](./REQUIREMENTS.md)
+- 関連: [UI](./UI.md) / [設計](./DESIGN.md) / [要件](./REQUIREMENTS.md) / [テスト](./TESTING.md)
 
 ## エントリポイント
 
 | entry | 責務 |
 | --- | --- |
-| `src/popup.tsx` | 保存／ホームの2操作、各ショートカットの実割当、変更案内。TASK-001 時点は確認用画面のみ |
-| `src/tabs/index.tsx` | dashboard、全画面カテゴリ一覧、各モーダル、AI Host。TASK-002 で追加 |
-| `src/background.ts` | command、contextMenus、alarms、保存、履歴判定、DB、ジョブとメッセージ。Prompt APIは呼ばない。TASK-002 で追加 |
+| `src/popup.tsx` | 保存／ホームの2操作、ショートカット表示、変更案内 |
+| `src/tabs/index.tsx` | welcome、一覧、検索、カテゴリ・タグ、設定、各overlay、AI Host |
+| `src/background.ts` | install、commands、contextMenus、alarms、保存、履歴判定、DB、メッセージ。Prompt APIは呼ばない |
 
-popup は `chrome.commands.getAll()` の `name` と `shortcut` を command allowlist に対応付ける。空なら `未割り当て`。`割り当てを変更` は Chrome の管理画面を開く試行または案内表示に留める。
+`chrome.runtime.onInstalled` のinstall時だけ拡張タブの `#/welcome` を開く。update時や通常起動で開かない。popupは `chrome.commands.getAll()` のallowlistだけを表示し、空の割当は `未割り当て` とする。
+
+テスト用Webプレビューはproduction entryではない。本番と同じpage componentへfake Portを注入し、Chrome API、Repository、AI、Drive、camera等を置換する。fixture/debug UIを本番buildへ含めない。
 
 ## routes と一時状態
 
 | route | component |
 | --- | --- |
+| `#/welcome` | `WelcomePage` |
 | `#/home` | `BookmarkListPage`（最近追加） |
-| `#/bookmarks?label=<labelId>` | `BookmarkListPage`（カテゴリ／タグ条件） |
-| `#/labels` | `FullScreenLabelListPage` |
-| `#/archive` | `ArchivedBookmarkListPage` |
+| `#/bookmarks?category=<id>` | `BookmarkListPage`（親カテゴリ条件） |
+| `#/bookmarks?tag=<id>` | `BookmarkListPage`（子タグ条件） |
+| `#/search?q=<query>` | `SearchResultsPage` |
+| `#/labels` | `FullScreenCategoryTagPage` |
+| `#/settings/general` | `SettingsPage` 一般 |
+| `#/settings/archive` | `SettingsPage` アーカイブ |
+| `#/settings/share` | `SettingsPage` 共有 |
 
-`BookmarkEditDialog`、`SettingsDialog`、`AiSearchDialog`、`AddUrlDialog` は route 上の画面へ重ねる。閉じた後に trigger へフォーカスを戻す。自然言語入力とカーソルは URL / 永続設定へ保存しない。
+`BookmarkEditDialog`、`CategoryTagCreateDialog`、`CategoryTagEditDialog`、`AddUrlDialog`、`AiAgentPopup` はroute上へ重ねる。キーワードqueryはhash routeへ保持し、AI会話、編集draft、候補cursorは永続化しない。
 
 ## コンポーネント境界
 
 | component | 責務 |
 | --- | --- |
-| `StickyBookmarkHeader` | 統合検索、AI button、件数、LIST / GRID、カテゴリ一覧・設定導線 |
-| `BookmarkList` | cursor page の描画、sentinel、追加状態 |
-| `BookmarkItem` | 共通情報、カテゴリ常時表示、タグdisclosure、編集ボタン |
-| `FullScreenLabelListPage` | 全画面構成と戻り先復元 |
-| `StickyLabelHeader` | 統合検索、AI button、閉じる |
-| `LabelList` | カテゴリ／タグ表示、選択、cursor sentinel |
-| `UnifiedSearch` | 両画面共通入力、上段Label候補、下段Bookmark候補 |
-| `AiSearchDialog` | 1入力とカテゴリ・タグ／Bookmarkの候補グループ |
-| `BookmarkEditDialog` | name、URL、tag edge、削除 |
-| `SettingsDialog` | AI細分化、訪問閾値、自動archive期間、Drive接続 |
-| `VisitReminder` | 保存／あとで／表示しない |
-| `QrShareDialog` / `QrImportDialog` | 共有内容の確認、生成、取込 |
-| `ChromeBookmarkImportDialog` | 権限説明、preview、進捗、結果 |
-| `BackToTopButton` | 閾値後の表示、見出しへの scroll / focus |
-| `Dialog` / `Disclosure` | a11y を含む共通 primitive |
+| `WelcomePage` | 初回説明、開始、再開可能な初期設定 |
+| `StickyBookmarkHeader` | `SearchBox`、AI、件数、LIST / GRID、一覧・設定導線 |
+| `BookmarkList` / `BookmarkItem` | cursor描画、カテゴリ常時、タグdisclosure、編集 |
+| `SearchBox` | 最大8件typeahead、検索ページ遷移 |
+| `SearchSuggestionList` | カテゴリ・タグ上／Bookmark下のcombobox |
+| `SearchResultsPage` | フルページ結果と種類別cursor |
+| `AiAgentPopup` | AI入力、応答、検索候補、製品ヘルプ |
+| `FullScreenCategoryTagPage` | 親カテゴリごとの子タグ、通常／管理モード |
+| `StickyCategoryTagHeader` | 統合検索、AI検索、新規作成dropdown、管理、閉じる |
+| `CategoryRibbon` / `TagChip` | 遷移、管理時の編集trigger |
+| `BookmarkEditDialog` | title、URL、カテゴリ／タグ別編集、削除 |
+| `ExistingCategoryCombobox` | 既存カテゴリを最大8候補から複数選択 |
+| `ExistingTagCombobox` | 親カテゴリ付き既存タグを最大8候補から複数選択 |
+| `LabelCreateSideView` | Bookmark draftを保持した新規作成 |
+| `CategoryTagCreateDialog` | 種類別の連続作成 |
+| `CategoryTagEditDialog` | 名前、親カテゴリの読取表示、利用件数、即時削除 |
+| `SettingsPage` | 一般／アーカイブ／共有のサイドナビ |
+| `VisitReminder` | はい／いいえ／URL単位の次回抑止 |
+| `ArchiveManager` | checkbox選択と一括復元 |
+| `DriveAccountPanel` | account選択、同期、権限、競合 |
+| `QrSharePanel` / `QrImportPanel` | 対象選択、生成、読取、取込 |
+| `BackToTopButton` | 閾値後のscroll／focus |
 
 ## 状態管理
 
 | 状態 | 置き場所 |
 | --- | --- |
-| Bookmark / Label 正本 | IndexedDB repository。React state を正本にしない |
-| LIST / GRID、AI細分化度 | `chrome.storage.local` |
-| labelId、画面種別 | hash route |
-| keyword、AI query、開閉、modal | React の画面内 state |
-| cursor、requestId、hasNext | query state。URLへ入れない |
-| 一覧へ戻る scroll anchor | navigation state。失効時は見出しへ戻す |
+| Bookmark / Category / Tag正本 | IndexedDB repository |
+| onboarding状態、LIST / GRID、数値閾値、reminder有効、AI細分化0〜4 | `chrome.storage.local` |
+| categoryId、tagId、検索query、設定section | hash route |
+| AI conversation、dialog、side view、管理モード | React画面内state |
+| cursor、requestId、hasNext | query state |
+| 一覧へ戻るscroll anchor | navigation state |
 
-## 追従ヘッダー
+React stateをデータ正本にしない。保存commandにはrevisionとidempotency keyを含め、完了応答後にquery cacheを更新する。
 
-デザインシートのヘッダー構成をTailwind tokenとcomponentに落とす。`position: sticky`、適切な `top`、z-index、背景を共通化する。両画面で同じ統合検索とAI操作を使い、ブックマーク画面には件数とLIST / GRID、カテゴリ一覧画面には閉じるを追加する。200%拡大時は操作を複数行に折り返して欠落させない。
+## 分類階層のUI不変条件
 
-## LIST / GRID
+タグは `parentCategoryId` を必須とする。選択済みタグの親カテゴリはBookmark draftにも必ず含める。
 
-`ViewModeControl` は `LIST | GRID` のラジオグループとする。弁当 enum、列数設定、表示件数プルダウンを持たない。GRID は `grid-template-columns: repeat(auto-fit, minmax(...))` 等の responsive CSS で列数を決める。DOM 順と視覚順を一致させる。
+- タグ選択時、未選択の親カテゴリを同じdraftへ追加して通知する。
+- カテゴリ解除時、選択済みの子タグをdraftから同時に外し、影響したタグ名を表示する。保存前ならカテゴリとタグを再選択して戻せる。
+- タグ編集では親カテゴリを読取専用で表示し、未決の親変更commandを送らない。
+- タグ候補には親カテゴリ、origin、利用件数を表示し、表示名ではなくIDをReact keyと選択値にする。
 
-`BookmarkItem` はカテゴリchipを常時描画する。タグはbutton disclosureで開閉し、`aria-expanded` / `aria-controls` を設定する。hover previewを追加する場合も `@media (hover: hover)` に限定し、フォーカス／クリック経路を維持する。
+## 入力中キーワード候補
 
-## 編集モーダル
+`SearchBox` と既存カテゴリ／タグcomboboxは共通の正規化と候補primitiveを使う。日本語IMEのcomposition中は確定検索を行わず、150〜250msを目安にdebounceする。
 
-フォームは `title`、`url`、`categoryIds[]`、`tagIds[]` をdraftに持つ。URLは送信時に再検証する。カテゴリ新規作成時は正規化名一致を検出してfield errorと既存選択を示し、タグは同名別IDの明示作成を許す。削除は二段階確認後に専用commandを送る。
+1. 正規化完全一致
+2. 前方一致
+3. token前方一致
+4. 部分一致
+5. 安定tie-break（表示名、親カテゴリ名、ID）
 
-保存中の二重送信を止め、revision conflict なら入力を失わず最新値との差分を示す。
+この順で候補を作り、検索ヘッダーは全種類合計8件、カテゴリ入力はカテゴリ8件、タグ入力はタグ8件まで返す。候補は `role=option`、入力は `role=combobox` とし、`aria-activedescendant`、上下キー、Enter、Escを実装する。候補が9件以上でも8件だけ描画し、確定検索で全画面結果へ移る。
 
-## 共通 AI 検索
+## フルページ検索
 
-`AiSearchDialog` は入口に依存せず同じフォームを使う。結果型は次のように順位を持たない。
+Enterまたは検索ボタンで `#/search?q=<encoded>` へ遷移する。`SearchResultsPage` は上段にカテゴリ・タグ、下段にBookmarkを固定し、各グループのcursorと状態を分離する。カテゴリ選択はカテゴリ条件一覧、タグ選択はタグ条件一覧、Bookmark選択は詳細または元ページへ移る。戻る操作で元画面のqueryとscroll位置を復元する。
+
+## AIエージェントポップアップ
+
+`AiAgentPopup` はデザインシートの右下panelを基準とし、入力、送信、streaming／処理中、回答、候補カード、再試行、reset、closeを同一面に置く。画面遷移せず、会話はタブを閉じれば破棄する。
+
+入力intentは次へ限定する。
+
+- `SEARCH_LIBRARY`: 保存済みカテゴリ、タグ、Bookmarkの自然言語検索。
+- `PRODUCT_HELP`: 版管理された機能カタログと現在のcapability stateに基づくBookmationの説明。
+- `OUT_OF_SCOPE`: 対応範囲と利用可能な入口を案内する。
+
+検索候補はカテゴリ・タグを先、Bookmarkを後にする。番号、score、最適表現は出さない。機能説明には実装済み／未実装／権限不足／AI利用不可を区別する。AI出力からmutation commandを発行せず、設定や削除は対象画面へのlinkだけを返す。AI非対応時は静的ヘルプとキーワード検索へ縮退する。
+
+## LIST / GRID と無限スクロール
+
+`ViewModeControl` は `LIST | GRID` のradio groupとする。弁当、列数設定、表示件数設定を持たない。GRID列数はresponsive CSSで決め、DOM順と見た目を一致させる。
+
+`BookmarkItem` はカテゴリを常時描画し、タグはbutton disclosureで開閉する。`IntersectionObserver` のsentinelはloading中の同cursor要求を拒否し、requestId照合、ID dedupe、失敗位置の再試行、終端解除を行う。追加後にフォーカスを移さない。
+
+## ブックマーク編集とサイドビュー
+
+draftは次を持つ。
 
 ~~~ts
-type AiSearchResults = {
-  labels: LabelCandidate[]
-  bookmarks: BookmarkCandidate[]
-  source: "AI" | "LEXICAL_FALLBACK"
+type BookmarkEditDraft = {
+  title: string
+  url: string
+  categoryIds: string[]
+  tagIds: string[]
 }
 ~~~
 
-配列順を関連度の意味に使わず、UIは候補番号やscoreを出さない。`labels` を上、`bookmarks` を下に固定し、各グループは決定的な中立順にする。古いqueryIdの結果、候補外ID、古いrevisionを破棄する。日本語IMEのcomposition中は送信しない。
+カテゴリとタグは別のfield group／comboboxで変更する。各見出し横の `＋新規作成` は同じDialog内部を `FORM` から `CREATE_CATEGORY` または `CREATE_TAG` へ切り替え、親dialogを重ねない。戻るとdraft、dirty state、検索語、focusを復元し、新規作成成功時だけIDをdraftへ追加する。
 
-## キーワード検索
+削除は確認画面を開かず、専用の論理削除command成功後にdialogを閉じてundo toastを出す。undo tokenの期限中だけ復元を受け付ける。通信失敗やrevision conflictではdialogと入力を保持する。
 
-`UnifiedSearch` は入口にかかわらずLabelとBookmarkの両方を対象にする。入力をdebounceし、結果popoverにはカテゴリ・タグを上、Bookmarkを下に表示する。AI非対応時もキーワード検索は動作する。検索結果件数はグループ別にlive regionで通知する。画面本体のcursorと検索popoverのcursorは分離する。
+## カテゴリ・タグ一覧と管理モード
 
-## P1設定・共有・取込
+表示状態は `VIEW | MANAGE` とする。VIEWではCategoryRibbon／TagChip選択が絞込み遷移、MANAGEでは編集dialog起動になる。管理ボタンは `aria-pressed` を持ち、MANAGE中はデザインシートどおり反転表示する。鉛筆は `@media (hover: hover)` とfocus-visible時だけ補助表示し、操作名は常にaccessible nameへ含める。
 
-- 訪問機能のtoggleをオンにするときだけ、説明画面から `history` / `notifications` を要求する。拒否された設定をオンに見せない。
-- アーカイブ設定は日数の範囲検証と無効化を提供し、処理結果からARCHIVED一覧へ移動できる。
-- QR共有／取込は内容確認を必須にし、読み取った文字列をHTMLとして描画しない。
-- Drive接続はアカウント、最終同期、未同期、競合、再認証を状態機械として表示する。
-- Chrome標準Bookmark取込は権限説明、preview、進捗、cancel、部分失敗レポートを持ち、元データを変更しない。
+ヘッダーの `新規作成` はmenu buttonで、`カテゴリ作成`／`タグ作成` 選択後に共通dialogを開く。カテゴリは名前、タグは名前と親カテゴリを必須とする。
 
-## 無限スクロール
+作成成功後もdialogは開いたまま入力を初期化し、session内作成結果を表示する。既存項目を選択・関連付けるUIは置かない。カテゴリ名とタグ名はそれぞれ論理削除中を含めて正規化後に全体一意とし、重複時はfield errorと既存項目の状態を示す。削除済みなら管理画面で元IDを復元するか別名を入力するよう案内し、タグは親カテゴリが異なっても同名の別IDを作成できない。
 
-`IntersectionObserver` の sentinel と次カーソルを使う。
+編集dialogの削除は確認なしで論理削除＋undoとする。子タグが残るカテゴリの削除commandは送信せず、現行P0で可能な子タグの個別削除または操作中止を表示する。親変更はISSUE-019決定前に提示せず、連鎖削除もしない。
 
-- `loading` 中は同じカーソルを再要求しない。
-- レスポンスは `requestId` と開始カーソルが一致する場合だけ追加する。
-- ID で dedupe し、終端では observer を解除する。
-- エラー時は読込済み要素を残し、sentinel 位置に再試行を置く。
-- 追加後にフォーカスを移動せず、件数だけ通知する。
+## 設定画面
 
-ブックマーク画面は総件数と読込済み件数を表示する。カテゴリ一覧画面にも同じpaging primitiveを使う。
+設定はmodalではなく `SettingsPage` とし、左サイドナビの一般／アーカイブ／共有をrouteで切り替える。
 
-## トップへ戻る
+### 一般設定
 
-両一覧で共通 component を使う。一定の scrollY 以降だけ表示し、押下後は先頭見出しへ `tabIndex=-1` でフォーカスする。reduced motion を尊重する。
+- 訪問回数: `input type=number`、整数、`min=1`、単位 `回`。
+- リマインダー: switch。オン操作で権限説明とrequestを行い、拒否時はoffへ戻す。
+- アーカイブ日数: `input type=number`、整数、`min=1`、単位 `日`。
+- AI細分化: `input type=range`、`min=0`、`max=4`、`step=1`。目盛、現在値、効果説明を表示する。
+
+値0は `maxNewAiTags=0` であり、分類job自体を止めない。既存カテゴリ／既存タグ候補の自動付与は実行する。
+
+### アーカイブ管理
+
+`ArchiveManager` は最小archive recordをlist表示し、checkboxの個別／全選択、選択件数、復元、部分失敗を扱う。復元後は一覧から成功項目だけ除き、失敗項目と理由を残す。
+
+### 共有
+
+`DriveAccountPanel` はGoogle account選択、接続状態、同期状態、競合を表示する。同一account同期は `appDataFolder`、別account共有は通常Drive fileとし、後者では対象fileのownership、permission、`capabilities` を確認する。QR共有はカテゴリ／タグ／Bookmarkのfilterと検索、checkboxを同じ選択setへ展開してID dedupeする。QR読取はcamera permissionを利用時に要求し、画像file fallback、preview、重複解決、import結果を持つ。
+
+## 訪問リマインダー
+
+`VisitReminder` は候補URL、はい、いいえ、`次回から表示しない` checkboxを表示する。checked時はcanonical URL用suppression commandを送るだけで、global reminder settingを変更しない。保存を選んだ場合も共通保存commandへ渡し、成功前に保存済み表示へしない。
 
 ## AI Host とメッセージ
 
-Prompt API はトップレベル dashboard 内の専用 adapter でのみ実行する。Service Worker は classification job の永続化、候補集合生成、AI 出力の再検証・適用を担う。
+Prompt APIは対応を実証したトップレベル拡張ページのadapterでだけ実行する。Service Workerは分類job、検索候補集合、製品ヘルプversion、AI出力のschema／候補ID／revision検証を担う。
 
-メッセージは discriminated union、schemaVersion、requestId、entityRevision を持ち、送信元と action allowlist を検証する。AI検索は一時処理で永続 job にしない。
+メッセージはdiscriminated union、schemaVersion、requestId、entityRevisionを持ち、送信元とaction allowlistを検証する。AI conversationは永続jobにせず、候補外IDや古いqueryIdを破棄する。
 
 ## テスト観点
 
-- popup: 2 command のキー表示、未割当、管理画面案内、保存不可 URL。
-- list: sticky header、件数、統合keyword、LIST / GRID、カテゴリ常時、タグdisclosure、全項目edit。
-- labels: full-screen、sticky header、統合keyword、close、戻り状態。
-- dialogs: focus trap、Esc、復帰、編集 validation、削除確認、slider説明。
-- search: 両入口、カテゴリ・タグ上／Bookmark下、keywordとAI、無順位、複数候補、IME、fallback、古い応答拒否。
-- P1: 履歴権限拒否、通知操作、archive復元、QR破損、Drive競合、標準Bookmark取込中断、context menu保存。
-- paging: 多重 observer、重複 ID、終端、失敗再試行、back-to-top。
-- responsive: 200% zoom、keyboard、screen reader、reduced motion。
+詳細な実行順序は [TESTING.md](./TESTING.md) を正本とする。Webプレビューと実拡張E2Eで最低限次を確認する。
+
+- welcome: install時だけ開く、更新時は開かない、開始後の遷移。
+- search: 0／8／9候補、IME、keyboard、全画面遷移、上下グループ、戻り状態。
+- AI: popup内入力／応答、検索、製品ヘルプ、未実装説明、fallback、mutation拒否。
+- bookmark edit: separate combobox、親子整合、side view、draft復元、即時削除／undo。
+- labels: 通常／管理、hover／focus鉛筆、連続作成、カテゴリ／タグの同名拒否、親カテゴリ読取表示。
+- settings: 数値validation、reminder権限、細分化0〜4、0で既存付与、archive複数復元。
+- share: account権限、Drive競合、QR選択dedupe、camera拒否、画像fallback、破損payload。
+- paging/accessibility: 多重observer、終端、再試行、200% zoom、focus、reduced motion。

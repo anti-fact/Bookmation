@@ -1,6 +1,6 @@
 # Bookmation ドキュメント索引
 
-Bookmation は、閲覧中のページまたは指定URLを専用ストアへ保存し、メイン／タグと検索で見つけ直す Chrome 拡張機能である。UIスタックは Plasmo（React）+ Tailwind CSS とする。開発コマンドは [QUICKSTART.md](QUICKSTART.md)、最初の縦切りは [2026-08-16 の Execution Plan](plans/2026-08-16-dev-scaffold.md) を参照する。
+Bookmation は、閲覧中のページまたは指定URLを専用ストアへ保存し、カテゴリ／タグと検索で見つけ直す Chrome 拡張機能である。UIスタックは Plasmo（React）+ Tailwind CSS とする。開発コマンドは [QUICKSTART.md](QUICKSTART.md)、テスト受入順序は [TESTING.md](TESTING.md)、最初の縦切りは [2026-08-16 の Execution Plan](plans/2026-08-16-dev-scaffold.md) を参照する。
 
 ## 最初に読む文書
 
@@ -8,6 +8,7 @@ Bookmation は、閲覧中のページまたは指定URLを専用ストアへ保
 2. [CONSTRAINTS.md](CONSTRAINTS.md) — 変更してよい点と守る制約
 3. [DESIGN.md](DESIGN.md) — 全体構成と主要な設計判断
 4. [QUICKSTART.md](QUICKSTART.md) — 現在できる最短の参加手順
+5. [TESTING.md](TESTING.md) — Webプレビュー、AIエージェントのPlaywright確認、人間受入
 
 ## プロダクトと実装
 
@@ -16,8 +17,9 @@ Bookmation は、閲覧中のページまたは指定URLを専用ストアへ保
 | [FRONTEND.md](FRONTEND.md) | Chrome 拡張機能、画面、状態管理、アクセシビリティ |
 | [BACKEND.md](BACKEND.md) | P0ローカル処理と、確定済みP1の履歴・共有・同期・取込境界 |
 | [DB-SCHEMA.md](DB-SCHEMA.md) | IndexedDB上の版付きJSON document、索引、移行、同期 |
-| [UI.md](UI.md) | popup、LIST / GRID、全画面カテゴリ一覧、統合検索、編集・設定・AI検索モーダル、無限スクロール |
+| [UI.md](UI.md) | 初回ホーム、popup、LIST / GRID、親カテゴリ／子タグ一覧、フルページ検索、編集・作成・設定・AI入力ポップアップ、共有、無限スクロール |
 | [SECURITY.md](SECURITY.md) | 権限、個人データ、AI、共有・同期の安全要件 |
+| [TESTING.md](TESTING.md) | 最新画面・設定・共有状態のWeb fixture、実拡張機能E2E、証拠、人間の最終受入 |
 | [AI_GUIDE.md](AI_GUIDE.md) | AI 実装ガイド。依頼どおり現在は空である |
 
 ## 計画と運用

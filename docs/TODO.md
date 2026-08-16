@@ -24,7 +24,7 @@
 ## P1 — 最初のprototype前
 
 - [ ] **TODO-007: 分類fixtureを10件作る**
-  - 完了条件: 既存カテゴリ一致／不一致、カテゴリ同名拒否、USERタグ一致／不一致、同名タグ別ID、細分化5段階の新規タグ上限を含むfixtureを用意する。
+  - 完了条件: 親カテゴリ一致／不一致、カテゴリ／タグ各namespaceの同名拒否、カテゴリ名とタグ名の相互一致、親子不整合、USER／AI由来タグ競合、細分化と上限のdiscriminated snapshotを含むfixtureを用意する。親／意味不適合はNEEDS_REVIEW、`0` は新規AIタグ0件かつ既存タグ自動付与ありを確認する。
 - [ ] **TODO-008: 重複URLの期待動作を決める**
   - 完了条件: URL正規化、再保存、タグ統合、利用者確認の4ケースを [REQUIREMENTS.md](REQUIREMENTS.md) または [DB-SCHEMA.md](DB-SCHEMA.md) に記録する。
 - [ ] **TODO-009: 表示設定の初期値を決める**
@@ -37,16 +37,26 @@
   - 完了条件: [REFERENCES.md](REFERENCES.md) の参照日、確認済み事実、推測を区別し、変化した箇所を [UI.md](UI.md) に反映する。
 - [ ] **TODO-013: commandsの既定shortcut候補を検証する**
   - 完了条件: Chromeと主要OSで「現在ページを保存」「ホームを開く」の競合を確認し、変更方法と競合時の表示を [UI.md](UI.md) とmanifest設計へ記録する。
-- [ ] **TODO-014: 共通AI検索fixtureと集合評価を作る**
-  - 完了条件: 10件以上の質問、期待Label / Bookmark集合、AI不可時fallbackを用意し、カテゴリ・タグが上、Bookmarkが下で、順位に依存せず候補を複数返し未知IDを拒否できる。
+- [ ] **TODO-014: AI検索／機能説明fixtureと集合評価を作る**
+  - 完了条件: Bookmark探索とBookmation機能説明を含む10件以上の質問、期待Label / Bookmark集合、期待する機能説明、AI不可時fallbackを用意する。ポップアップ内で入力と応答を確認でき、検索結果はカテゴリ・タグが上、Bookmarkが下で、順位に依存せず未知IDを拒否できる。
 - [ ] **TODO-015: デザインシートのtokenを抽出する**
   - 完了条件: 色、余白、文字、角丸、sticky header、dialogの再利用tokenを記録し、SVGを直接改変しない。
 - [ ] **TODO-016: JSON document schema fixtureを作る**
   - 完了条件: 各Storeの正常／未知版／過大／非JSON値fixtureとround-trip test方針を [DB-SCHEMA.md](DB-SCHEMA.md) に反映する。
 - [ ] **TODO-017: 訪問・archive設定の既定値を評価する**
-  - 完了条件: 閾値、集計期間、通知cooldown、archive日数をfixtureで比較し、確認前保存禁止と履歴なしskipを維持した値を [ISSUES.md](ISSUES.md) で決める。
+  - 完了条件: 訪問回数とarchive日数の正整数入力範囲、集計期間、通知cooldown、`frequentVisitReminderEnabled`、「次回以降表示しない」のcanonical URL単位SUPPRESSEDをfixtureで比較し、確認前保存禁止と履歴なしskipを維持した値を [ISSUES.md](ISSUES.md) で決める。`autoArchiveEnabled` は追加しない。
 - [ ] **TODO-018: 標準Bookmark取込fixtureを作る**
   - 完了条件: 深いfolder、空folder、重複URL、危険URL、Unicode名、途中失敗を含め、Chrome側tree不変を検証できる。
+- [ ] **TODO-019: フルページ検索の入力候補fixtureを作る**
+  - 完了条件: ブックマーク一覧／カテゴリ・タグ一覧の両入口、IME、0件、1件、8件、9件以上、カテゴリ名とタグ名の相互一致、古い応答を用意し、候補が最大8件で選択後に正しい対象へ移動する。
+- [ ] **TODO-020: カテゴリ・タグ作成／管理fixtureを作る**
+  - 完了条件: 種類プルダウン、親カテゴリ選択、閉じるまでの連続作成、create-only、tombstone同名競合時の同一ID明示復元／別名、active Tag／active親、tombstone Tag／deleted親、親先行restore、子Tag tombstone残存中の親Category GC拒否、タグ親読取専用、管理モード、hover／focus鉛筆、3 entityの `deleteOperationId`＋revision undo、`UNDO_EXPIRED`／`UNDO_CONFLICT`、削除→同名作成拒否→undo、子タグ残存カテゴリの削除／中止案内だけを再現できる。親変更はISSUE-019決定後とする。
+- [ ] **TODO-021: 初回ホームとBookmark編集fixtureを作る**
+  - 完了条件: `runtime.onInstalled` のINSTALL／UPDATEと再訪のホーム分岐、カテゴリとタグの別入力、最大8件の既存候補、各新規作成ボタン、同じmodal内side view、入力draft保持を確認できる。
+- [ ] **TODO-022: archive／共有fixtureを作る**
+  - 完了条件: 最小archive document、複数選択復元、カテゴリ別／タグ別／個別QR選択、checksum真正性非保証、異親同名Tagの別名／skip／cancel再preview、Driveアカウント選択、同一accountのappDataFolder、別accountの通常Drive file、同一field／update-delete／add-delete／名前競合、immutable syncSnapshots、明示resolution plan、open中GC拒否、解決後30日保持、暗黙Label／edge remap拒否を個人情報なしで再現できる。
+- [ ] **TODO-023: Label Normalizer v1 fixtureを作る**
+  - 完了条件: Unicode 15.1.0のNFKC／`White_Space`／`Default_Ignorable_Code_Point`／`CaseFolding.txt` C＋F assetをprojectへ生成し、asset hash、runtime ICU非依存、normalizerVersion、tombstone予約、物理回収後の再利用をgolden／拒否fixtureで固定する。
 
 ## 完了済み
 
