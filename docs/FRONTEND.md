@@ -9,9 +9,9 @@
 
 | entry | 責務 |
 | --- | --- |
-| `popup.tsx` | 保存／ホームの2操作、各ショートカットの実割当、変更案内 |
-| `tabs/index.tsx` | dashboard、全画面カテゴリ一覧、各モーダル、AI Host |
-| `background.ts` | command、contextMenus、alarms、保存、履歴判定、DB、ジョブとメッセージ。Prompt APIは呼ばない |
+| `src/popup.tsx` | 保存／ホームの2操作、各ショートカットの実割当、変更案内。TASK-001 時点は確認用画面のみ |
+| `src/tabs/index.tsx` | dashboard、全画面カテゴリ一覧、各モーダル、AI Host。TASK-002 で追加 |
+| `src/background.ts` | command、contextMenus、alarms、保存、履歴判定、DB、ジョブとメッセージ。Prompt APIは呼ばない。TASK-002 で追加 |
 
 popup は `chrome.commands.getAll()` の `name` と `shortcut` を command allowlist に対応付ける。空なら `未割り当て`。`割り当てを変更` は Chrome の管理画面を開く試行または案内表示に留める。
 

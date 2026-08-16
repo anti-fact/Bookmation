@@ -12,7 +12,7 @@
 
 | ID | Task | 状態 | 依存 | 完了時の成果 |
 | --- | --- | --- | --- | --- |
-| TASK-001 | 開発基盤と初期 Plan | Ready | ISSUE-006、007 | 同じ環境・コマンドで開発開始できる |
+| TASK-001 | 開発基盤と初期 Plan | Done | ISSUE-006 | 同じ環境・コマンドで開発開始できる |
 | TASK-002 | Plasmo 拡張 bootstrap | Backlog | TASK-001 | popup、dashboard、worker を開ける |
 | TASK-003 | JSONドキュメントデータ層 | Backlog | TASK-002 | Bookmark / Label / Job が再読込後も残る |
 | TASK-004 | popup・commands・保存 | Backlog | TASK-003 | 現在ページ／URLを保存しホームを開ける |
@@ -29,11 +29,12 @@
 
 ### TASK-001: 開発基盤と初期 Plan
 
-- [ ] `docs/plans/` に Execution Plan を作る。
-- [ ] Node、package manager、Plasmo、React、Tailwind、TypeScript を固定する。
-- [ ] `dev`、`build`、`lint`、`typecheck`、`test` を定義する。
-- [ ] `デザインシート.svg` の token、asset、responsive 方針を Plan に記す。
+- [x] `docs/plans/` に Execution Plan を作る。
+- [x] Node、package manager、Plasmo、React、Tailwind、TypeScript を固定する。
+- [x] `dev`、`build`、`lint`、`typecheck`、`test` を定義する。
+- [x] `デザインシート.svg` の token、asset、responsive 方針を Plan に記す。
 - 完了条件: 新規 checkout から同じ手順で開発を開始できる。
+- 完了日: 2026-08-16。証拠は [WORKLOG.md](WORKLOG.md) と [Plan](plans/2026-08-16-dev-scaffold.md)。ISSUE-007 の日程は未決のまま TASK-001 を閉じた。
 
 ### TASK-002: Plasmo 拡張 bootstrap
 

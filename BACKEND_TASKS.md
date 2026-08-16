@@ -75,7 +75,7 @@ flowchart TD
 
 | ID | タスク | 状態 | 担当 | 主な依存 | 利用者に届く成果 |
 | --- | --- | --- | --- | --- | --- |
-| BE-00 | 開発基盤とバックエンドPlan | 未着手 | 未定 | なし | チームが同じコマンドで実装を開始できる |
+| BE-00 | 開発基盤とバックエンドPlan | 完了 | T-taku | なし | チームが同じコマンドで実装を開始できる |
 | BE-01 | Domain型と不変条件 | 未着手 | 未定 | BE-00 | 不正なBookmark・Label・AI結果を共通規則で拒否できる |
 | BE-02 | IndexedDBとRepository | 未着手 | 未定 | BE-01 | 再読込後もデータが残り、一覧をカーソル取得できる |
 | BE-03 | Message契約とService Worker | 未着手 | 未定 | BE-01 | popup、dashboard、workerが安全に連携できる |
@@ -125,15 +125,17 @@ sequenceDiagram
 
 目的: 実装者ごとに環境やコマンドが分かれない状態を作る。
 
-- [ ] Plasmo、React、TypeScript、Tailwind、Node、package managerの対応版を固定する。
-- [ ] Domain、Application、Ports、Adapters、Entrypointsの配置を決める。
-- [ ] `dev`、`build`、`lint`、`typecheck`、`test` のscriptを定義する。
-- [ ] IndexedDBを使う単体テスト環境とChrome E2E方針を決める。
-- [ ] 最初の縦切り用Execution Planを作る。
+- [x] Plasmo、React、TypeScript、Tailwind、Node、package managerの対応版を固定する。
+- [x] Domain、Application、Ports、Adapters、Entrypointsの配置を決める。
+- [x] `dev`、`build`、`lint`、`typecheck`、`test` のscriptを定義する。
+- [x] IndexedDBを使う単体テスト環境とChrome E2E方針を決める。
+- [x] 最初の縦切り用Execution Planを作る。
 
 成果物: `package.json`、lockfile、初期ディレクトリ、品質コマンド、Execution Plan。
 
 完了条件: 新しいcheckoutで依存導入、型検査、空のテスト、開発ビルドを同じ手順で実行できる。
+
+完了メモ: 2026-08-16。unit は vitest（node）。IndexedDB の fake 実装は TASK-003 / BE-02、Chrome E2E は TASK-011 / BE-12。Plan は [docs/plans/2026-08-16-dev-scaffold.md](docs/plans/2026-08-16-dev-scaffold.md)。
 
 ### BE-01 Domain型と不変条件
 

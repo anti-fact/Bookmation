@@ -19,7 +19,6 @@
 | ISSUE-002 | Open | P0 | サムネイルの取得はプライバシー、CSP、容量、失敗率に影響する | `og:image` 参照、ローカル取得、画面キャプチャ、代替面のどれを既定にするか決める |
 | ISSUE-004 | Open | P0 | AI タグ細分化5段階の上限は仮値である | 代表データセットで過剰生成率・修正率・候補再利用率を測り、段階名と新規タグ上限を確定する |
 | ISSUE-005 | Open | P0 | TAGは同名を許可するため、候補の見分けと手動統合の UX が必要である | ID、作成元、関連件数の表示と、明示的なTAG統合・復元を決める。CATEGORYは同名作成を拒否する |
-| ISSUE-006 | Open | P0 | Plasmo（React ベース）+ Tailwind CSS は確定し、TypeScript は設計標準としたが、実装用パッケージ構成と依存バージョンが未確定である | Plasmo / React / Tailwind / TypeScript の対応版、package manager、lockfile、品質コマンドをスパイクで固定する |
 | ISSUE-007 | Open | P0 | ハッカソンの締切・審査基準・デモ環境が資料にない | チームで一次情報を確認し、P0 の日程・成功指標・デモ端末を Execution Plan に記録する |
 | ISSUE-008 | Open | P1 | 訪問リマインダーは確定したが、閾値の既定値、集計期間、除外、再通知間隔が未定である | 権限説明、既定値、対象除外、cooldownを決める。保存は利用者確認後だけという要件は変更しない |
 | ISSUE-009 | Open | P1 | 自動アーカイブは確定したが、既定日数と履歴がない項目の再確認UIが未定である | 既定日数、実行頻度、結果通知、復元導線を決める。`lastVisitedAt=null` は自動変更しない |
@@ -53,3 +52,4 @@
 | ISSUE-D16 | Decided | 標準Bookmarkは明示操作でBookmationへコピーし、元データを変更しない | 2026-08-16の利用者依頼 |
 | ISSUE-D17 | Decided | page／linkのcontext menu保存を通常保存use caseへ合流させる | 2026-08-16の利用者依頼 |
 | ISSUE-D18 | Decided | DB正本はIndexedDB上の版付きJSON互換documentとし、Blobは別Storeにする | 2026-08-16の利用者依頼 |
+| ISSUE-006 | Decided | pnpm 10.15.1、Plasmo 0.90.5、React 18.3.1、Tailwind 3.4.17、TypeScript 5.9.2。推奨 Node 22。品質コマンドは `dev` / `build` / `lint` / `typecheck` / `test` | TASK-001 の scaffold と lockfile。`engines` は Plasmo/Parcel の解決バグを避けるため置かない |
