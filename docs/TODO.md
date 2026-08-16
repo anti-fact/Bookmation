@@ -50,7 +50,7 @@
 - [ ] **TODO-019: フルページ検索の入力候補fixtureを作る**
   - 完了条件: ブックマーク一覧／カテゴリ・タグ一覧の両入口、IME、0件、1件、8件、9件以上、カテゴリ名とタグ名の相互一致、古い応答を用意し、候補が最大8件で選択後に正しい対象へ移動する。
 - [ ] **TODO-020: カテゴリ・タグ作成／管理fixtureを作る**
-  - 完了条件: 種類プルダウン、親カテゴリ選択、閉じるまでの連続作成、create-only、tombstone同名競合時の同一ID明示復元／別名、active Tag／active親、tombstone Tag／deleted親、親先行restore、子Tag tombstone残存中の親Category GC拒否、タグ親読取専用、管理モード、hover／focus鉛筆、3 entityの `deleteOperationId`＋revision undo、`UNDO_EXPIRED`／`UNDO_CONFLICT`、削除→同名作成拒否→undo、子タグ残存カテゴリの削除／中止案内だけを再現できる。親変更はISSUE-019決定後とする。
+  - 完了条件: 種類プルダウン、親カテゴリ選択、閉じるまでの連続作成、create-only、tombstone同名競合時の別名案内、active Tag／active親、tombstone Tag／deleted親、子Tag tombstone残存中の親Category GC拒否、タグ親読取専用、管理モード、hover／focus鉛筆、3 entityの確認なしsoft-delete、削除Undoの操作／token／復元経路なし、削除後の同名作成拒否、子タグ残存カテゴリの削除／中止案内だけを再現できる。親変更はISSUE-019決定後とする。
 - [ ] **TODO-021: 初回ホームとBookmark編集fixtureを作る**
   - 完了条件: `runtime.onInstalled` のINSTALL／UPDATEと再訪のホーム分岐、カテゴリとタグの別入力、最大8件の既存候補、各新規作成ボタン、同じmodal内side view、入力draft保持を確認できる。
 - [ ] **TODO-022: archive／共有fixtureを作る**

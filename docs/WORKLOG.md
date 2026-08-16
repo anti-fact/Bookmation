@@ -393,6 +393,35 @@ UI Webプレビュー、Playwright拡張E2E、人間の実Chrome確認、Prompt 
 - TASK-003／TODO-023でUnicode asset生成・hash固定とgolden vectorを実装する。
 - TASK-104で競合snapshot、resolution plan、保持期限、明示解決UIを実装し、実Driveアカウントで確認する。
 
+## 2026-08-17 — 仕様上書き: 削除Undoを提供しない
+
+### 目的
+
+Bookmark、Category、Tagの削除後にUndoを提供しないという最新の明示要件を、運用・計画・テスト文書へ反映する。確認画面なしの論理削除、tombstoneの名前予約と親子参照、同期競合時のtombstone安全性は維持し、ARCHIVED Bookmarkの復元とは区別する。
+
+### 変更
+
+- 削除Undo用のoperation／store／token／期限、`UNDO_EXPIRED`／`UNDO_CONFLICT`、Undo toast、設定／管理画面からの削除復元入口を実装タスクとfixtureから除外した。
+- Category／Tagの削除済み同名項目は物理回収まで名前を予約し、別ID作成を拒否する。active Tag／active親の不変条件、tombstone Tagからdeleted親への参照、子Tag tombstoneが残る親CategoryのGC拒否を維持した。
+- [ISSUES.md](ISSUES.md) のISSUE-021をOpen一覧から外し、ISSUE-D31へ「削除Undoなし」を決定として追加した。
+- GitHub Issue #7、#10、#11、#12、#21の完了条件／依存を同じ決定へ更新し、決定Issue #42を「削除Undoを提供しない」で完了にした。既存のlabelとmilestoneは維持した。
+- 2026-08-17の過去記録にあるsoft-delete＋Undo、削除済みID復元、親先行restoreの記述は、当時の履歴として残すが本項の最新決定により置換済みである。
+- アーカイブ一覧からの復元と、Driveのupdate-delete競合／delete tombstone処理は削除Undoではないため変更していない。
+
+### 検証
+
+- `git diff --check`: 成功。
+- 担当文書の現行仕様検索: `deleteOperationId`、`UNDO_EXPIRED`、`UNDO_CONFLICT`、ISSUE-021の現行参照が0件であることを確認した。WORKLOGの置換済み履歴は除外した。
+- Markdown 25ファイル、相対リンク264件、code fenceを検査し、リンク切れと未閉鎖fenceが0件であることを確認した。
+- `docs/AI_GUIDE.md`: 0バイトを維持し、編集していない。
+- ESLint、`tsc --noEmit`、Vitest 2件、Plasmo production build: 成功。
+- GitHub全Issueを逆検索し、旧仕様の即時Undo、削除復元、ISSUE-021依存が決定内容を示すclosed #42以外に残っていないことを確認した。
+- 文書のみの更新であり、UI Webプレビュー、Playwright拡張E2E、実Chrome確認は未実施。
+
+### 残課題
+
+- 実装時に削除Undo用のUI、message、store、error codeを追加せず、確認なしsoft-delete、tombstone予約、親子GC、Drive同期競合を自動／E2Eテストする。
+
 ## 追記テンプレート
 
 ```markdown

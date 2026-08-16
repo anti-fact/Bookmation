@@ -26,7 +26,7 @@
 | Category Label | Tag Label | 1対多 | TagのparentCategoryIdで関連付ける。Tagは親を1件だけ持つ |
 | Bookmark | Label | 多対多 | BookmarkLabelで関連付ける。同じ組は1件だけ |
 | Bookmark | ClassificationJob | 1対多 | 再分類履歴をジョブ単位で残す |
-| Bookmark | BookmarkRevision | 1対多 | AI・ユーザー変更の監査とUndo候補 |
+| Bookmark | BookmarkRevision | 1対多 | AI・ユーザーによる非削除変更の監査 |
 | Bookmark / Label | SearchDocument | 1対0または1 | 再生成可能な検索用派生データ |
 
 カテゴリとタグはどちらも0件以上であり、1件のBookmarkは複数カテゴリに所属できる。タグ関連の親カテゴリ関連は同じtransactionで補完し、カテゴリ関連を外す場合はそのカテゴリ配下のタグ関連も同時に外す。
@@ -107,7 +107,7 @@ v1 fixtureは最低限次を固定し、Category／Tag作成、改名、Import�
 | labels | id | P0必須 | 親カテゴリと、そのカテゴリに所属するタグ |
 | bookmarkLabels | id | P0必須 | BookmarkとCategory／Tagの整合した関連 |
 | classificationJobs | id | 必須 | 中断・再試行可能なAIジョブ |
-| bookmarkRevisions | id | 推奨 | 直前分類のUndoと監査 |
+| bookmarkRevisions | id | 推奨 | 非削除変更の監査履歴 |
 | searchDocuments | id | 必須 | BookmarkとCategory／Tagの再生成可能な検索用データ |
 | blobs | id | 条件付き | サムネイル等のBlobとメタ情報 |
 | schemaMeta | key | 必須 | DBバージョン、移行状態 |
@@ -118,7 +118,6 @@ v1 fixtureは最低限次を固定し、Category／Tag作成、改名、Import�
 | syncSnapshots | id | P1必須 | 競合のbase／local／remoteを再現するimmutable snapshot |
 | syncConflicts | id | P1必須 | 自動解決できない競合 |
 | syncState | key | P1必須 | deviceId、接続状態、最終同期状態 |
-| undoOperations | id | 必須 | Bookmark／Category／Tag論理削除の短期Undo |
 
 ## bookmarks
 
@@ -156,8 +155,6 @@ interface ActiveBookmarkRecord {
   visitCount: number | null
   revision: number
   deletedAt: EpochMs | null
-  deleteOperationId: Id | null
-  deletedRevision: number | null
 }
 
 interface ArchivedBookmarkRecord {
@@ -202,7 +199,7 @@ faviconUrlは取得元の記録または未キャッシュ時の候補であり�
 
 `lastVisitedAt` と `visitCount` は、利用者が訪問機能を有効化して `history` 権限を許可した場合だけACTIVEレコードへ更新する。権限がない場合や履歴に該当URLがない場合は `null` とし、`savedAt` から推測しない。自動アーカイブは `lastVisitedAt=null` のBookmarkを変更しない。`MANUAL_URL` でも入力値をそのまま信用せず、許可スキーム、長さ、正規化結果を検証する。
 
-`deletedAt=null` のActive Bookmarkでは `deleteOperationId` と `deletedRevision` もnullとする。論理削除済みなら両方を必須とし、`deletedRevision` は削除transactionで増分した現在revisionと一致させる。favicon／thumbnail参照はtombstoneへ残し、Undo期限と同期tombstone保持期間の双方が終わるまで参照Blobを回収しない。
+Bookmarkの論理削除ではrevisionを1つ進め、`deletedAt` を必須にする。favicon／thumbnail参照はtombstoneへ残し、同期tombstone保持期間が終わり他の参照がないことを確認するまで参照Blobを回収しない。
 
 ## labels
 
@@ -224,8 +221,6 @@ interface LabelRecord {
   updatedAt: EpochMs
   revision: number
   deletedAt: EpochMs | null
-  deleteOperationId: Id | null
-  deletedRevision: number | null
 }
 ~~~
 
@@ -237,10 +232,10 @@ interface LabelRecord {
 - TAGは論理削除状態を問わず `tagUniqueName = normalizedName` を持ち、`categoryUniqueName` は持たない。親カテゴリが同じか異なるかを問わず、同じ正規化名の別IDを作らない。論理削除でもunique keyを外さない。
 - AIは意味候補の並びではorigin USERを優先するが、`tagUniqueName` の競合判定はoriginを問わず全TAGを対象にする。同じ正規化名があれば既存TAGを再評価し、親カテゴリと意味が適合する場合だけそのIDを再利用する。親または意味が適合しなければ別IDを作らずNEEDS_REVIEWにする。
 - AIはorigin USERのレコードを上書きしない。
-- `kind` とタグの `parentCategoryId` は通常の編集モーダルでは変更しない。現行P0は親カテゴリを読取専用表示し、変更要求を拒否する。親変更を将来実装する場合は [ISSUE-019](./ISSUES.md) を解決し、影響Bookmarkの親カテゴリ関連を再計算する専用transactionとUndoを必須にする。
+- `kind` とタグの `parentCategoryId` は通常の編集モーダルでは変更しない。現行P0は親カテゴリを読取専用表示し、変更要求を拒否する。親変更を将来実装する場合は [ISSUE-019](./ISSUES.md) を解決し、影響Bookmarkの親カテゴリ関連を再計算する専用transaction、期待revision、変更履歴を必須にする。
 - `creationRequestId` は作成操作の冪等キーであり一意とする。同じ操作の再送は同じrequestIdを使い、別requestIdでも既存と同じ正規化タグ名なら新規作成を拒否する。AIは `jobId:proposalKey` から安定して生成する。
 - 削除は初期段階でdeletedAtによる論理削除とし、参照中の即時物理削除を避ける。CATEGORYの物理回収は、ACTIVE／削除済みを問わず `parentCategoryId` がそのIDであるTAG recordが0件になるまでBLOCKする。
-- `deletedAt=null` なら `deleteOperationId` / `deletedRevision` もnullとし、論理削除済みなら両方を必須にして `deletedRevision=revision` とする。復元後は両方をnullへ戻す。
+- 論理削除ではrevisionを1つ進め、`deletedAt` を必須にする。削除Undoや利用者向けのLabel復元は提供しない。
 
 ### 索引
 
@@ -257,7 +252,7 @@ interface LabelRecord {
 | byCreationRequestId | creationRequestId | true |
 | byUpdatedAt | updatedAt | false |
 
-カテゴリ／タグの作成・改名・論理削除・復元は、それぞれ `byCategoryUniqueName` / `byTagUniqueName` と同じtransactionで検証する。タグ作成は有効な親カテゴリも同時に再確認する。同名の論理削除済みLabelがあれば別ID作成を拒否し、既存IDの明示的な復元または別名を案内する。unique keyがtombstoneに予約されるため、削除後の同名作成によってUndo競合を生じさせない。
+カテゴリ／タグの作成・改名・論理削除は、それぞれ `byCategoryUniqueName` / `byTagUniqueName` と同じtransactionで検証する。タグ作成は有効な親カテゴリも同時に再確認する。同名の論理削除済みLabelがあれば別ID作成を拒否し、物理GCまで別名だけを案内する。unique keyはtombstoneに予約し続ける。
 
 ## bookmarkLabels
 
@@ -274,8 +269,6 @@ interface BookmarkLabelRecord {
   updatedAt: EpochMs
   revision: number
   deletedAt: EpochMs | null
-  deleteOperationId: Id | null
-  deletedRevision: number | null
 }
 ~~~
 
@@ -287,7 +280,7 @@ interface BookmarkLabelRecord {
 - 同じLabelを複数のBookmarkから参照できる。名称変更や同期後も関連は表示名ではなく `labelId` で維持する。
 - AI適用はユーザーが割り当てた関連を暗黙に削除しない。置換操作は対象差分を明示し、BookmarkRevisionへ残す。
 - confidenceはAI割当時だけ0〜1の値を許し、それ以外はnull。
-- `deletedAt=null` なら `deleteOperationId` / `deletedRevision` もnullとし、論理削除済みなら両方を必須にして `deletedRevision=revision` とする。
+- edgeの論理削除ではrevisionを1つ進め、`deletedAt` を必須にする。
 
 ### 索引
 
@@ -376,7 +369,7 @@ interface BookmarkRevisionRecord {
 }
 ~~~
 
-完全なBookmarkスナップショットを無期限保存せず、Undoに必要な分類差分だけを短期間保持する。CATEGORY／TAGの階層整合を検証し、`tagIds` の全親が `categoryIds` に含まれる状態だけを記録する。保持件数と期間は実測後に決める。
+完全なBookmarkスナップショットを無期限保存せず、非削除変更の監査に必要な分類差分だけを短期間保持する。CATEGORY／TAGの階層整合を検証し、`tagIds` の全親が `categoryIds` に含まれる状態だけを記録する。保持件数と期間は実測後に決める。
 
 ## blobs
 
@@ -527,34 +520,6 @@ interface ImportJobRecord {
 
 標準BookmarkのURL、title、folder pathはプレビュー時の未信頼入力として検証する。元のChrome Bookmark IDを正本IDにせず、取り込んだBookmarkには `source="CHROME_IMPORT"` を記録する。元データを変更・削除しない。
 
-## undoOperations
-
-Bookmark、Category、Tagの削除要求と、その操作で変更した正確なレコード集合を結ぶ短期Undo情報を保存する。
-
-~~~ts
-interface UndoOperationRecord {
-  schemaVersion: number
-  id: Id
-  kind: "DELETE_BOOKMARK" | "DELETE_CATEGORY" | "DELETE_TAG"
-  rootEntityType: "BOOKMARK" | "LABEL"
-  rootEntityId: Id
-  targets: Array<{
-    entityType: "BOOKMARK" | "LABEL" | "BOOKMARK_LABEL"
-    entityId: Id
-    deleteOperationId: Id
-    deletedRevision: number
-  }>
-  createdAt: EpochMs
-  updatedAt: EpochMs
-  expiresAt: EpochMs
-  consumedAt: EpochMs | null
-}
-~~~
-
-削除transactionは対象Bookmark／Labelとedgeの各レコードでrevisionを増やし、同じ `deleteOperationId`、その結果の `deletedRevision`、`deletedAt` を保存する。UndoOperation.targetsにはその完全な集合を記録し、完了後にUIへUndo tokenを返す。
-
-Undoは期限切れなら `UNDO_EXPIRED`、それ以外で対象欠損、`deleteOperationId` 不一致、revisionが `deletedRevision` から変化、一意名・親子・edge整合の再検証失敗があれば `UNDO_CONFLICT` とする。Tag復元では `parentCategoryId` のCATEGORYが存在しACTIVEであることを必須とし、親が削除済みなら `UNDO_CONFLICT` を返して親CATEGORYの復元を先に求める。全targetsが一致した場合だけ、同じtransactionで正確な削除集合の `deletedAt` / `deleteOperationId` / `deletedRevision` を解除してrevisionを進め、UndoOperationをconsumedにする。1件でも不一致なら一部復元しない。期限後も即座に物理削除せず、Drive tombstone保持期間と復旧方針に従って回収する。
-
 ## トランザクション
 
 ### 保存
@@ -586,19 +551,19 @@ sourceLabelの関連をtargetLabelへ移し、同じ `(bookmarkId, targetLabelId
 - ブックマーク編集は `categoryIds` と `tagIds` を別入力として受ける。入力中の候補は種類を混ぜず最大8件にし、TAG候補には親カテゴリIDを含める。保存時はTAGの親CATEGORYを補完し、CATEGORYを外した場合はその配下TAGも外す。
 - Label作成・改名の名称入力でもkind別候補を最大8件まで提示できるが、候補IDの選択を作成・改名・merge commandへ暗黙変換しない。同じkindの正規化名が一致すれば一意索引で拒否する。
 - 名前変更で `kind` や `parentCategoryId` を変えない。カテゴリ改名は `byCategoryUniqueName`、タグ改名は `byTagUniqueName` で重複を拒否し、いずれもrevisionを検証する。
-- タグ削除は対象タグと全BookmarkLabel edgeを1 transactionで論理削除する。カテゴリの論理削除はACTIVEな子タグが1件でもあれば `CATEGORY_NOT_EMPTY` で拒否し、子タグの管理または削除を先に求める。現行P0ではタグの親変更を受け付けないため、再配置を案内・実行しない。ACTIVE子タグが0件の場合だけ対象カテゴリとそのBookmarkLabel edgeを論理削除でき、削除済み子TAGはそのtombstoneを親として参照し続ける。CATEGORYの物理GCは削除済みを含む子TAG recordが0件になるまでBLOCKする。UIは確認画面を挟まないが、削除操作IDと `undoOperations` を作り、成功後に元へ戻せるようにする。確認なし削除を理由に暗黙cascadeを行わない。
+- タグ削除は対象タグと全BookmarkLabel edgeを1 transactionで論理削除する。カテゴリの論理削除はACTIVEな子タグが1件でもあれば `CATEGORY_NOT_EMPTY` で拒否し、子タグの管理または削除を先に求める。現行P0ではタグの親変更を受け付けないため、再配置を案内・実行しない。ACTIVE子タグが0件の場合だけ対象カテゴリとそのBookmarkLabel edgeを論理削除でき、削除済み子TAGはそのtombstoneを親として参照し続ける。CATEGORYの物理GCは削除済みを含む子TAG recordが0件になるまでBLOCKする。UIは確認画面も削除Undoも提供しない。対象IDと期待revisionを検証し、Label・対応edgeのrevision更新・`deletedAt` 設定とLabelのSearchDocument削除または無効化を1 transactionでcommitする。確認なし削除を理由に暗黙cascadeを行わない。
 
 ### Bookmark削除
 
-`DeleteBookmark` は対象のACTIVE Bookmarkとその全BookmarkLabel edgeを1 transactionで論理削除し、同じ削除操作IDを持つ `undoOperations` を作ってUndo tokenと影響件数を返す。同じtransactionで対応するSearchDocumentを削除または無効化し、削除済みBookmarkを通常検索から除外する。SearchDocumentは正データから再生成できる派生物なのでUndo targetsには含めず、Undo commit時に復元Bookmarkから再生成する。pending／running分類Jobの結果適用時はBookmarkの `deletedAt` とrevisionを再検証し、削除済みまたはrevision不一致なら正本変更を拒否する。
+`DeleteBookmark` は対象のACTIVE Bookmarkとその全BookmarkLabel edgeのrevisionを進め、`deletedAt` を設定する。同じtransactionで対応するSearchDocumentを削除または無効化し、削除済みBookmarkを通常検索から除外する。1件でも更新できない場合は全件をrollbackし、成功時はUndo tokenを作らず影響件数だけを返す。pending／running分類Jobの結果適用時はBookmarkの `deletedAt` とrevisionを再検証し、削除済みまたはrevision不一致なら正本変更を拒否する。
 
-Bookmarkのfavicon／thumbnail IDはtombstoneに保持する。Blob回収は有効Bookmarkだけでなく未回収tombstoneの参照も数え、Undo期限と同期tombstone保持期間の双方が満了して物理回収可能になる前に参照Blobを削除しない。
+Bookmarkのfavicon／thumbnail IDはtombstoneに保持する。Blob回収は有効Bookmarkだけでなく未回収tombstoneの参照も数え、同期tombstone保持期間が満了し、全参照とOPEN／CANCELED syncConflictがなく物理回収可能になる前に参照Blobを削除しない。
 
 ### 訪問判定とアーカイブ
 
 履歴照会はDB transaction外で行い、検証済みの `visitCount` / `lastVisitedAt` だけを短いtransactionで更新する。アーカイブ判定時はBookmarkのrevisionを再確認し、設定期間を超えた `ACTIVE` だけを `ArchivedBookmarkRecord` へ置換する。置換前に有効edgeからカテゴリ／タグのID・表示名・親カテゴリIDを固定し、ページ名とURLを加えた最小スナップショットだけを残す。`lastVisitedAt=null`、既にARCHIVED、更新競合の項目は自動変更しない。Bookmark置換、関連edgeの論理削除、BookmarkRevision、archiveOperations、同期Outboxを同じtransactionへ含める。理由・時刻・revision等は利用者payloadではなくarchiveOperationsへ書く。
 
-設定内のアーカイブ一覧から復元する時は、URLを再検証・再正規化し、スナップショットのIDが現在も有効なら再利用する。削除済み／競合Labelは名称と親関係を表示して利用者判断へ送り、自動で別IDへ結び付けない。復元したActive recordではfavicon、thumbnail、訪問統計を `null` から再構築し、復元可能なCATEGORY／TAG edgeだけを親子整合付きで再有効化し、archiveOperationsをRESTOREDへ更新する。
+設定内のアーカイブ一覧から復元する時は、URLを再検証・再正規化し、スナップショットのIDが現在も有効なら再利用する。削除済み／競合Labelは利用不可と表示してedgeの再有効化から除外し、別の有効Labelを利用者が選ぶ場合も名称だけで自動接続しない。削除済みLabel自体は復元しない。復元したActive recordではfavicon、thumbnail、訪問統計を `null` から再構築し、有効なCATEGORY／TAG edgeだけを親子整合付きで再有効化し、archiveOperationsをRESTOREDへ更新する。
 
 ## 検索用データ
 
@@ -948,7 +913,7 @@ interface SyncOperationRecord {
 - 同一Bookmarkに複数のカテゴリ、複数のタグを割り当てられ、TAG edgeがある時は親CATEGORY edgeも存在する。CATEGORY edgeの解除で配下TAG edgeだけが残らない。
 - Label名正規化v1がproject-vendored Unicode 15.1.0 dataだけでNFKC、`White_Space` collapse、残存 `Cc` / `Cs` / `Default_Ignorable_Code_Point` 拒否、`CaseFolding.txt` status C+F full mapping、最終再検証を実行し、作成、改名、Import、同期で同じfixture結果になる。runtime ICU／localeを変えても結果が変わらず、検索token正規化の変更でも一意性判定が変わらない。
 - schemaMetaの `unicodeVersion="15.1.0"` と `unicodeDataAssetSha256` がbuildへvendorした実assetと一致する。hashは実装時に実assetから生成・固定し、仮値や文書上の偽hashを受け入れない。asset改変・hash不一致時はLabel writeを停止する。
-- 同じnormalizedNameのカテゴリは論理削除状態を問わずCATEGORY内で1件だけ、同じnormalizedNameのタグは論理削除状態と親カテゴリを問わずTAG内で1件だけである。CategoryとTag相互の同名は禁止しない。tombstoneの物理回収前は同名別IDを作れず、同じIDの明示復元または別名だけを選べる。
+- 同じnormalizedNameのカテゴリは論理削除状態を問わずCATEGORY内で1件だけ、同じnormalizedNameのタグは論理削除状態と親カテゴリを問わずTAG内で1件だけである。CategoryとTag相互の同名は禁止しない。tombstoneの物理回収前は同名別IDを作れず、別名だけを選べる。
 - 同じ `(bookmarkId, labelId)` edgeは再送や同期後も1件だけである。
 - AI経路からカテゴリを新規作成・改名・削除できず、タグ新規作成はグローバルなタグ名一意性、親カテゴリ、`creationRequestId` の冪等性を満たす。policyVersion 1は `0→0 / 1→1 / 2→2 / 3→4 / 4→6` のdiscriminated union以外を拒否し、細分化0でも既存Labelの自動割当は継続する。同名TAGはoriginを問わず再評価し、USER候補を優先する一方、親・意味不適合はNEEDS_REVIEWにする。
 - autocompleteは種類・親情報付き候補を一致度順に最大8件だけ返す。1つの自然言語検索はLabel / Bookmarkの無順位候補集合を返し、AIが候補外ID、重複ID、古いrevisionを混入させても拒否する。
@@ -960,7 +925,7 @@ interface SyncOperationRecord {
 - 設定破損でIndexedDBを初期化しない。onboardingStateはinstall時だけ初期化され、途中stepと完了状態をupdate／startup／Service Worker再起動後も保持する。
 - `archiveState` が文字列 `ACTIVE` / `ARCHIVED` で保存され、ARCHIVEDはmetadataと `payload { title, url, categories, tags }` が分離され、設定から復元できる。自動アーカイブは最終訪問日時がない項目を変更しない。archive専用toggleを持たず、history拒否時もarchiveAfterDaysを保持して判定を権限待ち停止し、notificationsを要求しない。
 - 同じURLの訪問リマインダーを重複生成せず、利用者が保存を選ぶまでBookmarkを作らない。「次回以降表示しない」にしたURLはグローバル設定を変えず再候補化しない。
-- Bookmark／Category／Tag削除は確認画面なしでも全対象へ同じdeleteOperationIdとdeletedRevisionを記録した論理削除になり、全targetが一致する時だけ短期Undoで原子的に戻る。期限切れはUNDO_EXPIRED、期限内の対象・marker・revision・不変条件不一致はUNDO_CONFLICTとなり、部分復元しない。Tag復元時に親CATEGORYが削除済みならUNDO_CONFLICTとなり、親復元後だけ再試行できる。削除→同名別ID作成はtombstoneのunique keyで拒否され、元LabelのUndoを妨げない。Bookmark削除でSearchDocumentが同時に除外され、Undo時に再生成され、参照BlobはUndo／tombstone保持中に回収されない。
+- Bookmark／Category／Tag削除は確認画面なしで対象IDと期待revisionを検証し、対象本体と関連edgeのrevision更新・`deletedAt` 設定を1 transactionでcommitする。1件でも失敗したら全件をrollbackし、Undo tokenや利用者向け復元導線は作らない。削除済みLabelのunique keyは物理GCまで名称を予約し、その間は同名別IDを拒否して別名だけを許可する。Bookmark削除でSearchDocumentを同時に除外し、参照Blobは同期tombstone保持と参照解消が済むまで回収しない。
 - ACTIVEな子TAGを持つカテゴリの論理削除はBLOCKされ、P0で再配置を案内せず、暗黙cascadeや子TAG孤立が起きない。CATEGORYの物理GCは削除済みを含む子TAG recordが0件になるまでBLOCKされる。
 - QRは検索・チェック選択を固定集合へ展開し、checksumを真正性保証に使わない。読取Importで破損、過大、カテゴリ／タグ名競合、親不明タグを適用前に拒否または確認へ送り、payload内部の同名TAG・複数親はpreview前に拒否する。既存の別親同名TAGは自動reuse／rename／moveせず、skip／cancelまたは明示別名後の全件再previewだけを許す。
 - 標準Bookmarkインポートは元データを書き換えず、中断・再送後も重複を抑止する。

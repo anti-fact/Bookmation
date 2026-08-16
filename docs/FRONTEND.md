@@ -131,7 +131,7 @@ type BookmarkEditDraft = {
 
 カテゴリとタグは別のfield group／comboboxで変更する。各見出し横の `＋新規作成` は同じDialog内部を `FORM` から `CREATE_CATEGORY` または `CREATE_TAG` へ切り替え、親dialogを重ねない。戻るとdraft、dirty state、検索語、focusを復元し、新規作成成功時だけIDをdraftへ追加する。
 
-削除は確認画面を開かず、専用の論理削除command成功後にdialogを閉じてundo toastを出す。undo tokenの期限中だけ復元を受け付ける。通信失敗やrevision conflictではdialogと入力を保持する。
+削除は確認画面を開かず、専用の論理削除command成功後にdialogを閉じる。削除後の取り消しUI、token、利用者向け復元commandは実装しない。通信失敗やrevision conflictでは論理削除せず、dialogと入力を保持してエラーを表示する。
 
 ## カテゴリ・タグ一覧と管理モード
 
@@ -139,9 +139,9 @@ type BookmarkEditDraft = {
 
 ヘッダーの `新規作成` はmenu buttonで、`カテゴリ作成`／`タグ作成` 選択後に共通dialogを開く。カテゴリは名前、タグは名前と親カテゴリを必須とする。
 
-作成成功後もdialogは開いたまま入力を初期化し、session内作成結果を表示する。既存項目を選択・関連付けるUIは置かない。カテゴリ名とタグ名はそれぞれ論理削除中を含めて正規化後に全体一意とし、重複時はfield errorと既存項目の状態を示す。削除済みなら管理画面で元IDを復元するか別名を入力するよう案内し、タグは親カテゴリが異なっても同名の別IDを作成できない。
+作成成功後もdialogは開いたまま入力を初期化し、session内作成結果を表示する。既存項目を選択・関連付けるUIは置かない。カテゴリ名とタグ名はそれぞれ論理削除中を含めて正規化後に全体一意とし、重複時はfield errorと既存項目の状態を示す。有効なら元の入力画面で既存項目を選び、論理削除中なら別名を入力するか物理GC完了を待つよう案内する。タグは親カテゴリが異なっても同名の別IDを作成できない。
 
-編集dialogの削除は確認なしで論理削除＋undoとする。子タグが残るカテゴリの削除commandは送信せず、現行P0で可能な子タグの個別削除または操作中止を表示する。親変更はISSUE-019決定前に提示せず、連鎖削除もしない。
+編集dialogの削除は確認なしで即時に論理削除し、削除後の取り消し機能は提供しない。子タグが残るカテゴリの削除commandは送信せず、現行P0で可能な子タグの個別削除または操作中止を表示する。親変更はISSUE-019決定前に提示せず、連鎖削除もしない。
 
 ## 設定画面
 
@@ -181,7 +181,7 @@ Prompt APIは対応を実証したトップレベル拡張ページのadapterで
 - welcome: install時だけ開く、更新時は開かない、開始後の遷移。
 - search: 0／8／9候補、IME、keyboard、全画面遷移、上下グループ、戻り状態。
 - AI: popup内入力／応答、検索、製品ヘルプ、未実装説明、fallback、mutation拒否。
-- bookmark edit: separate combobox、親子整合、side view、draft復元、即時削除／undo。
+- bookmark edit: separate combobox、親子整合、side view、draft復元、確認なしの即時論理削除。
 - labels: 通常／管理、hover／focus鉛筆、連続作成、カテゴリ／タグの同名拒否、親カテゴリ読取表示。
 - settings: 数値validation、reminder権限、細分化0〜4、0で既存付与、archive複数復元。
 - share: account権限、Drive競合、QR選択dedupe、camera拒否、画像fallback、破損payload。

@@ -80,7 +80,7 @@ Plan は `docs/plans/YYYY-MM-DD-短い名称.md` に置く。`AGENTS.md` にはP
 
 データの流れ、責務境界、重要なインターフェースを文章で説明する。判断済み事項と仮説を区別する。
 
-設定を扱うPlanでは、訪問回数／archive日数の正整数検証、`frequentVisitReminderEnabled`、canonical URL単位のSUPPRESSED、AI細分化 `0`〜`4` と上限 `0 / 1 / 2 / 4 / 6` のdiscriminated snapshotを列挙する。最新UIにない `autoArchiveEnabled` は要求しない。カテゴリ／タグを扱うPlanでは、project-vendored Unicode 15.1.0に固定したLabel Normalizer v1、tombstone中の名前予約、active Tag／active親、親先行restore、子Tag tombstoneが残る親の物理回収拒否、最大8件候補、`deleteOperationId`＋revision undo、`UNDO_EXPIRED`／`UNDO_CONFLICT`、子タグが残るカテゴリの削除BLOCKと連鎖削除禁止を記載する。タグ親変更はISSUE-019決定前に実装範囲へ入れない。検索を扱うPlanでは、フルページkeyword検索と、入力・応答をポップアップ内で完結するAIアシスタントを別状態として扱う。
+設定を扱うPlanでは、訪問回数／archive日数の正整数検証、`frequentVisitReminderEnabled`、canonical URL単位のSUPPRESSED、AI細分化 `0`〜`4` と上限 `0 / 1 / 2 / 4 / 6` のdiscriminated snapshotを列挙する。最新UIにない `autoArchiveEnabled` は要求しない。カテゴリ／タグを扱うPlanでは、project-vendored Unicode 15.1.0に固定したLabel Normalizer v1、tombstone中の名前予約、active Tag／active親、子Tag tombstoneが残る親の物理回収拒否、最大8件候補、確認なしsoft-delete、削除Undoの操作／token／期限／復元経路を作らないこと、子タグが残るカテゴリの削除BLOCKと連鎖削除禁止を記載する。タグ親変更はISSUE-019決定前に実装範囲へ入れない。検索を扱うPlanでは、フルページkeyword検索と、入力・応答をポップアップ内で完結するAIアシスタントを別状態として扱う。
 
 QRを扱うPlanはchecksumを破損／切詰め検出に限定し、真正性を保証しないことを明記する。異なる親の同名Tag競合は別名／skip／cancel後の再previewとする。Driveを扱うPlanは同一field更新、update-delete、add-delete、名前競合を自動LWWせず `syncConflicts` へ送り、immutableな `syncSnapshots` と明示的なresolution planを使う。OPEN中のsnapshotは回収せず、解決後も30日保持し、Label IDやedgeを暗黙に付け替えない。
 
@@ -121,7 +121,7 @@ QRを扱うPlanはchecksumを破損／切詰め検出に限定し、真正性を
 - [ ] AIエージェントE2E: ビルド済み拡張機能をPlaywrightで確認し、report、screenshot、trace、skipを記録する。
 - [ ] 手動検証: <操作> の結果、<観察可能な結果> になる。
 - [ ] 人間受入: AIエージェント確認後、同じcommit／buildを人間が承認または差戻しする。
-- [ ] 状態fixture: 初回／再訪、0件／8件／9件以上候補、Normalizer v1、設定境界値、AI snapshot、権限拒否、削除→同名作成→undo、undo期限／競合、archive復元、QR／Drive競合を必要に応じて含める。
+- [ ] 状態fixture: 初回／再訪、0件／8件／9件以上候補、Normalizer v1、設定境界値、AI snapshot、権限拒否、確認なし削除、tombstone中の同名作成拒否、削除Undo経路なし、archive復元、QR／Drive競合を必要に応じて含める。
 - [ ] エラー経路: <条件> でも保存済みデータを失わず、<案内> を表示する。
 - [ ] 文書: 関連文書と実装が一致する。
 

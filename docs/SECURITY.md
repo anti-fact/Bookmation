@@ -13,7 +13,7 @@
 1. ローカルファースト: MVPではブックマーク情報をBookmationの外部サーバーへ送らない。
 2. 最小権限: 機能を実行する直前まで任意権限を要求しない。
 3. 信頼境界: Webページ、AI出力、QR、インポート、同期データをすべて未信頼入力として扱う。
-4. 明示操作: 共有、外部送信、大量変更、削除はユーザーが対象を選んで開始する。Bookmark／カテゴリ／タグ削除は追加確認画面を置かないため、対象ID・revisionの検証、論理削除、Undoを必須にする。
+4. 明示操作: 共有、外部送信、大量変更、削除はユーザーが対象を選んで開始する。Bookmark／カテゴリ／タグ削除は追加確認画面を置かないため、対象ID・期待revisionの検証と原子的な論理削除を必須にする。削除Undoは提供しない。
 5. 可逆性: 分類、タグ統合、アーカイブは履歴または取り消し手段を持つ。
 6. 保存と分類の分離: AI失敗や攻撃的入力によって、保存済みブックマークを失わない。
 7. リモートコード禁止: MV3のCSPに従い、実行コードをパッケージへ固定する。
@@ -170,13 +170,12 @@ Chromeプロファイルへアクセスできる同一端末の攻撃者から�
 
 ## 操作の安全性
 
-- タグ削除、統合、大量再分類は影響件数を表示する。カテゴリ名はCATEGORY内、タグ名は親カテゴリをまたいでTAG内で一意にし、既存と同名の作成・改名を拒否する。論理削除済みLabelもunique keyを保持して名前を予約し、物理回収前は同名の別IDを作らない。同名作成時は同じ削除済みIDの明示復元または別名を案内する。CategoryとTag相互の同名までは禁止しない。旧データで重複を検出しても名称一致だけで自動統合しない。
+- タグ削除、統合、大量再分類は影響件数を表示する。カテゴリ名はCATEGORY内、タグ名は親カテゴリをまたいでTAG内で一意にし、既存と同名の作成・改名を拒否する。論理削除済みLabelもunique keyを保持して名前を予約し、物理GC前は同名の別IDを作らない。同名作成時は別名だけを案内する。CategoryとTag相互の同名までは禁止しない。旧データで重複を検出しても名称一致だけで自動統合しない。
 - アーカイブは削除と分け、元に戻せる。
-- Bookmark／カテゴリ／タグ削除は明示クリックを要求するが、追加の確認画面は表示しない。対象IDとrevisionを再検証し、正確な対象集合へ同じ `deleteOperationId`、削除後の `deletedRevision`、`deletedAt` を1 transactionで記録して短期Undo tokenと影響件数を返す。物理削除はUndo・同期tombstoneの保持期間後だけ検討する。
-- Undoはtokenに記録した全対象のmarkerとrevisionが一致し、名称一意性、TAG親、edge整合も再検証できた場合だけ同じtransactionで全件復元する。Tag復元は親CATEGORYが存在しACTIVEの場合だけ許し、削除済み親なら `UNDO_CONFLICT` として親復元を先に求める。期限切れは `UNDO_EXPIRED`、期限内の対象欠損・marker／revision不一致・不変条件違反は `UNDO_CONFLICT` とし、部分復元しない。tombstoneの名前予約により削除→同名別ID作成→Undo競合を防ぐ。
-- Bookmark削除時は全BookmarkLabel edgeと検索派生文書を同じtransactionで削除または無効化する。Undo時はBookmarkから検索文書を再生成する。favicon／thumbnail IDはtombstoneに残し、Undo期限と同期tombstone保持期間の双方が終わる前にBlobを回収しない。
+- Bookmark／カテゴリ／タグ削除は明示クリックを要求するが、追加の確認画面は表示しない。対象IDと期待revisionを再検証し、対象本体と関連edgeのrevisionを進めて `deletedAt` を1 transactionで設定する。1件でも失敗したら全件をrollbackし、成功時は影響件数だけを返す。Undo token、Undo toast、削除済みBookmark／Category／Tagの利用者向け復元導線は作らない。
+- Bookmark削除時は全BookmarkLabel edgeとBookmark検索派生文書を、Category／Tag削除時は対象Labelの検索派生文書を同じtransactionで削除または無効化する。favicon／thumbnail IDはtombstoneに残し、同期tombstone保持期間が終わり、他の参照やOPEN／CANCELED syncConflictがないことを確認するまでBlobを回収しない。
 - 全TAG recordは物理的に存在するCATEGORY recordを参照し、ACTIVE TAGはACTIVE親を必須とする。削除済みTAGだけは削除済み親を参照できる。タグ削除は対象IDのタグと参照edgeだけを論理削除する。ACTIVEな子タグを持つカテゴリの論理削除はBLOCKし、子タグを暗黙cascadeしない。現行P0ではタグの親変更を受け付けないため再配置を案内せず、子タグの管理または削除だけを案内する。ACTIVE子タグがないカテゴリは論理削除できるが、CATEGORYの物理GCは削除済みを含む子TAG recordが0件になるまでBLOCKする。名称一致する別タグ・カテゴリを巻き込まない。
-- 現行P0のタグ編集では親カテゴリを読取専用にし、UpdateTagからの親変更を拒否する。専用移動transactionと権限・Undo境界は [ISSUE-019](./ISSUES.md) の解決後に追加する。
+- 現行P0のタグ編集では親カテゴリを読取専用にし、UpdateTagからの親変更を拒否する。専用移動transactionと権限・原子性境界は [ISSUE-019](./ISSUES.md) の解決後に追加する。
 - AIによる自動分類の変更履歴を最低1世代保持する案を採用する。
 - 一括操作には処理対象の固定スナップショットを使い、途中で検索条件が変わっても対象を増やさない。
 
@@ -254,7 +253,7 @@ Chromeプロファイルへアクセスできる同一端末の攻撃者から�
 - ARCHIVEDが `metadata` と `payload { title, url, categories, tags }` を構造上分け、payloadにそれ以外の利用者データがなく、operation metadataが分離され、設定から安全に復元できる。
 - QRインポートで破損、過大、不明バージョン、親不明タグ、payload内同名TAG・複数親を拒否する。checksumを真正性保証に使わず、既存の別親同名TAGを自動reuse／rename／moveしない。カメラ読取終了後にtrackとフレームを保持しない。
 - Drive同期で選択アカウント、同じscalar、同じedge add/delete、update/delete、一意名競合を再現し、自動LWWせずimmutable syncSnapshotsとsyncConflictsへ送る。期待revision／hash付きの非空な明示operationsだけを全不変条件再検証後にatomic commitし、同名／異親TAGやLabel IDを暗黙remapしない。OPEN／CANCELED snapshotはGCせず、RESOLVED後も30日以上保持する。appDataFolderを別アカウント共有に使わない。
-- Bookmark／カテゴリ／タグ削除が追加確認画面なしでも同じdeleteOperationIdとdeletedRevisionを持つ正確な集合だけを論理削除・Undoでき、期限切れと競合を区別して部分復元しない。Tag復元はACTIVE親を必須とし、削除済み親なら親復元を先行する。ACTIVEな子TAGを持つカテゴリの論理削除をBLOCKし、CATEGORY物理GCは削除済みを含む子TAGが0件になるまでBLOCKする。P0で再配置を案内せず、削除済みLabelのunique key、削除Bookmarkの検索除外、参照Blob保持も維持する。
+- Bookmark／カテゴリ／タグ削除が追加確認画面なしでも対象IDと期待revisionを検証し、対象本体・関連edge・検索派生文書を原子的に論理削除する。Undo tokenや削除済み対象の復元導線を生成しない。ACTIVEな子TAGを持つカテゴリの論理削除をBLOCKし、CATEGORY物理GCは削除済みを含む子TAGが0件になるまでBLOCKする。P0で再配置を案内せず、削除済みLabelのunique keyによるGCまでの名称予約、削除Bookmarkの検索除外、参照Blob保持も維持する。
 - 標準Bookmarkのインポート前後でChrome側のtreeが不変であり、context menuが危険URLを拒否する。
 - 依存監査とビルド成果物の秘密情報検査がCIで実行される。
 - WebプレビューとPlaywright artifactに実データやtokenがなく、AIエージェント確認後に人間が同じbuildを受入確認している。

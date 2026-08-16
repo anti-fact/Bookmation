@@ -15,8 +15,8 @@
 
 1. デスクトップ版 Chrome Manifest V3 拡張を初期対象とする。
 2. Bookmark は Bookmation 専用で、Chrome 標準 bookmark / folder を正本にしない。
-3. カテゴリを親、タグを子とする。activeなTagは1件のactiveな親Categoryに所属する。tombstone Tagはdeleted親Categoryを参照できるが、Tag restoreでは親Categoryを先にactiveへ戻す。親Categoryの物理GCは、そのIDを参照する全子Tag tombstoneが消滅するまでblockする。
-4. 1件のBookmarkにカテゴリ／タグを各複数付与でき、同じLabel IDを複数Bookmarkで再利用できる。子Tagを割り当てるtransactionでは親Category edgeも追加／復元し、Category edgeを外す時は配下Tag edgeも外す。Tag edgeだけを外しても親Category edgeは残す。
+3. カテゴリを親、タグを子とする。activeなTagは1件のactiveな親Categoryに所属する。tombstone Tagはdeleted親Categoryを参照できる。親Categoryの物理GCは、そのIDを参照する全子Tag tombstoneが消滅するまでblockする。
+4. 1件のBookmarkにカテゴリ／タグを各複数付与でき、同じLabel IDを複数Bookmarkで再利用できる。子Tagを割り当てるtransactionでは親Category edgeも追加し、Category edgeを外す時は配下Tag edgeも外す。Tag edgeだけを外しても親Category edgeは残す。
 5. カテゴリはユーザーだけが作成し、正規化名が同じカテゴリは論理削除中を含めて1件だけとする。
 6. Tagは論理削除中を含め、親Categoryをまたいで正規化名をglobal uniqueにし、同名の別IDを許さない。AIは既存ユーザー定義タグを優先し、不足時だけ細分化度の範囲内で作る。
 7. 同じ `(bookmarkId, labelId)` edge は冪等性のため1件とする。
@@ -47,10 +47,10 @@
 32. カテゴリ・タグ一覧の新規作成は種類をプルダウンで選んでモーダルを開き、閉じるまで連続作成できる。Tag作成には親Categoryを必須とする。Category／Tagとも正規化後の同名作成を拒否し、既存候補を選択する元画面へ戻るか別名を入力するよう案内する。
 33. Bookmark編集ではカテゴリ／タグの各説明横から新規作成を開始し、モーダルを重ねず同一モーダル内のサイドビューへ切り替える。
 34. カテゴリ・タグ一覧の管理ボタンで管理モードへ切り替える。管理中はカテゴリリボン／タグチップの選択で編集モーダルを開き、鉛筆はhover／focus時だけ補助表示する。
-35. Bookmark、カテゴリ、タグの削除に確認画面を設けず、論理削除、直後のundo、設定または管理画面からの復元で誤操作に備える。有効な子Tagが1件でも残るCategoryの削除はblockし、cascade deleteしない。
+35. Bookmark、カテゴリ、タグの削除に確認画面を設けず論理削除する。削除後のUndo toast、token、期限、設定／管理画面からの復元入口は設けない。有効な子Tagが1件でも残るCategoryの削除はblockし、cascade deleteしない。
 36. 統合検索、カテゴリ入力、タグ入力のautocompleteは入力中のkeyword一致度で既存候補を最大8件表示し、8件超を一度に展開しない。
 37. Category／Tag名称正規化v1はprojectにvendoredしたUnicode 15.1.0のNFKCデータ、`White_Space` property、`Default_Ignorable_Code_Point` property、`CaseFolding.txt` のstatus C＋F mappingだけを使う。rawの`Cs`／Default Ignorable拒否、NFKC、TAB／LFを含む空白のtrim／単一ASCII空白化、残存`Cc`／`Cs`／Default Ignorable拒否、locale非依存case fold、最終再検証の順で決定的に適用し、空になった名前を保存しない。runtime ICUや端末Unicode版へ依存せず、生成assetのhashは実装時に生成・固定する。検索queryのtoken正規化とは別契約にする。
-38. Category／Tagの論理削除tombstoneは一意名を予約し、同名の別ID作成でUndoを妨げない。名前を再利用できるのは復元不能な物理回収後だけである。
+38. Category／Tagの論理削除tombstoneは一意名を予約し、同名の別ID作成を防ぐ。名前を再利用できるのは物理回収後だけである。
 39. P1 Drive競合はimmutableな `syncSnapshots` と明示的なresolution planで扱う。競合がopenの間は参照snapshotをGCせず、解決後も30日保持する。Label IDまたはBookmark-Label edgeを暗黙にremapしない。
 
 ## AI と実行環境

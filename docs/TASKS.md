@@ -50,13 +50,13 @@
 - [ ] Blob以外の正本を `schemaVersion` 付きJSON互換documentにし、read/write時にschema検証する。
 - [ ] カテゴリの `categoryUniqueName` とタグの `tagUniqueName` を各namespaceでglobal uniqueにする。カテゴリ名とタグ名の相互一致は許可する。
 - [ ] Label Normalizer v1を、project-vendored Unicode 15.1.0のNFKC／`White_Space`／`Default_Ignorable_Code_Point`／`CaseFolding.txt` C＋F assetで実装する。runtime ICUへ依存せず、生成assetのhashを実装時に固定する。
-- [ ] Category／Tagのtombstone中も名前を予約し、同名別IDを拒否する。削除済みIDの明示復元か別名だけを許し、物理回収後に予約を解放する。
-- [ ] Bookmark／Category／Tagの削除へ `deleteOperationId` と対象revisionを保存し、undoで照合する。
-- [ ] active Tagへactive親Categoryを必須とする。tombstone Tagのdeleted親参照は許すが、Tag restoreは親restore後だけにし、全子Tag tombstoneが消滅するまで親Categoryの物理GCをblockする。
+- [ ] Category／Tagのtombstone中も名前を予約し、同名別IDを拒否する。削除済みなら物理回収まで別名だけを許し、回収後に予約を解放する。
+- [ ] Bookmark／Category／Tagの削除は確認なしのsoft-deleteとし、tombstoneの `deletedAt` とrevisionを保存する。削除Undo用のtoken、期限、復元経路は作らない。
+- [ ] active Tagへactive親Categoryを必須とする。tombstone Tagのdeleted親参照は許し、全子Tag tombstoneが消滅するまで親Categoryの物理GCをblockする。
 - [ ] `(bookmarkId, labelId)` edge と作成 request を冪等にする。
 - [ ] Bookmark と PENDING Job を同一 transaction で保存する。
 - [ ] SearchDocument と favicon / thumbnail Blob の再構築・回収境界を作る。
-- 完了条件: JSON不正、Normalizer v1、カテゴリ／タグ名競合、tombstone予約、削除→同名作成拒否→undo、`UNDO_EXPIRED`／`UNDO_CONFLICT`、namespace分離、複数カテゴリ／タグ、再送、中断migrationの自動テストが通る。
+- 完了条件: JSON不正、Normalizer v1、カテゴリ／タグ名競合、tombstone予約、削除後の同名作成拒否、削除Undo経路なし、namespace分離、複数カテゴリ／タグ、再送、中断migrationの自動テストが通る。
 
 ### TASK-004: popup・commands・保存
 
@@ -75,7 +75,7 @@
 - [ ] カテゴリを常時表示し、タグをclick / keyboard disclosure、pointer hover previewで表示する。
 - [ ] 全項目にedit buttonを置き、name、URL、カテゴリ、タグを別々に変更できるmodalを実装する。
 - [ ] カテゴリ／タグ入力中に既存候補を最大8件表示し、各説明横の新規作成ボタンから同じmodal内のside viewへ移る。
-- [ ] Bookmark削除も確認画面を挟まずsoft-deleteし、`deleteOperationId`＋revisionが一致するundo toastから復元する。期限切れとrevision競合を別表示にする。
+- [ ] Bookmark削除は確認画面を挟まずsoft-deleteする。削除後にUndo toast、復元ボタン、Undo用errorを表示しない。
 - [ ] cursor infinite scroll、追加失敗 retry、終端、back-to-top を実装する。
 - [ ] 弁当表示、列数設定、表示数変更プルダウン、右 sidebar がないことを確認する。
 - 完了条件: デザインシートに沿う LIST / GRID を keyboard で検索・閲覧・編集できる。
@@ -85,14 +85,14 @@
 - [ ] 親カテゴリと、その配下の子タグを扱う全画面一覧とsticky headerを作る。
 - [ ] フルページ検索とAI入力ポップアップを開くボタン、カテゴリ・タグ新規作成、名前付きcloseを置く。
 - [ ] 新規作成ボタンから種類をプルダウンで選び、作成modalを開く。閉じるまで連続作成できるようにする。
-- [ ] カテゴリ／タグ作成でtombstoneを含む各namespace内の正規化名重複を拒否する。有効項目なら元画面で選択、削除済みなら同じIDの明示復元、または別名を案内する。
+- [ ] カテゴリ／タグ作成でtombstoneを含む各namespace内の正規化名重複を拒否する。有効項目なら元画面で選択し、削除済みなら物理回収まで別名を案内する。
 - [ ] タグ作成では親カテゴリを必須選択し、親をまたいでも同名タグを作らない。タグ親変更はP0で提供しない。
 - [ ] headerの管理ボタンで管理モードへ切り替え、カテゴリリボン／タグチップのhover・focus時だけ鉛筆を示し、選択で編集modalを開く。
 - [ ] タグ編集modalに親カテゴリを読取専用で表示する。親カテゴリ変更は [ISSUE-019](ISSUES.md) 決定後の別タスクとし、P0 commandへ含めない。
-- [ ] カテゴリ／タグ削除は確認画面を挟まずsoft-deleteし、`deleteOperationId`＋revision照合undoを用意する。`UNDO_EXPIRED`／`UNDO_CONFLICT` を分ける。
+- [ ] カテゴリ／タグ削除は確認画面を挟まずsoft-deleteし、削除Undoの操作や復元経路を用意しない。
 - [ ] 子タグが残るカテゴリはBLOCKし、「子タグを削除」「中止」だけを案内する。cascade deleteやタグ移動を出さない。
 - [ ] label selection、infinite scroll、back-to-top、直前状態復元を実装する。
-- 完了条件: 親子関係をIDで識別し、通常モードでは対象Bookmark一覧へ移動し、管理モードでは作成・編集・削除・復元をキーボードでも行える。
+- 完了条件: 親子関係をIDで識別し、通常モードでは対象Bookmark一覧へ移動し、管理モードでは作成・編集・削除をキーボードでも行える。
 
 ### TASK-007: Prompt API host spike
 
@@ -119,7 +119,7 @@
 - [ ] keyword入力中に一致度の高いLabel / Bookmark候補をGoogle検索型の候補リストとして最大8件表示し、選択で対象へ移動する。
 - [ ] カテゴリ・タグ結果を上、Bookmark結果を下に表示し、IME、0件、8件、9件以上、古いresponseを扱う。
 - [ ] `AiAgentPopup` 内で自然言語の入力と応答確認を完結させ、Label / Bookmark候補集合を生成する。
-- [ ] AI入力はBookmark探索に限らず、設定、保存、分類、共有、復元などBookmationの機能全般の説明を受け付ける。
+- [ ] AI入力はBookmark探索に限らず、設定、保存、分類、共有、アーカイブ復元などBookmationの機能全般の説明を受け付ける。
 - [ ] AI は提示済み ID から選択だけを行い、候補外ID、重複、古いrevisionを拒否する。
 - [ ] AIの検索結果はカテゴリ・タグを上、Bookmarkを下に表示する。AI結果はrank、score、best表現を出さない。
 - [ ] AI配列順を捨て、中立な安定順で描画する。
@@ -139,7 +139,7 @@
 
 - [ ] [TESTING.md](TESTING.md) の通常Webページとして、production React componentとTailwind tokenをfake Adapterで表示する。
 - [ ] popup、ホーム、カテゴリ一覧、主要dialogと、空／通常／大量／エラー／権限拒否等の版管理fixtureを直接開けるようにする。
-- [ ] 初回ホーム、検索候補0／8／9件以上、AI検索／機能質問、Unicode 15.1.0 vendored Normalizer asset＋hash、tombstone予約と親子restore／GC、3 entityのdelete／undo、AI snapshot、設定境界値、URL単位SUPPRESSED、archive復元、Drive／QRをfixture化する。
+- [ ] 初回ホーム、検索候補0／8／9件以上、AI検索／機能質問、Unicode 15.1.0 vendored Normalizer asset＋hash、tombstone予約と親子GC、3 entityの確認なしdeleteと削除Undo経路なし、AI snapshot、設定境界値、URL単位SUPPRESSED、archive復元、Drive／QRをfixture化する。
 - [ ] `ui:preview`、`ui:build`、`test:e2e`、`test:e2e:ui` scriptを実装し、preview／fixture／debug UIを本番拡張成果物から除外する。
 - [ ] Playwrightの隔離persistent Chromium contextへビルド済み拡張機能を読み込み、popupと `chrome-extension://` ページを操作する。
 - [ ] AIエージェントがHTML report、失敗時screenshot、trace、console error、skipを保存して人間へ渡せるようにする。
@@ -149,8 +149,8 @@
 ### TASK-011: Recovery / quality
 
 - [ ] worker停止、AI Host終了、message再送、DB transaction失敗をテストする。
-- [ ] 削除→同名作成拒否→undo、undo期限切れ、削除後revision競合、物理回収後の名前再利用をテストする。
-- [ ] runtime ICU差に依存しないNormalizer golden vector、active／tombstone Tagの親状態、親先行restore、子Tag tombstone残存中の親GC拒否をテストする。
+- [ ] 確認なし削除、削除後の同名作成拒否、削除Undo経路がないこと、物理回収後の名前再利用をテストする。
+- [ ] runtime ICU差に依存しないNormalizer golden vector、active／tombstone Tagの親状態、子Tag tombstone残存中の親GC拒否をテストする。
 - [ ] 1万件規模でinfinite scroll、count、フルページkeyword候補、可変高タグを測る。
 - [ ] keyboard、screen reader、200% zoom、sticky offset、dialog、back-to-top を確認する。
 - [ ] lint、typecheck、unit、component、E2E、build を CI で実行する。

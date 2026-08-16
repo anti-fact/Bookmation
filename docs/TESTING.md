@@ -64,8 +64,8 @@ flowchart LR
 - `runtime.onInstalled` のINSTALLで開く初回ホームと、UPDATE／導入完了後の最近追加ホーム。
 - 親カテゴリ／子タグ、親カテゴリ欠落、Label Normalizer v1のproject-vendored Unicode 15.1.0 asset（NFKC、`White_Space`、`Default_Ignorable_Code_Point`、`CaseFolding.txt` C＋F）、asset hash、runtime ICU非依存golden vector、カテゴリ／タグ各namespace内の名前競合、カテゴリ名とタグ名の相互一致。
 - ブックマーク編集のカテゴリ／タグ別入力、既存候補0／1／8／9件以上、同じmodal内の新規作成side view、draft保持。
-- Bookmark／Category／Tagの確認画面なしsoft-delete、deleteOperationId＋revision undo、`UNDO_EXPIRED`、`UNDO_CONFLICT`。
-- カテゴリ・タグ作成の種類プルダウン、閉じるまでの連続作成、tombstone名前予約、削除済み同一IDの明示復元／別名、削除→同名作成拒否→undo、active Tag／active親、tombstone Tag／deleted親、親Category先行restore、子Tag tombstone残存中の親Category GC拒否、物理回収後の名前再利用。
+- Bookmark／Category／Tagの確認画面なしsoft-deleteと、削除後にUndo toast／token／期限／復元操作が現れない状態。
+- カテゴリ・タグ作成の種類プルダウン、閉じるまでの連続作成、tombstone名前予約、削除済み同名項目がある場合の別名案内、削除後の同名作成拒否、active Tag／active親、tombstone Tag／deleted親、子Tag tombstone残存中の親Category GC拒否、物理回収後の名前再利用。
 - タグ編集modalの親カテゴリ読取専用表示。親カテゴリ変更はISSUE-019決定前のfixture／commandへ含めない。
 - 通常／管理モード、hover／focus鉛筆、子タグ残存カテゴリの削除BLOCK、子タグ削除／中止だけの案内、移動／cascadeなし。
 - フルページ検索の両入口、入力候補0／1／8／9件以上、選択、結果0件／複数件。カテゴリ・タグが上、Bookmarkが下。
@@ -115,12 +115,12 @@ AIエージェントがPlaywrightを起動できない環境では、Webプレ�
 - 現在ページまたはURLを保存し、拡張機能の再読込後も一覧へ残る。
 - 一覧からフルページ検索へ切り替え、入力候補が最大8件で選択でき、カテゴリ・タグの検索結果が上、Bookmarkが下に表示される。
 - AI入力ポップアップ内でBookmark検索の入力・結果と、Bookmationの機能質問・説明を確認する。
-- LIST / GRID切替、カテゴリ／タグ展開、カテゴリ／タグ別入力によるBookmark編集、side view作成、3 entityのdeleteOperationId＋revision undoを行う。
-- `UNDO_EXPIRED` と `UNDO_CONFLICT` を区別し、同じundo再送で別operationを作らない。
-- カテゴリ・タグ一覧で新規作成を閉じるまで繰り返し、tombstoneを含む同名作成を拒否する。削除済み同一IDの復元／別名、削除→同名作成拒否→undoを確認する。
-- active Tag作成／復元ではactive親Categoryを要求し、tombstone Tagだけがdeleted親を参照できることを確認する。親Categoryを先に復元せずTagを復元できず、子Tag tombstoneが残る親Categoryを物理GCできないことを確認する。
+- LIST / GRID切替、カテゴリ／タグ展開、カテゴリ／タグ別入力によるBookmark編集、side view作成、3 entityの確認なしsoft-deleteを行う。
+- 削除後にUndo toast／復元操作がなく、Undo用message、token、期限、error codeが生成されないことを確認する。
+- カテゴリ・タグ一覧で新規作成を閉じるまで繰り返し、tombstoneを含む同名作成を拒否する。削除済み同名項目には別名を案内し、削除後も名前予約が維持されることを確認する。
+- active Tag作成ではactive親Categoryを要求し、tombstone Tagだけがdeleted親を参照できること、子Tag tombstoneが残る親Categoryを物理GCできないことを確認する。
 - タグ編集では親カテゴリを読取専用で表示し、ISSUE-019決定前に親変更commandを送らない。
-- 管理モードの鉛筆から編集し、確認画面なしのsoft-deleteとundoを行う。子タグが残るカテゴリはBLOCKされ、cascade deleteされない。
+- 管理モードの鉛筆から編集し、確認画面なしのsoft-deleteを行う。削除Undoは表示せず、子タグが残るカテゴリはBLOCKされ、cascade deleteされない。
 - AI Jobのdiscriminated snapshot全5組と不一致拒否を確認し、`0` では新規AIタグを作らず既存タグは自動付与されることを確認する。
 - AIのTag名競合ではoriginを問わず既存Tagを再評価し、USER優先、親／意味不適合のNEEDS_REVIEWを確認する。
 - AI利用不可でも保存、手動分類、keyword検索が継続する。

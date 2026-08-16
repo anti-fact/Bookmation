@@ -23,7 +23,7 @@
 - Bookmark保存をAI処理より先に完了し、AI失敗で保存データを失わない。
 - Prompt APIをService Workerで実行しない。対応確認済みのトップレベル拡張ページだけをAI Hostにする。
 - カテゴリを親、タグを子とする固定2階層とし、activeな各タグはactiveな親カテゴリIDを持つ。正規化名はCATEGORY内とTAG内でそれぞれglobal uniqueとし、タグは親をまたいでも同名別IDを許可しない。soft-delete中も名前を予約し、物理回収後だけ再利用できる。CATEGORYとTAGは別namespaceである。
-- active Tagだけにactive親Categoryを必須とする。tombstone Tagはdeleted親を参照できるが、Tag復元は親Category復元後に限る。親Categoryの物理回収は、そのIDを参照する全子Tag tombstoneが消滅するまでblockする。
+- active Tagだけにactive親Categoryを必須とする。tombstone Tagはdeleted親を参照できる。親Categoryの物理回収は、そのIDを参照する全子Tag tombstoneが消滅するまでblockする。
 - Label Normalizer v1はproject-vendored Unicode 15.1.0 assetだけを使い、runtime ICUへ依存しない。NFKC、`White_Space`、`Default_Ignorable_Code_Point`、`CaseFolding.txt` C＋F mappingと、実装時に生成・固定するasset hashを契約に含める。
 - AIは既存カテゴリを選択できるが、新規カテゴリを作成できない。
 - AI細分化度は整数 `0`〜`4` で、新規タグ上限 `0 / 1 / 2 / 4 / 6` へ対応する。Jobには両値をdiscriminated snapshotとして保存し、不一致を拒否する。`0` は新規AIタグ作成だけを禁止し、既存タグの自動付与は継続する。
@@ -146,12 +146,12 @@ sequenceDiagram
 
 目的: UI、DB、AIのどの入口でも同じ業務ルールを適用する。
 
-- [ ] Bookmark、Label、BookmarkLabel、ClassificationJob、DeleteOperation、LocalSettingsの型を定義する。
+- [ ] Bookmark、Label、BookmarkLabel、ClassificationJob、LocalSettingsの型を定義する。
 - [ ] Blob以外の全永続型を `schemaVersion` 付きJSON documentにし、read/write schema検証を定義する。
 - [ ] URL、ID、revision、時刻、正規化名、カーソルを値オブジェクトまたは検証関数にする。
 - [ ] `LabelNormalizer v1` 用にUnicode 15.1.0のNFKC、`White_Space`、`Default_Ignorable_Code_Point`、`CaseFolding.txt` status C＋Fをprojectへvendoringする生成処理を作る。runtime ICU／端末Unicode版を参照せず、生成assetのhashを実装時に固定して `normalizerVersion` と検証する。
 - [ ] 有効カテゴリの `categoryUniqueName`、有効タグの `tagUniqueName` を各namespaceでglobal uniqueにし、カテゴリの `origin=USER` を保証する。
-- [ ] active TAGにはactive CATEGORYの親IDを必須とし、親子は2階層より深くならないよう検証する。tombstone TAGだけはdeleted親参照を許し、復元時は親CATEGORYがactiveでなければ拒否する。
+- [ ] active TAGにはactive CATEGORYの親IDを必須とし、親子は2階層より深くならないよう検証する。tombstone TAGだけはdeleted親参照を許す。
 - [ ] 同一Bookmarkへカテゴリ／タグを各複数付与できるようにする。
 - [ ] `LocalSettings` へ初回ホーム完了状態、`frequentVisitReminderEnabled`、訪問回数／archive日数、AI細分化度 `0`〜`4` を型付きで定義する。`autoArchiveEnabled` は要求しない。
 - [ ] エラーコードと、UIに見せる安全なメッセージへの変換規則を定義する。
@@ -165,19 +165,19 @@ sequenceDiagram
 
 目的: ローカルデータを正本として安全に読み書きする。
 
-- [ ] `bookmarks`、`labels`、`bookmarkLabels`、`classificationJobs`、`bookmarkRevisions`、`deleteOperations`、`searchDocuments`、`blobs`、`schemaMeta`を作る。
+- [ ] `bookmarks`、`labels`、`bookmarkLabels`、`classificationJobs`、`bookmarkRevisions`、`searchDocuments`、`blobs`、`schemaMeta`を作る。
 - [ ] Blob以外をJSON互換に限定し、各documentのschemaVersion、size上限、unknown version隔離を実装する。
 - [ ] [DBスキーマ](docs/DB-SCHEMA.md) のunique/non-unique indexを実装する。
 - [ ] Bookmark保存とPENDING Job作成を1transactionにする。
 - [ ] `(bookmarkId, labelId)`、`creationRequestId`、カテゴリ名、タグ名を冪等・一意に扱う。名前unique indexはtombstoneも対象にし、物理回収transaction後だけ予約を解放する。
-- [ ] `labels` の親カテゴリ参照と、active／tombstoneを区別して親子関係をたどるindexを実装する。親Categoryの物理回収は参照する全子Tag tombstoneが物理回収または適法に復元され、参照が0件になるまで拒否する。
+- [ ] `labels` の親カテゴリ参照と、active／tombstoneを区別して親子関係をたどるindexを実装する。親Categoryの物理回収は参照する全子Tag tombstoneが物理回収され、参照が0件になるまで拒否する。
 - [ ] `savedAt + id` 等の安定カーソル、総件数、条件別一覧をRepository契約にする。
 - [ ] 内部ページサイズを定数または内部設定に置き、`chrome.storage.local`やUI向け表示数設定にしない。
 - [ ] schema versionと中断可能なmigration骨格を作る。
 
 成果物: DB open処理、migration、Repository実装、Repository契約テスト。
 
-完了条件: JSON round-trip／不正版、再読込、同時作成、削除→同名作成拒否→Undo、物理回収後の再利用、hash衝突、edge再送、同時刻カーソル、migration中断のテストが通る。
+完了条件: JSON round-trip／不正版、再読込、同時作成、削除後の同名作成拒否、物理回収後の再利用、hash衝突、edge再送、同時刻カーソル、migration中断のテストが通る。
 
 ### BE-03 Message契約とService Worker
 
@@ -215,13 +215,13 @@ sequenceDiagram
 目的: UIがBookmarkとカテゴリ／タグを安全に管理・表示できる契約を揃える。
 
 - [ ] Bookmarkの名前、URL、複数カテゴリ、各カテゴリ配下のタグをrevision付きで別々に更新する。
-- [ ] Bookmark／Category／Tagのsoft-deleteごとに `deleteOperationId`、対象revision、undo期限を保存し、undo時にoperation IDと現在revisionの両方を照合する。
-- [ ] undo期限切れを `UNDO_EXPIRED`、削除後の更新・同期等によるrevision不一致を `UNDO_CONFLICT` として区別し、同じoperationの再送を冪等に扱う。
-- [ ] Bookmark削除も確認済みflagを要求せずsoft-deleteし、関連・Blobの物理回収境界を定義する。
+- [ ] Bookmark／Category／Tagの削除は確認済みflagを要求せず、`deletedAt` とrevisionを更新するsoft-deleteとして原子的に実装する。
+- [ ] 削除Undo用のoperation、期限、error code、復元commandを作らない。同じ削除requestの再送は冪等に扱う。
+- [ ] Bookmark削除では関連・Blobを表示対象から外し、tombstoneと同期安全性を保った物理回収境界を定義する。
 - [ ] カテゴリ作成・改名時に正規化名競合を返し、既存カテゴリを選べる情報を返す。
 - [ ] タグ作成時は親カテゴリIDを必須とする。作成use caseは既存IDの選択／関連付けを受理せず、親をまたぐ場合も正規化名競合を返して新規IDを作らない。
-- [ ] カテゴリ／タグの名前競合時はtombstoneを含む既存IDと状態を返す。有効なら元画面で選択、削除済みなら同じIDの明示復元、または別名だけを許し、別ID作成を拒否する。
-- [ ] Tagの復元は親Categoryがactiveであることを同じtransactionで再検証し、deleted親の場合は親の明示復元を先に要求する。tombstone Tagからdeleted親への参照は物理回収まで保持する。
+- [ ] カテゴリ／タグの名前競合時はtombstoneを含む既存IDと状態を返す。有効なら元画面で選択し、削除済みなら物理回収まで別名だけを許して別ID作成を拒否する。
+- [ ] tombstone Tagからdeleted親への参照を物理回収まで保持し、子Tag tombstoneが残る親Categoryの先行回収を拒否する。
 - [ ] タグ編集responseでは親カテゴリを返すが、親変更commandは [ISSUE-019](docs/ISSUES.md) 決定後の別タスクとし、P0の更新allowlistへ含めない。
 - [ ] カテゴリ／タグ入力向けに、keyword一致度、親カテゴリ、由来、利用件数を持つ候補を最大8件返す。
 - [ ] 作成modalを閉じるまで複数作成できるよう、各requestを一意キーで独立かつ冪等に処理する。
@@ -230,9 +230,9 @@ sequenceDiagram
 - [ ] 無限スクロール用cursorで同じIDを二重返却しない。
 - [ ] 手動アーカイブと復元を削除とは別の状態変更として実装する。
 
-成果物: Bookmark/Label CRUD use case、Delete/Undo契約、一覧Query、cursor page、件数契約。
+成果物: Bookmark/Label CRUD use case、soft-delete契約、一覧Query、cursor page、件数契約。
 
-完了条件: edit競合、カテゴリ／タグ名競合、tombstone予約、削除→同名作成→Undo、namespace分離、親子不整合、候補0／8／9件以上、連続作成、3 entityのsoft-delete／undo、`UNDO_EXPIRED`／`UNDO_CONFLICT`、子タグ残存時BLOCK、Label条件、cursor終端のテストが通る。
+完了条件: edit競合、カテゴリ／タグ名競合、tombstone予約、削除後の同名作成拒否、namespace分離、親子不整合、候補0／8／9件以上、連続作成、3 entityの確認なしsoft-delete、削除Undo経路がないこと、子タグ残存時BLOCK、Label条件、cursor終端のテストが通る。
 
 ### BE-06 永続AI Job
 
@@ -338,14 +338,14 @@ sequenceDiagram
 
 目的: バックエンド単体の完成ではなく、UIから再現できるP0成果として渡す。
 
-- [ ] 保存→再読込→一覧→編集→削除→undoをE2Eで通し、Bookmark／Category／Tagのoperation ID・revision不一致を区別する。
+- [ ] 保存→再読込→一覧→編集→確認なし削除をE2Eで通し、削除項目が一覧から消え、削除Undoの操作やAPIが提供されないことを確認する。
 - [ ] 初回インストール用ホームと、完了後の最近追加ホームを別fixture／E2Eで通す。
-- [ ] 親カテゴリ／子タグ作成→別入力で付与→管理モード編集／確認なし削除→同名作成拒否→undo→label条件一覧を通す。
+- [ ] 親カテゴリ／子タグ作成→別入力で付与→管理モード編集／確認なし削除→同名作成拒否→label条件一覧を通す。
 - [ ] 両一覧からフルページkeyword検索へ移り、入力候補が最大8件であることを通す。
 - [ ] AI対応時の分類・自然言語検索・機能説明と、AI非対応時のfallbackを通す。
 - [ ] AI細分化の全5値でdiscriminated snapshotを検証し、`0` で新規AIタグ0件かつ既存タグの自動付与ありを通す。
 - [ ] Label Normalizer v1のUnicode 15.1.0 vendored asset、asset hash、NFKC、`White_Space`、`Default_Ignorable_Code_Point`、CaseFolding C＋F fixtureを、runtime ICU差へ依存せず通す。
-- [ ] active Tag／active親、tombstone Tag／deleted親、親先行restore、子Tag tombstone残存中の親Category GC拒否をfixtureで通す。
+- [ ] active Tag／active親、tombstone Tag／deleted親、子Tag tombstone残存中の親Category GC拒否をfixtureで通す。
 - [ ] production componentをfake Adapterで動かす通常Webプレビューから、主要状態を人間が再現できるようにする。
 - [ ] AIエージェントがビルド済み拡張機能をPlaywrightで操作し、HTML report、screenshot、trace、skipを出力する。
 - [ ] AIエージェント確認後、人間が同じcommit／buildを実Chromeで確認して承認または差戻しを記録する。
@@ -466,9 +466,9 @@ sequenceDiagram
 | 最近追加／Label別一覧 | `ListBookmarks` | items、totalCount、nextCursor、hasNext |
 | フルページkeyword入力 | `Suggest/SearchAllByKeyword` | 最大8候補、labels、bookmarks。結果はlabelsが先 |
 | 全画面カテゴリ・タグ一覧 | `ListLabels` | 親子items、利用件数、nextCursor、hasNext |
-| カテゴリ・タグ作成／編集／削除 | `Create/Update/Delete/UndoLabel` | 親子関係、名前予約、競合、deleteOperationId、revision、undo結果 |
+| カテゴリ・タグ作成／編集／削除 | `Create/Update/DeleteLabel` | 親子関係、名前予約、競合、削除後revision |
 | Bookmark編集 | `UpdateBookmark` | 更新後Bookmark、カテゴリ関連、タグ関連、revision |
-| Bookmark削除／undo | `Delete/UndoBookmark` | 対象ID、deleteOperationId、revision、`UNDO_EXPIRED`／`UNDO_CONFLICT` |
+| Bookmark削除 | `DeleteBookmark` | 対象ID、削除後revision |
 | AI分類 | `ClassifyBookmark` | Job状態、提案、適用結果または要確認 |
 | AI検索／機能質問 | `AskBookmationAssistant` | 検索候補または機能説明、`AI`／`LEXICAL_FALLBACK` |
 | ショートカット表示 | `ListCommands` | command名、実キーまたは未割当 |
@@ -490,7 +490,7 @@ sequenceDiagram
 - [ ] URL、title、Label名、AI queryなどの利用者データを通常ログへ出していない。
 - [ ] 追加した権限、Store、index、message、設定の理由を文書化した。
 - [ ] 数値入力、AI slider `0`〜`4`、最大8候補、親子整合、初回状態、確認なしLabel削除、最小archive、共有選択の境界fixtureを追加した。
-- [ ] Label Normalizer v1のUnicode 15.1.0 vendored asset＋hash、tombstone名前予約と親子restore／GC、deleteOperationId＋revision undo、discriminated granularity snapshot、QR checksum境界、Drive conflict snapshot／resolution／GC／remap拒否をfixtureで固定した。
+- [ ] Label Normalizer v1のUnicode 15.1.0 vendored asset＋hash、tombstone名前予約と親子GC、確認なしsoft-deleteと削除Undo経路なし、discriminated granularity snapshot、QR checksum境界、Drive conflict snapshot／resolution／GC／remap拒否をfixtureで固定した。
 - [ ] `lint`、`typecheck`、対象テスト、`build` の結果をWORKLOGへ記録した。
 - [ ] Webプレビュー、AIエージェントのPlaywright確認、人間受入を順番どおり実施し、同じcommit／buildと証拠を記録した。
 - [ ] 未実装・未実証を成功扱いせず、ISSUESまたはTECH-DEBTへ残した。

@@ -30,7 +30,6 @@
 | ISSUE-018 | Open | P0 | UI Webプレビューのrunner、Playwright／Chromium版、CI artifact保持条件が未確定である | Storybookまたは同等preview appを比較し、`ui:preview` / `ui:build` / `test:e2e` / `test:e2e:ui`、visual baseline、report／trace保持期間をTASK-013で固定する。通常Webページ、AIエージェント先行、人間最終受入という要件は変更しない |
 | ISSUE-019 | Open | P0 | Tagの親Categoryを後から変更できるかが未確定である | Tag名のglobal uniqueを守り、親変更時のBookmark割当、検索表示、AI再利用、履歴を決める |
 | ISSUE-020 | Open | P0 | keyword autocompleteは最大8件で確定したが、一致度と種類混在時の配分が未定である | 正規化、前方一致／部分一致、カテゴリ・タグ・Bookmarkの配分、同点規則、IME中の挙動を固定し、キーボード操作を試験する |
-| ISSUE-021 | Open | P0 | 削除確認画面を使わないため、undoの有効時間と復元入口が未定である | Bookmark／Category／Tagごとのundo期限、設定／管理画面からの復元、同期競合、子Tag残存でCategory削除をblockした時の案内を決める |
 
 ## 決定済み
 
@@ -42,7 +41,7 @@
 | ISSUE-D04 | Decided | 旧企画資料由来で保留していた訪問、archive、QR、DriveをP1確定機能へ昇格する | 2026-08-16の利用者による明示的な再承認 |
 | ISSUE-D05 | Decided | カテゴリを親、タグを子とする | 2026-08-17の利用者による明示要件。平坦モデルを置き換える |
 | ISSUE-D06 | Decided | カテゴリはユーザー作成のみ、タグはユーザー定義優先で必要時だけAI作成とする | 最新の利用者依頼 |
-| ISSUE-D07 | Decided | カテゴリ名とTag名はそれぞれ論理削除中を含めて正規化後にglobal uniqueとし、Tagは親カテゴリが異なっても同名別IDを許可しない。既存Labelは複数Bookmarkで再利用できる | 2026-08-17の最新上書き。作成時は既存候補の選択、削除済み元IDの復元、または別名を案内する |
+| ISSUE-D07 | Decided | カテゴリ名とTag名はそれぞれ論理削除中を含めて正規化後にglobal uniqueとし、Tagは親カテゴリが異なっても同名別IDを許可しない。既存Labelは複数Bookmarkで再利用できる | 2026-08-17の最新上書き。作成時は既存候補を選択し、削除済み同名tombstoneがあれば物理回収まで別名を案内する |
 | ISSUE-D08 | Decided | UI 実装基盤は Plasmo（React ベース）+ Tailwind CSS とする | 最新の利用者依頼 |
 | ISSUE-D09 | Decided | ポップアップの2ボタン、2ショートカット、URL指定保存、最近追加ホームをP0に含める | 利用者依頼 |
 | ISSUE-D10 | Decided | 更新済みデザインシートをUI配置正本とし、LIST / GRID、全画面カテゴリ・タグ一覧、初回ウェルカム、設定の一般／アーカイブ／共有、sticky header、edit modal、infinite scroll、back-to-topを採用する | 2026-08-17の依頼と更新済みSVG |
@@ -59,11 +58,12 @@
 | ISSUE-D21 | Decided | `runtime.onInstalled` の `reason=INSTALL` だけで初回ウェルカム画面を表示し、開始後の通常ホームを最近追加一覧にする | 2026-08-17の利用者依頼と更新済みSVG。更新／開発時reloadを初回扱いしない |
 | ISSUE-D22 | Decided | Bookmark編集のカテゴリ／タグ入力を分け、それぞれ既存候補の選択と同一モーダル内サイドビューでの新規作成を提供する | 2026-08-17の利用者依頼 |
 | ISSUE-D23 | Decided | カテゴリ・タグ一覧の新規作成プルダウン、閉じるまでの連続作成、管理モード、項目選択編集、hover／focus時の鉛筆表示を採用する | 2026-08-17の利用者依頼と更新済みSVG |
-| ISSUE-D24 | Decided | Bookmark、カテゴリ、タグの削除では確認画面を表示しない | 2026-08-17の利用者依頼。論理削除、undo、復元の詳細はISSUE-021で閉じる |
+| ISSUE-D24 | Decided | Bookmark、カテゴリ、タグの削除では確認画面を表示しない | 2026-08-17の利用者依頼。削除は論理削除とし、子Tagが残るCategoryはblockする |
 | ISSUE-D25 | Decided | AI細分化度0／1／2／3／4の1件あたり新規Tag上限を0／1／2／4／6件とし、0でも既存カテゴリ／タグの自動付与を続ける | 2026-08-17の0〜4要件を実装可能な上限へ具体化した |
 | ISSUE-D26 | Decided | 有効な子Tagが残るCategoryの削除はblockし、cascade deleteしない | 親子階層を壊さず、削除確認なしでも子Tagの意図しない一括削除を防ぐため |
 | ISSUE-D27 | Decided | Label名称正規化v1はproject-vendored Unicode 15.1.0のNFKC／`White_Space`／`Default_Ignorable_Code_Point`／`CaseFolding.txt` C＋F assetだけを使い、runtime ICUへ依存しない。生成assetのhashは実装時に固定する | 端末・入力経路によって「同名」判定が変わらないようにする。検索queryのtoken正規化とは分離し、version更新時は再索引前に競合を隔離する |
 | ISSUE-D28 | Decided | 自動archiveの設定は日数の数値入力だけとし、独立した有効／無効toggleは現行UIへ追加しない。toggleを持つのは自動Bookmarkリマインダーだけとする | 2026-08-17の最新設定要件と更新済みデザインシート |
-| ISSUE-D29 | Decided | active Tagだけにactive親Categoryを必須とする。tombstone Tagはdeleted親を参照できるが、Tag restoreは親Category restore後に限り、親Categoryの物理GCは全子Tag tombstoneが消滅するまでblockする | soft-delete中の参照と復元順を保ち、孤立Tagまたは復元不能Tagを作らないため |
+| ISSUE-D29 | Decided | active Tagだけにactive親Categoryを必須とする。tombstone Tagはdeleted親を参照でき、親Categoryの物理GCは全子Tag tombstoneが消滅するまでblockする | soft-delete中の親子参照とtombstoneの同期安全性を保つため |
 | ISSUE-D30 | Decided | P1 Drive競合はimmutable syncSnapshotsと明示resolution planで扱う。open中は参照snapshotをGCせず、解決後30日保持し、Label ID／edgeを暗黙にremapしない | 競合解決の監査性と巻戻し余地を保ち、同名禁止・親子edgeを暗黙処理で破壊しないため |
+| ISSUE-D31 | Decided | Bookmark、Category、Tagの削除Undoは提供しない。削除後のUndo toast／token／期限／復元入口を作らず、確認なしの論理削除tombstoneと物理回収条件だけを維持する | 2026-08-17の利用者による最新上書き。アーカイブからの復元とDrive同期競合のtombstone処理は削除Undoではないため維持する |
 | ISSUE-006 | Decided | pnpm 10.15.1、Plasmo 0.90.5、React 18.3.1、Tailwind 3.4.17、TypeScript 5.9.2。推奨 Node 22。品質コマンドは `dev` / `build` / `lint` / `typecheck` / `test` | TASK-001 の scaffold と lockfile。`engines` は Plasmo/Parcel の解決バグを避けるため置かない |

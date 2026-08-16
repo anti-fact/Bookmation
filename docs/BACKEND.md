@@ -38,9 +38,9 @@
 | OpenDashboardHome | popupまたはショートカットの要求 | 最近追加したBookmarkを表示する拡張機能ページ |
 | OpenOnboardingAfterInstall | runtime.onInstalledのinstall理由 | 初回だけ表示する拡張機能内ウェルカムページ |
 | CreateCategory / CreateTag | 名称、種類、Tagの親カテゴリID、作成要求ID | 親子整合を満たす新規Label。既存Labelの選択は作成件数に含めない |
-| UpdateLabel / DeleteLabel | labelId、revision、名称／削除要求 | 一意性・親子整合を満たす更新、またはUndo token付き論理削除 |
+| UpdateLabel / DeleteLabel | labelId、revision、名称／削除要求 | 一意性・親子整合を満たす更新、または論理削除結果 |
 | UpdateBookmark | bookmarkId、revision、名前、URL、categoryIds、tagIds | 親カテゴリを補完したBookmarkと関連 |
-| DeleteBookmark | bookmarkId、revision、明示要求 | Bookmarkと関連edgeの論理削除結果、Undo token、影響件数 |
+| DeleteBookmark | bookmarkId、revision、明示要求 | Bookmarkと関連edgeの論理削除結果、影響件数 |
 | ClassifyBookmark | bookmarkId、細分化設定 | 既存分類割当または検証済みの新規タグ |
 | ReclassifyBookmark | bookmarkId、ユーザー指定のLabel ID集合 | 新しい分類と監査記録 |
 | SuggestAll / SuggestCategories / SuggestTags | 入力中キーワード、種類、親カテゴリ | 一致度順・最大8件の選択候補 |
@@ -252,7 +252,7 @@ Prompt APIが利用不可、モデル準備中、不正出力の場合も、字�
 ## カテゴリ／タグとBookmark関連の更新
 
 - Categoryはユーザーだけが作成でき、正規化名をCATEGORY内で一意にする。Tag作成はACTIVEな `parentCategoryId` を必須とし、正規化名を親カテゴリをまたいでTAG内で一意にする。全TAGは物理的に存在するCATEGORY recordを参照し、ACTIVE TAGはACTIVE親を必須とする。削除済みTAGだけは削除済み親を参照できる。CategoryとTag相互の同名は許す。
-- カテゴリ／タグ作成モーダルは閉じるまで連続作成できるため、各保存へ別の作成要求IDを付ける。同じ送信の再送は同一結果へ収束させるが、既存Labelを選択して新規作成成功として返さない。同じkindの既存名は候補を示して拒否し、別IDを作成しない。論理削除済みLabelも一意名を予約し続けるため、同名作成では既存IDの明示的な復元または別名を案内する。物理回収前に同名の別IDを作らない。
+- カテゴリ／タグ作成モーダルは閉じるまで連続作成できるため、各保存へ別の作成要求IDを付ける。同じ送信の再送は同一結果へ収束させるが、既存Labelを選択して新規作成成功として返さない。同じkindの既存名は候補を示して拒否し、別IDを作成しない。論理削除済みLabelも一意名を物理GCまで予約し続けるため、その間の同名作成は拒否し、別名だけを案内する。
 - ブックマーク編集はカテゴリID集合とタグID集合を別々に受ける。TAGを追加した場合は親CATEGORY edgeも同じtransactionで追加または復元する。CATEGORYを外した場合はその配下TAG edgeも外し、TAGだけを外した場合はCATEGORYを残す。
 - ブックマーク編集の分類欄と管理モードの名称入力は、入力中にkind別の一致候補を最大8件返す。既存候補の選択はブックマークへの関連付けには使えるが、Label作成・改名画面では既存Labelへの置換や暗黙mergeに使わず、重複エラーとして扱う。
 - 名前編集でLabel.kindやTAG.parentCategoryIdを変更しない。現行P0は親カテゴリを読取専用表示し、UpdateTagでの親変更を拒否する。タグ移動は全Bookmarkの関連再計算が必要なため、[ISSUE-019](./ISSUES.md) で専用ユースケースとtransactionを確定してから実装する。
@@ -264,11 +264,11 @@ Category／Tagの作成、改名、Import、同期は共通のNormalizer v1を�
 
 最低fixtureとして `  Ｐｙｔｈｏｎ　入門 ` → `python 入門`、`A\t\nB` → `a b`、`Straße` → `strasse` を固定し、`ab\u200Bcd`、`ab\u202Ecd`、`a\u0000b`、`a\u200Db`、`text\uFE0F` は拒否する。この一意性正規化を検索token正規化と共用せず、runtime ICU、`String.prototype.normalize()`、runtime Unicode property escape、locale-sensitive lowercaseを正本にしない。vendored bundleのSHA-256は実assetから実装時に生成してbuild定数とschemaMetaへ固定し、本書に仮hashを記載しない。version／hash不一致時はLabel writeを停止する。
 
-### Bookmark／Category／Tag削除とUndo
+### Bookmark／Category／Tag削除
 
-`DeleteBookmark` は対象のACTIVE Bookmarkとその全BookmarkLabel edge、`DeleteTag` は対象Tagとその全edge、子Tagがない時だけ実行できる `DeleteCategory` は対象Categoryとその全edgeを、それぞれ1 transactionで論理削除する。変更する全正本レコードへ同じ `deleteOperationId`、削除後の `deletedRevision`、`deletedAt` を記録し、その正確な集合を共通UndoOperationへ保存する。DeleteBookmarkでは同じtransactionでSearchDocumentを削除または無効化し、pending／running分類結果の後続適用を拒否する。SearchDocumentは派生物なのでUndo時にBookmarkから再生成する。favicon／thumbnail参照はtombstoneへ保持し、Undo期限と同期tombstone保持期間の双方が終わるまでBlobを回収しない。成功時は全削除ユースケースが短期Undo tokenと影響件数を返す。
+`DeleteBookmark` は対象のACTIVE Bookmarkとその全BookmarkLabel edge、`DeleteTag` は対象Tagとその全edge、子Tagがない時だけ実行できる `DeleteCategory` は対象Categoryとその全edgeを、それぞれ1 transactionで論理削除する。対象IDと期待revisionを再検証し、変更する全正本レコードのrevisionを進めて同じ削除時刻の `deletedAt` を記録し、対象本体のSearchDocumentを削除または無効化する。1件でも失敗したら全件をrollbackする。DeleteBookmarkではさらにpending／running分類結果の後続適用を拒否する。favicon／thumbnail参照はtombstoneへ保持し、同期tombstone保持期間が終わり他の参照がないことを確認するまでBlobを回収しない。成功時は影響件数だけを返す。
 
-Undoはtokenに紐づく全対象で `deleteOperationId` と現在revisionが保存済み `deletedRevision` に一致し、一意名・親子・edge不変条件も満たす時だけ、同じtransactionで全件を復元してtokenを消費する。Tag復元は親CATEGORYが存在しACTIVEである場合だけ許し、親が削除済みなら `UNDO_CONFLICT` として親復元を先に求める。期限切れは `UNDO_EXPIRED`、期限内でも対象欠損、marker／revision不一致、不変条件違反がある場合は `UNDO_CONFLICT` とし、部分復元しない。Labelのtombstoneが一意名を予約するため、削除→同名別ID作成→Undoという競合を許さない。
+削除後のUndo token、Undo toast、Bookmark／Category／Tagの利用者向け復元ユースケースは提供しない。Labelのtombstoneは物理GCまで一意名を予約し、その間は同名の別IDを作らず別名だけを受け付ける。この仕様は、設定内のアーカイブ管理から行うBookmark復元には適用しない。
 
 ## Service WorkerとAI Hostのライフサイクル
 
@@ -380,13 +380,11 @@ install／startupでpage用とlink用のmenu IDを冪等に登録する。クリ
 | AI_HOST_REQUIRED | 対応するトップレベル拡張ページが開いていない | yes |
 | AI_INVALID_OUTPUT | スキーマ不正 | yes、回数制限 |
 | SEARCH_INVALID_OUTPUT | 検索計画または候補集合が不正 | no、字句検索へフォールバック |
-| CATEGORY_NAME_CONFLICT | 同じ正規化名のカテゴリがtombstoneを含め存在 | no、有効な既存カテゴリを選択、削除済みなら同じIDを明示復元、または別名 |
+| CATEGORY_NAME_CONFLICT | 同じ正規化名のカテゴリがtombstoneを含め存在 | no、有効な既存カテゴリを選択。削除済みなら物理GCまで別名 |
 | TAG_NAME_CONFLICT | 親カテゴリとoriginを問わず同じ正規化名のタグがtombstoneを含め存在 | no、適合する有効タグを選択、削除済み／不適合なら要確認または別名 |
 | CATEGORY_NOT_EMPTY | 削除対象カテゴリにACTIVEな子タグが存在 | no、子タグを管理または削除 |
-| TAG_PARENT_INVALID | 親CATEGORY recordが存在しない、またはACTIVE Tagの親が削除済み／カテゴリではない | no、親カテゴリを再選択。Tag復元では親CATEGORYを先に復元 |
+| TAG_PARENT_INVALID | 親CATEGORY recordが存在しない、またはACTIVE Tagの親が削除済み／カテゴリではない | no、有効な親カテゴリを再選択 |
 | AUTOCOMPLETE_INVALID_QUERY | 入力中キーワードが空、長すぎる、または不正 | no、入力修正 |
-| UNDO_EXPIRED | 論理削除のUndo期限切れ | no、削除済み一覧から確認 |
-| UNDO_CONFLICT | 期限内Undoの対象、deleteOperationId、deletedRevision、TagのACTIVE親、または他の不変条件が不一致 | no、再読込。Tagの親が削除済みなら親を先に復元 |
 | HISTORY_PERMISSION_REQUIRED | 訪問判定に必要な権限がない | 利用者の再操作後 |
 | IMPORT_PARTIAL | 標準Bookmark取込の一部が失敗 | yes、失敗分だけ |
 | QR_INVALID_PAYLOAD | QRの形式、版、容量、checksumが不正 | no |
@@ -403,7 +401,7 @@ UI向けメッセージと診断情報を分ける。URL、ページタイトル
 ## テスト方針
 
 - Domain単体: project-vendored Unicode 15.1.0 Normalizer v1 fixture、runtime ICU差異無視、実asset hash照合、カテゴリ名のkind内一意、タグ名の親横断・kind内一意、tombstoneの名前予約、カテゴリのAI作成拒否、全TAGの親record存在、ACTIVE TAGのACTIVE親、複数カテゴリ／タグ、TAG追加時の親CATEGORY補完、CATEGORY解除時の子TAG解除、edge一意性、policyVersion 1の細分化 `0→0 / 1→1 / 2→2 / 3→4 / 4→6` と任意組合せ拒否
-- Application単体: 現在タブ保存、URL指定保存、install時だけ初期化するオンボーディングの完了・途中再開、ホーム表示、AI失敗、再試行、重複要求、Bookmark／Category／Tagの確認なし論理削除と共通Undo、`UNDO_EXPIRED` / `UNDO_CONFLICT` の分離、削除→同名作成拒否→Undo成功、削除済み親を持つTag復元の競合と親先行復元、ACTIVE子Tagを持つCategory論理削除のBLOCK、全子TAG tombstone消滅前のCategory物理GC拒否
+- Application単体: 現在タブ保存、URL指定保存、install時だけ初期化するオンボーディングの完了・途中再開、ホーム表示、AI失敗、再試行、重複要求、Bookmark／Category／Tagの確認なし論理削除、revision競合時の全件rollback、削除後にUndo tokenを返さないこと、削除済みLabelとの同名作成拒否と別名案内、ACTIVE子Tagを持つCategory論理削除のBLOCK、全子TAG tombstone消滅前のCategory物理GC拒否、Bookmark削除時の検索派生文書除外と参照Blob保持
 - Repository契約: IndexedDB各実装で同じテストを実行
 - Service Worker結合: popupと2つのcommands、イベント途中の停止・再起動・メッセージ再送。Service WorkerからLanguageModelを呼ばないこと
 - AI Host結合: 分類・AI検索・機能案内の可用性、Capability Catalog grounding、ユーザー操作、モデル取得、ページ終了、lease回収、結果再送

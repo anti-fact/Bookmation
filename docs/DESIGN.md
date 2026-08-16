@@ -7,7 +7,7 @@
 ## 設計原則
 
 1. Chrome標準Bookmarkとは分離した、版付きJSON互換ドキュメントをローカル正本にする。
-2. カテゴリを親、タグを子とする固定2階層とし、activeなタグはactiveな親カテゴリを1件だけ持つ。tombstoneタグは削除済みの親を参照できるが、親を先に復元しなければ戻せず、子tombstoneが残る親は物理回収しない。
+2. カテゴリを親、タグを子とする固定2階層とし、activeなタグはactiveな親カテゴリを1件だけ持つ。tombstoneタグは削除済みの親を参照でき、子tombstoneが残る親は物理回収しない。
 3. カテゴリ名とタグ名は、それぞれの名前空間で正規化後に全体一意とする。タグは親カテゴリが異なっても同名を許さない。
 4. AIは既存のユーザー定義タグを優先し、細分化度0〜4の上限内でタグだけを新規作成する。
 5. 細分化度0でも既存カテゴリ／タグの自動選択・付与は継続する。
@@ -106,7 +106,7 @@ Bookmark編集はCategoryとTagを別々の最大8件comboboxで扱い、各fiel
 
 カテゴリ・タグ一覧の `新規作成` dropdownは種類を選び、連続作成dialogを開く。作成後も閉じず、利用者が閉じるまで新規レコードを追加できる。この画面から既存項目を関連付けない。
 
-一覧は通常／管理モードを持つ。管理モードのCategoryRibbon／TagChip選択で編集dialogを開く。削除は確認画面を挟まず論理削除し、undo token付きtoastを返す。Categoryは子Tagが0件の場合だけ削除できる。
+一覧は通常／管理モードを持つ。管理モードのCategoryRibbon／TagChip選択で編集dialogを開く。削除は確認画面を挟まず即時に論理削除し、削除後の取り消し機能は提供しない。Categoryは子Tagが0件の場合だけ削除できる。
 
 ## 初回ホーム
 
@@ -137,11 +137,11 @@ archive判定は最終訪問日時と設定日数を使い、取得不能なら�
 
 Dialog、popup、menu、combobox、disclosureは共通primitiveを使う。focus trapまたは適切な非modal focus管理、Esc、trigger復帰、accessible name、live region、200% zoom、reduced motionを実装する。
 
-削除確認を省く代わりに、物理削除を行わず、対象を即時論理削除してundoを提供する。tombstone中は一意名を予約し、同名の別ID作成でundoを妨げない。連鎖削除、名称衝突時の自動統合、AIからのmutationは行わない。
+削除確認を省き、対象を即時に論理削除する。削除後の取り消し機能や利用者向け復元経路は提供しない。同期とデータ保全に使うtombstoneは維持し、その間は一意名を予約する。同名作成を試みた利用者には別名の入力または物理GC完了待ちを案内する。連鎖削除、名称衝突時の自動統合、AIからのmutationは行わない。
 
 ## テスト構成
 
-同じcomponent treeへ、本番ではChrome／IndexedDB／AI／Drive／camera Adapter、Webプレビューでは決定的fake Adapterを注入する。Webでwelcome、0／8／9候補、Category／Tagの名称衝突、AI help、細分化0、親子不整合、連続作成、管理モード、削除undo、archive復元、reminder抑止、Drive／QR状態を再現する。
+同じcomponent treeへ、本番ではChrome／IndexedDB／AI／Drive／camera Adapter、Webプレビューでは決定的fake Adapterを注入する。Webでwelcome、0／8／9候補、Category／Tagの名称衝突、AI help、細分化0、親子不整合、連続作成、管理モード、即時論理削除、非空Categoryの削除拒否、archive復元、reminder抑止、Drive／QR状態を再現する。
 
 lint、typecheck、unit／integration、build後に、AIエージェントがpersistent Chromium contextへビルド済み拡張を読み込み、screenshot、trace、console、skip理由を保存する。その後、人間が同じcommit／buildを実Chromeで受け入れる。詳細は [TESTING.md](./TESTING.md) に従う。
 
