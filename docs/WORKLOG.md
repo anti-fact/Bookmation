@@ -233,6 +233,36 @@
 
 - 訪問集計期間と通知cooldown、archive既定日数、QR容量／分割、Drive競合UI、標準Bookmark Folder対応は [ISSUES.md](ISSUES.md) で実装前に決める。
 
+## 2026-08-16 — TASK-001 開発基盤 scaffold
+
+### 目的
+
+同じ checkout から `pnpm` で開発を開始できるようにし、ISSUE-006 のバージョンを固定する。
+
+### 変更
+
+- Plasmo 0.90.5、React 18.3.1、Tailwind 3.4.17、TypeScript 5.9.2、pnpm 10.15.1 を lockfile で固定した。
+- `dev` / `build` / `lint` / `typecheck` / `test` を定義した。
+- `src/` に popup 確認画面、デザイン token、Domain 層の空モジュールを置いた。
+- [docs/plans/2026-08-16-dev-scaffold.md](plans/2026-08-16-dev-scaffold.md) を作成した。
+- `assets/icon.png` は placeholder である。`デザインシート.svg` は改変していない。
+
+### 検証
+
+- コマンド: `pnpm lint` — 結果: 成功
+- コマンド: `pnpm typecheck` — 結果: 成功
+- コマンド: `pnpm test` — 結果: 成功（2 tests）
+- コマンド: `pnpm build` — 結果: 成功。`build/chrome-mv3-prod/popup.html` と permissions `storage`, `activeTab` を確認
+- 手動: Chrome への読込みは未実施
+- 実行 Node: v23.5.0。推奨は `.nvmrc` の 22
+
+### 残課題
+
+- popup 2ボタン、dashboard、Service Worker は TASK-002
+- Chrome 手動読込み
+- ISSUE-007 のハッカソン日程
+- CI は TASK-011（TD-001 は対応中）
+
 ## 追記テンプレート
 
 ```markdown

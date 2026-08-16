@@ -3,7 +3,7 @@
 Bookmation は、Chrome標準ブックマークとは別の専用領域へWebページを保存し、カテゴリ／タグと検索で見つけ直すChrome拡張機能である。
 
 > [!IMPORTANT]
-> 現在は設計・要件定義段階であり、実行可能な拡張機能、`package.json`、ビルドスクリプトはまだ存在しない。
+> 開発基盤はある。保存・一覧・AI は未実装である。始め方は [QUICKSTART.md](docs/QUICKSTART.md) を参照する。
 
 ## プロダクト概要
 
@@ -65,11 +65,15 @@ Prompt API は Service Worker から実行せず、対応確認済みのトッ�
 
 ## 現在の始め方
 
-現時点ではアプリを起動できないため、設計文書を読み、[TASKS.md](docs/TASKS.md) から初期実装を選ぶ。
-
 ```bash
-git status --short --branch
-test -f package.json && echo "runtime scaffold exists" || echo "runtime scaffold is not created yet"
+corepack enable
+corepack prepare pnpm@10.15.1 --activate
+pnpm install --frozen-lockfile
+pnpm lint
+pnpm typecheck
+pnpm test
+pnpm build
+pnpm dev
 ```
 
-詳細は [QUICKSTART.md](docs/QUICKSTART.md) を参照する。
+詳細は [QUICKSTART.md](docs/QUICKSTART.md) と [最初の Execution Plan](docs/plans/2026-08-16-dev-scaffold.md) を参照する。

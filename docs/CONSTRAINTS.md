@@ -8,7 +8,7 @@
 - 機能・挙動は最新の明示要件、画面構成・外観は `デザインシート.svg` を正本とする。
 - 削除済みの旧企画 PDF は情報が古いため、現行要件の根拠に使わない。
 - 参考サイトは着想に限り、正本を上書きしない。
-- リポジトリにはまだ runtime がない。Plasmo + React + Tailwind CSS は採用済み、正確な依存バージョンは未決定である。
+- Plasmo + React + Tailwind CSS + TypeScript の実装版は `package.json` と `pnpm-lock.yaml` を正本とする。package manager は pnpm。推奨 Node は `.nvmrc` の 22。
 - 利用者向け正式名称はカテゴリ／タグとし、内部総称 `Label`、enum `CATEGORY` / `TAG` をUIへ露出しない。
 
 ## 固定するプロダクト制約
@@ -69,7 +69,6 @@
 
 ## 現時点で固定しないもの
 
-- 依存ライブラリの正確なバージョンと package manager
 - responsive grid の breakpoint とカード最小幅
 - 無限スクロールの page size、preload距離、仮想化閾値
 - AI検索の種類別最大候補数と評価 dataset

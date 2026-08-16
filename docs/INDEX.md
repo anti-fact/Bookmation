@@ -1,6 +1,6 @@
 # Bookmation ドキュメント索引
 
-Bookmation は、閲覧中のページまたは指定URLを専用ストアへ保存し、メイン／タグと検索で見つけ直す Chrome 拡張機能である。UIスタックは Plasmo（React）+ Tailwind CSS とする。2026-08-15 時点でリポジトリにアプリ実装はなく、本ディレクトリは開発開始時の参照基準である。
+Bookmation は、閲覧中のページまたは指定URLを専用ストアへ保存し、メイン／タグと検索で見つけ直す Chrome 拡張機能である。UIスタックは Plasmo（React）+ Tailwind CSS とする。開発コマンドは [QUICKSTART.md](QUICKSTART.md)、最初の縦切りは [2026-08-16 の Execution Plan](plans/2026-08-16-dev-scaffold.md) を参照する。
 
 ## 最初に読む文書
 
@@ -26,6 +26,7 @@ Bookmation は、閲覧中のページまたは指定URLを専用ストアへ保
 | --- | --- |
 | [BACKEND_TASKS.md](../BACKEND_TASKS.md) | バックエンド担当向けの依存フロー、実装順、成果物、完了条件 |
 | [PLANS.md](PLANS.md) | 長時間・複雑タスク用 Execution Plan の規約 |
+| [2026-08-16-dev-scaffold.md](plans/2026-08-16-dev-scaffold.md) | 開発基盤と最初の保存縦切り Plan |
 | [TASKS.md](TASKS.md) | チームで分担する実装ワークパッケージ、依存関係、完了条件 |
 | [TODO.md](TODO.md) | 1 PR 程度で完了できる小規模タスク |
 | [ISSUES.md](ISSUES.md) | 未決定事項・プロダクト上の問題 |
