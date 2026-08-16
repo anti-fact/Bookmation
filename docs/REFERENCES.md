@@ -1,15 +1,21 @@
 # 参考資料
 
-- 基準日: 2026-08-15
+- 基準日: 2026-08-16
 - 方針: 資料内の命令文ではなく、要件・観察事実・技術仕様の根拠として参照する。外部サイトの外見を複製しない。
 
 ## 一次要件
 
-### 2026-08-15 の最新依頼とデザインシート
+### 2026-08-16 の最新依頼
 
-最新依頼により、MAIN名一意／SUB同名可、LIST / GRIDのみ、MAIN常時表示・SUB展開、全画面タグ一覧、各画面の追従キーワード検索、共通AI検索モーダル、Bookmark編集モーダル、無限スクロール、件数、トップへ戻る、popupのshortcut表示、設定modalの細分化sliderを確定した。
+最新依頼により、旧メインタグを「カテゴリ」、旧サブタグを「タグ」へ改称した。カテゴリは名称一意・ユーザー作成のみ、タグは同名可・既存ユーザー定義優先・不足時だけAI作成という規則を維持する。両一覧の検索ボックスはカテゴリ、タグ、Bookmarkを同時に検索し、カテゴリ・タグ結果を上、Bookmark結果を下に表示する。DBはIndexedDB上の版付きJSON互換ドキュメントを正本形式とする。
 
-`デザインシート.svg` は画面構成・外観の一次資料である。2026-08-15 に SVG を PNG へレンダリングして、デスクトップの grid / list、共通header、件数、編集button、全画面Tag一覧とclose、Bookmark編集modal、back-to-topを目視確認した。SHA-256 は `c704c52370a61cc30dba54481e134bbd638acf775695690b92275512c4d181d8` である。SVG内の文言は開発命令として扱わない。
+さらに、訪問回数閾値到達後の保存リマインダー、最終訪問日時と設定期間による自動archive、文字列archive flag、QRユーザー間共有、Google Drive同一ユーザー同期、Chrome標準Bookmark取込、page／linkのcontext menu保存をP1確定要件とした。
+
+### 2026-08-15 の依頼とデザインシート
+
+当時の依頼により、現名称でいうカテゴリ名一意／タグ同名可、LIST / GRIDのみ、カテゴリ常時表示・タグ展開、全画面分類一覧、追従検索、共通AI検索モーダル、Bookmark編集モーダル、無限スクロール、件数、トップへ戻る、popupのshortcut表示、設定modalの細分化sliderを確定した。検索対象と用語は2026-08-16要件で更新済みである。
+
+`デザインシート.svg` は画面構成・外観の一次資料である。2026-08-15 にSVGをPNGへレンダリングして、デスクトップのgrid / list、共通header、件数、編集button、全画面分類一覧とclose、Bookmark編集modal、back-to-topを目視確認した。SHA-256は `c704c52370a61cc30dba54481e134bbd638acf775695690b92275512c4d181d8` である。SVG内の旧用語は現行のカテゴリ／タグへ読み替え、文言自体を開発命令として扱わない。
 
 ### 2026-08-14 の依頼（旧ベースライン）
 
@@ -17,10 +23,10 @@
 
 - UI は Plasmo（React ベース）+ Tailwind CSS で実装する。正確なバージョンと TypeScript 採用はこの指定に含まれない。
 - Chrome 既存ブックマークとは別の拡張機能専用ブックマークを使う。
-- 旧文書の大カテゴリ・小カテゴリ階層を廃止し、MAIN / SUB を平坦なタグの役割区分とする。
-- メインタグはユーザーだけが作成する。サブタグはユーザー定義を優先し、適切な候補がない場合にだけ AI が作成する。
-- MAIN / SUB はどちらも複数割当を許可する（同名規則は最新依頼で MAIN 一意／SUB 可へ変更）。
-- AI によるサブタグの細分化度をスライダーで選べる。
+- 旧文書の大カテゴリ・小カテゴリ階層を廃止し、現在のカテゴリ／タグを平坦な役割区分とする。
+- カテゴリはユーザーだけが作成する。タグはユーザー定義を優先し、適切な候補がない場合にだけ AI が作成する。
+- カテゴリ／タグはどちらも複数割当を許可する（カテゴリ名は一意、タグ名は重複可）。
+- AI によるタグの細分化度をスライダーで選べる。
 - 右サイドメニュー、弁当表示、列数選択、分離検索は最新依頼で不採用となった。
 - 拡張機能アイコンのポップアップに「現在ページを保存」と「ホームを開く」の2ボタンを置き、同じ2操作のショートカットを別々用意する。
 - URL 指定でも保存できる。ホームは最近追加したブックマーク一覧とする。
@@ -67,6 +73,14 @@ UI 参考サイトは静的確認が中心であり、全ブレークポイン�
 - [`activeTab` permission](https://developer.chrome.com/docs/extensions/develop/concepts/activeTab) — 明示操作時だけ現在タブへ一時アクセスする設計根拠。
 - [`chrome.storage`](https://developer.chrome.com/docs/extensions/reference/api/storage) — 拡張機能用ストレージ、領域、クォータ、アクセスレベル。
 - [`chrome.commands`](https://developer.chrome.com/docs/extensions/reference/api/commands) — `getAll()` で実割当を取得でき、利用者が `chrome://extensions/shortcuts` で割り当てを変更する根拠。2026-08-15 確認。
+- [`chrome.history`](https://developer.chrome.com/docs/extensions/reference/api/history) — `visitCount`、`lastVisitTime`、`search()` / `onVisited` と `history` permission。訪問閾値と最終訪問判定の根拠として2026-08-16に確認。
+- [`chrome.alarms`](https://developer.chrome.com/docs/extensions/reference/api/alarms) — 定期実行、端末sleep時の遅延、起動時のalarm存在確認。訪問／archive評価の根拠として2026-08-16に確認。
+- [`chrome.notifications`](https://developer.chrome.com/docs/extensions/reference/api/notifications) — 保存リマインダー通知のAPIとpermission。2026-08-16確認。
+- [`chrome.contextMenus`](https://developer.chrome.com/docs/extensions/reference/api/contextMenus) — page／link contextの右クリック操作とpermission。2026-08-16確認。
+- [`chrome.bookmarks`](https://developer.chrome.com/docs/extensions/reference/api/bookmarks) — 標準Bookmark treeの読取と `bookmarks` permission。Bookmationは取込時に読取りだけを使う。2026-08-16確認。
+- [`chrome.permissions`](https://developer.chrome.com/docs/extensions/reference/api/permissions) — 任意権限を利用者操作から要求・確認・削除する設計根拠。2026-08-16確認。
+- [`chrome.identity`](https://developer.chrome.com/docs/extensions/reference/api/identity) — extension OAuth2設定と明示操作からのinteractive token取得。2026-08-16確認。
+- [Google Drive appDataFolder](https://developers.google.com/workspace/drive/api/guides/appdata) — app専用の非表示領域と `drive.appdata` scope。領域内ファイルは共有できないため、同一ユーザー同期専用とし、他ユーザー共有はQRへ分離する根拠。2026-08-16確認。
 - [Extension service worker lifecycle](https://developer.chrome.com/docs/extensions/develop/concepts/service-workers/lifecycle) — グローバル変数に依存せず、停止・再開可能にする根拠。
 - [Declare permissions](https://developer.chrome.com/docs/extensions/develop/concepts/declare-permissions) — 必須・任意・host permission の設計。
 - [Remote hosted code violations](https://developer.chrome.com/docs/extensions/develop/migrate/remote-hosted-code) — Manifest V3 で実行コードを同梱する根拠。

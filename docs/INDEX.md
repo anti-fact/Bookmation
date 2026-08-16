@@ -1,6 +1,6 @@
 # Bookmation ドキュメント索引
 
-Bookmation は、閲覧中のページまたは指定URLを専用ストアへ保存し、メイン／サブタグと検索で見つけ直す Chrome 拡張機能である。UIスタックは Plasmo（React）+ Tailwind CSS とする。2026-08-15 時点でリポジトリにアプリ実装はなく、本ディレクトリは開発開始時の参照基準である。
+Bookmation は、閲覧中のページまたは指定URLを専用ストアへ保存し、メイン／タグと検索で見つけ直す Chrome 拡張機能である。UIスタックは Plasmo（React）+ Tailwind CSS とする。2026-08-15 時点でリポジトリにアプリ実装はなく、本ディレクトリは開発開始時の参照基準である。
 
 ## 最初に読む文書
 
@@ -14,9 +14,9 @@ Bookmation は、閲覧中のページまたは指定URLを専用ストアへ保
 | 文書 | 役割 |
 | --- | --- |
 | [FRONTEND.md](FRONTEND.md) | Chrome 拡張機能、画面、状態管理、アクセシビリティ |
-| [BACKEND.md](BACKEND.md) | MVP のローカル処理と将来の同期境界 |
-| [DB-SCHEMA.md](DB-SCHEMA.md) | IndexedDB を前提とした概念データモデル |
-| [UI.md](UI.md) | popup、LIST / GRID、全画面タグ一覧、編集・設定・AI検索モーダル、無限スクロール |
+| [BACKEND.md](BACKEND.md) | P0ローカル処理と、確定済みP1の履歴・共有・同期・取込境界 |
+| [DB-SCHEMA.md](DB-SCHEMA.md) | IndexedDB上の版付きJSON document、索引、移行、同期 |
+| [UI.md](UI.md) | popup、LIST / GRID、全画面カテゴリ一覧、統合検索、編集・設定・AI検索モーダル、無限スクロール |
 | [SECURITY.md](SECURITY.md) | 権限、個人データ、AI、共有・同期の安全要件 |
 | [AI_GUIDE.md](AI_GUIDE.md) | AI 実装ガイド。依頼どおり現在は空である |
 
@@ -24,6 +24,7 @@ Bookmation は、閲覧中のページまたは指定URLを専用ストアへ保
 
 | 文書 | 役割 |
 | --- | --- |
+| [BACKEND_TASKS.md](../BACKEND_TASKS.md) | バックエンド担当向けの依存フロー、実装順、成果物、完了条件 |
 | [PLANS.md](PLANS.md) | 長時間・複雑タスク用 Execution Plan の規約 |
 | [TASKS.md](TASKS.md) | チームで分担する実装ワークパッケージ、依存関係、完了条件 |
 | [TODO.md](TODO.md) | 1 PR 程度で完了できる小規模タスク |

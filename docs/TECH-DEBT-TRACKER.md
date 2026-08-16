@@ -19,17 +19,20 @@
 | --- | --- | --- | --- | --- | --- | --- |
 | TD-001 | P0 | 開発基盤 | 2026-08-14時点でソース、`package.json`、ロックファイル、テスト、CIがない | ビルドや動作検証ができず、文書上の設計と実装の差を検出できない | 初期実装のExecution Planを作り、Node.js・パッケージマネージャー・Plasmo構成・品質コマンドを固定する | 登録 |
 | TD-002 | P0 | AI | Chrome Prompt API（Gemini Nano）を第一候補とするが、端末・Chrome版・モデル取得状況・呼出しコンテキストに依存する | AIが使えない端末やservice workerからの誤呼出しで、保存操作全体が失敗する恐れがある | 対応するextension documentでの呼出しをスパイクし、capability判定をアダプターへ隔離する。`available` 以外では手動分類を使えるようにし、対応範囲を [CONSTRAINTS.md](CONSTRAINTS.md) に固定する | 登録 |
-| TD-003 | P0 | AI | 分類プロンプト、出力JSONスキーマ、検証・再試行規則が未確定 | 同じ入力でも過剰なサブタグ、存在しないタグID、壊れたJSONが生じ得る | 構造化出力を実行時検証し、メインタグ新規生成禁止、既存ユーザー定義サブタグ優先、スライダー上限を決定的な後処理でも保証する | 登録 |
+| TD-003 | P0 | AI | 分類プロンプト、出力JSONスキーマ、検証・再試行規則が未確定 | 同じ入力でも過剰なタグ、存在しないタグID、壊れたJSONが生じ得る | 構造化出力を実行時検証し、カテゴリ新規生成禁止、既存ユーザー定義タグ優先、スライダー上限を決定的な後処理でも保証する | 登録 |
 | TD-004 | P0 | 保存 | 拡張機能専用ブックマークを使う方針だが、永続ストア、容量方針、マイグレーション実装がない | 更新・容量超過・スキーマ変更時に保存失敗やデータ消失が起こり得る | [DB-SCHEMA.md](DB-SCHEMA.md) の版管理、原子的更新、エクスポート、移行テストを実装する | 登録 |
-| TD-005 | P1 | 分類 | MAIN正規化名一意とSUB同名可のtransaction・移行・識別UIが未実装 | MAIN競合やSUB誤選択が起こり得る | `mainUniqueName` unique index、SUBのID・由来・件数表示、競合fixtureと確認付きSUB統合を実装する | 登録 |
+| TD-005 | P1 | 分類 | カテゴリ正規化名一意とタグ同名可のtransaction・移行・識別UIが未実装 | カテゴリ競合やタグ誤選択が起こり得る | `categoryUniqueName` unique index、タグのID・由来・件数表示、競合fixtureと確認付きタグ統合を実装する | 登録 |
 | TD-006 | P0 | 拡張機能 | Manifest V3のservice workerで処理途中の状態をメモリだけに保持する危険がある | worker停止時にAI分類や保存が中断し、二重登録・部分保存になり得る | ジョブ状態を永続化し、各段階を冪等化する。停止・再起動を含むテストを追加する | 登録 |
 | TD-007 | P1 | 復旧 | インポート/エクスポート、バックアップ、壊れたレコードの隔離方法が未実装 | 障害調査や更新前に利用者データを退避できない | バージョン付きJSON/CSV形式、dry-run、検証結果、部分失敗レポートを設計・実装する | 登録 |
 | TD-008 | P1 | メディア | サムネイルとfaviconの取得元、キャッシュ、権限、失敗時表示が未確定 | 過剰なhost permission、追跡リクエスト、容量増大、壊れたカードにつながる | 最小権限で取得し、失敗時プレースホルダー、容量上限、削除方針を定義する | 登録 |
 | TD-009 | P1 | 検索 | 共通AI検索の候補集合生成、無順位評価、派生索引再構築が未実装 | 候補漏れ、古い結果、暗黙の順位付けが起こり得る | AI候補選択と中立sortを分離し、版付き索引、集合評価fixture、lexical fallbackを実装する | 登録 |
-| TD-010 | P1 | UI | sticky header、可変高SUB、全画面Tag、無限scroll、back-to-topの大量件数性能が未検証 | scroll位置、focus、重複取得、描画性能が破綻し得る | デザインシート準拠prototypeを測定し、cursor・observer・virtualizationの性能予算を決める | 登録 |
-| TD-011 | P2 | 共有・同期 | QR共有とGoogle Drive同期は候補のままで、暗号化・競合解決・容量制限が未確定 | 誤共有、改ざん、競合による上書きが起こり得る | MVPのローカル保存から分離し、脅威モデルと別Planを承認してから実装する | 登録 |
+| TD-010 | P1 | UI | sticky header、可変高タグ、全画面カテゴリ一覧、無限scroll、back-to-topの大量件数性能が未検証 | scroll位置、focus、重複取得、描画性能が破綻し得る | デザインシート準拠prototypeを測定し、cursor・observer・virtualizationの性能予算を決める | 登録 |
+| TD-011 | P1 | 共有・同期 | QR共有とGoogle Drive同期は確定したが、容量、追加暗号化、競合UI、tombstone期間が未確定 | 誤共有、改ざん、競合による上書きが起こり得る | P1の別PlanでJSON schema、QR上限、`drive.appdata`、merge fixture、復旧手順を固定する | 登録 |
 | TD-012 | P1 | 診断 | ログに残してよい情報と、URL・タイトル等を伏せる規則が未定 | デバッグ情報から閲覧情報が漏れる恐れがある | [SECURITY.md](SECURITY.md) に沿う構造化・匿名化ログと利用者による明示的な診断出力を設計する | 登録 |
 | TD-013 | P1 | UI | popupの実shortcut表示、未割当、管理画面案内、2 commands、URL保存が未検証 | 競合や未割当を見落とし、アプリ内で変更できると誤認し得る | `commands.getAll()`、管理画面案内、popup二択と各commandをE2Eテストする | 登録 |
+| TD-014 | P1 | 履歴 | 訪問集計期間、通知cooldown、archive既定日数が未確定 | 過剰通知、誤archive、強い権限への不信につながる | 権限説明と既定値をfixtureで評価し、確認前保存禁止、履歴なしskip、復元を自動テストする | 登録 |
+| TD-015 | P1 | インポート | 標準Bookmark Folderの対応、重複UI、途中再開が未確定 | 分類乱立、二重取込、元データ変更の危険がある | 読取専用adapter、preview、Import Job、元tree不変契約、folder対応を実装する | 登録 |
+| TD-016 | P0 | DB | JSON documentのruntime schema、size limit、migration形式が未実装 | 型castだけでは破損・過大・未知版データを防げない | 全StoreのJSON Schema、read/write検証、unknown version隔離、Blob分離、round-trip testを実装する | 登録 |
 
 ## 更新規則
 

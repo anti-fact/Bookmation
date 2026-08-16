@@ -52,17 +52,17 @@
 
 ### 目的
 
-利用者の最新指示を新しい正本とし、旧3段階分類を、平坦なMAIN / SUBタグと新しい保存・検索導線へ置き換える。
+利用者の最新指示を新しい正本とし、旧3段階分類を、平坦なCATEGORY / TAGタグと新しい保存・検索導線へ置き換える。
 
 ### 変更
 
 - Plasmo（React）+ Tailwind CSSを確定UI基盤として記録した。TypeScriptは別の設計判断とした。
-- MAINはユーザー作成だけ、SUBはユーザー定義優先で不足時だけAI作成とした。MAIN / SUBの複数割当と同名別IDを許可し、同じ `bookmarkId + tagId` edgeだけを冪等に保つ。
+- 現名称でいうカテゴリはユーザー作成だけ、タグはユーザー定義優先で不足時だけAI作成とした。カテゴリ／タグの複数割当と同名別IDを許可し、同じ `bookmarkId + labelId` edgeだけを冪等に保つ。
 - 最近追加ホーム、右追従タグメニュー、タグ別一覧、3表示、グリッド／弁当の列数、閉じた状態の中立なタグ件数、全タグ展開を画面・データ契約へ反映した。
-- MAIN / SUB の手動作成導線を追加し、既存同名候補の再利用と、利用者確認後の同名別 ID 作成を分けた。
+- カテゴリ／タグの手動作成導線を追加し、既存同名候補の再利用と、利用者確認後の同名別ID作成を分けた。
 - 自然言語のTag検索とBookmark検索を分離し、複数候補、候補ID再検証、AI利用不可時の文字列fallback、検索文の非永続を定義した。
 - popupの2ボタン、独立した2 commands、URL指定保存をP0へ追加した。
-- 既存の「大カテゴリ → 小カテゴリ（メインタグ）→ サブタグ」という記録はこの更新で置換した。上の作業行は当時の履歴として保持し、現行仕様の根拠には使わない。
+- 既存の「大カテゴリ → 小カテゴリ（カテゴリ）→ タグ」という記録はこの更新で置換した。上の作業行は当時の履歴として保持し、現行仕様の根拠には使わない。
 
 ### 検証
 
@@ -136,12 +136,12 @@
 ### 変更
 
 - SVGをPNGへ一時レンダリングして、grid / list、共通header、件数、各項目のedit、全画面Tag一覧、close、Bookmark編集modal、back-to-topを目視確認した。SVG自体は編集していない。
-- Bookmark listをsticky keyword header、AI button、件数、LIST / GRID、MAIN常時表示、SUB disclosure、全項目edit、cursor infinite scroll、back-to-topへ更新した。
-- Tag listを全画面、sticky tag-only keyword、AI button、close、infinite scroll、back-to-topへ更新した。
-- 共通AI検索を1フォーム、Bookmark / Tag別の無順位候補集合とし、rank / score / best表示と自動遷移を廃止した。
-- Bookmark editorをname、URL、MAIN / SUB、確認付きdeleteのmodal、AI細分化sliderをsettings modalとした。
+- Bookmark listをsticky keyword header、AI button、件数、LIST / GRID、カテゴリ常時表示、タグdisclosure、全項目edit、cursor infinite scroll、back-to-topへ更新した。
+- 当時の分類一覧を全画面、sticky keyword、AI button、close、infinite scroll、back-to-topへ更新した。検索対象は2026-08-16の統合検索仕様で置換済みである。
+- 共通AI検索を1フォーム、分類／Bookmark別の無順位候補集合とし、rank / score / best表示と自動遷移を廃止した。表示順は2026-08-16に分類を上へ確定した。
+- Bookmark editorをname、URL、カテゴリ／タグ、確認付きdeleteのmodal、AI細分化sliderをsettings modalとした。
 - popupへ `chrome.commands.getAll()` による実キー／未割当表示とChrome shortcut管理への変更案内を追加した。
-- Tag不変条件をMAIN正規化名一意、SUB同名別ID可へ変更し、DB、backend、security、task、運用文書へ反映した。
+- 分類不変条件をカテゴリ正規化名一意、タグ同名別ID可へ変更し、DB、backend、security、task、運用文書へ反映した。
 - 2026-08-14のWORKLOGにある右sidebar、3表示、全tag一括展開、全tag同名許可は当時の履歴であり、本節と現行要件により置換済みである。
 
 ### 検証
@@ -171,13 +171,67 @@
 - LIST / GRIDの表示数・列数を変更するプルダウンをUI、要件、フロントエンド、制約、タスクから除外した。
 - 1回の取得件数は無限スクロールの内部ページング設定、GRID列数はresponsive CSSで決め、利用者設定にしないと明記した。
 - `合同ハッカソン - Google ドキュメント.pdf` を削除し、現行文書の直接リンクと優先順位から外した。
-- 旧資料由来の追加候補は、再承認まで実装しない保留項目として明記した。
+- 当時は旧資料由来の追加候補を再承認まで実装しない保留項目とした。この判断は2026-08-16の明示要件で置換済みである。
 
 ### 検証
 
 - `git diff --check`: 成功
 - Markdown相対リンク: 削除済みPDFへの参照がないことを含めて再検査
 - 実装検証: runtime未作成のため未実施
+
+## 2026-08-16 — バックエンド担当向けタスク一覧
+
+### 目的
+
+バックエンド担当者が実装順、依存関係、成果物、完了条件を一つの文書から確認できるようにする。
+
+### 変更
+
+- リポジトリ直下に `BACKEND_TASKS.md` を追加した。
+- BE-00〜BE-12を依存順に整理し、実装依存flowchartと最初の保存縦切りsequence diagramを追加した。
+- 各タスクへ目的、checklist、成果物、完了条件を付け、UIとの受け渡し表と共通Definition of Doneを追加した。
+- AGENTS、README、INDEX、TASKSから新しい一覧へ到達できるようにした。
+
+### 検証
+
+- `git diff --check`: 成功
+- Markdown 23ファイル、相対リンク213件、見出しリンク11件、参照エラー0件
+- BE-00〜BE-12が一覧と詳細に過不足なく存在し、Mermaid blockが2件あることを静的確認
+- `AI_GUIDE.md`: 0バイトを維持
+- 実装検証: runtime未作成のため未実施
+
+## 2026-08-16 — 履歴・共有・同期・取込の確定と用語／検索／JSON更新
+
+### 目的
+
+最新の明示要件をP1確定仕様へ昇格し、分類用語、統合検索、JSONベースDBを全設計・タスクへ反映する。
+
+### 変更
+
+- 正式名称をカテゴリ／タグとし、内部総称を `Label`、永続enumを `CATEGORY` / `TAG` とした。カテゴリ名一意・ユーザー作成のみ、タグ名重複可・ユーザー定義優先・不足時だけAI作成という規則を維持した。
+- ブックマーク一覧とカテゴリ一覧の検索ボックスを統合し、keyword／AIともカテゴリ、タグ、Bookmarkを検索するようにした。結果順をカテゴリ・タグが上、Bookmarkが下へ固定した。
+- 頻繁に訪問する未保存サイトの閾値設定、確認付き保存リマインダー、最終訪問日時と設定日数による自動archive、文字列 `archiveState`、復元を確定した。
+- ユーザー間QR共有、同一ユーザーのGoogle Drive `appDataFolder` 同期、Chrome標準Bookmarkの非破壊import、page／linkのcontext menu保存をP1確定要件にした。
+- DB正本をIndexedDB上の `schemaVersion` 付きJSON互換documentとし、Blobだけを別Storeへ分離した。訪問Reminder、Import Job、Sync Outbox／Conflictをスキーマへ追加した。
+- `BACKEND_TASKS.md` をBE-00〜BE-18へ拡張し、P1機能の依存flow、checklist、成果物、完了条件、UI契約を追加した。
+- Chrome history、alarms、notifications、contextMenus、bookmarks、permissions、identityとGoogle Drive appDataFolderの公式資料を2026-08-16に確認し、権限と実行境界をREFERENCES／SECURITYへ反映した。
+
+### 検証
+
+| 確認項目 | 結果 |
+| --- | --- |
+| 差分形式 | `git diff --check` 成功 |
+| Markdown | 23ファイル、fence block 30件、未閉鎖0件 |
+| リンク | fence内sampleを除く相対リンク217件、見出しリンク11件、参照エラー0件 |
+| ファイル名 | root／docsのMarkdown basenameは大文字、`AI_GUIDE.md` は0バイト |
+| 旧仕様scan | active specの旧名称、画面別search API、旧join名、保留表現、旧archive fieldは0件 |
+| タスク整合 | BE-00〜BE-18が一覧19件・詳細19件で一致、Mermaid block 2件 |
+| 正本assertion | FR-101〜110、TASK-101〜106、検索順、JSON、archive、閾値、権限・同期識別子を静的確認 |
+| 実装検証 | `package.json` とアプリソースがないためbuild、test、Chrome実機、Drive、QR動作確認は未実施 |
+
+### 残課題
+
+- 訪問集計期間と通知cooldown、archive既定日数、QR容量／分割、Drive競合UI、標準Bookmark Folder対応は [ISSUES.md](ISSUES.md) で実装前に決める。
 
 ## 追記テンプレート
 
