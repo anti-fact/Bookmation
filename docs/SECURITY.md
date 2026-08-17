@@ -152,6 +152,7 @@ Webページ由来のタイトル、URL、meta、将来の本文、保存済みB
 - サムネイル容量に上限を設け、削除・一括無効化を可能にする。
 - アーカイブ利用者payloadはカテゴリ、タグ、ページ名、URLだけにし、favicon、thumbnail、siteName、訪問統計、AI状態を含めない。理由、時刻、revision、同期状態等のoperation metadataは別recordへ分離する。
 - `onboardingState` はinstallイベントで未初期化の場合だけ作り、進捗・途中再開・完了を保持する。update、startup、Service Worker再起動や未信頼メッセージで初期化・巻き戻ししない。
+- カテゴリテンプレートcatalogは実行コードを含まない版付きローカルassetとして同梱し、外部URLから動的取得しない。表示だけでCategoryを永続化せず、利用者の明示適用後も各名称を未信頼入力としてNormalizerとCATEGORY一意索引へ通す。catalog更新で既存Categoryを自動追加・改名・削除しない。
 - 全ローカルデータ削除は対象件数と不可逆性を確認し、処理完了を検証する。
 - ログへURL、タイトル、タグ名、OAuthトークンを常時出力しない。
 
@@ -252,6 +253,7 @@ Chromeプロファイルへアクセスできる同一端末の攻撃者から�
 - Manifestの権限が使用機能と一致し、不要なhost_permissionsがない。
 - popupと2つのcommandsがallowlist済み操作だけを起動し、URL指定保存が不正スキーム・過大入力を拒否する。
 - `runtime.onInstalled` はinstall時だけパッケージ内オンボーディングURLを開いてonboardingStateを未初期化時だけ作り、updateやService Worker再起動で進捗・完了状態を巻き戻さない。
+- Category template catalogがローカル版付きassetだけから読み込まれ、閲覧時にはLabelを書き込まず、明示適用した候補だけが通常のUSER Category検証を通る。retry、update、reloadで重複作成または既存Categoryの上書きを行わない。
 - AIがカテゴリを新規作成・改名・削除できず、候補外Label ID、親なし／候補外親のTAGを選択できない。policyVersion 1の細分化対応 `0→0 / 1→1 / 2→2 / 3→4 / 4→6` 以外を拒否し、細分化0では新規AIタグを作らず既存Labelの自動割当は継続する。AI intentは `SEARCH_LIBRARY / PRODUCT_HELP / OUT_OF_SCOPE` だけである。
 - Label名正規化v1がproject-vendored Unicode 15.1.0 dataでNFKC、TAB／LFを含むWhite_Space collapse、残存 `Cc` / `Cs` / `Default_Ignorable_Code_Point` 拒否、CaseFolding.txt C+F mapping、最終再検証を行う。runtime ICU差異で結果が変わらず、schemaMetaのversionと実asset SHA-256がbuild定数に一致し、仮hashを使わない。カテゴリ名はtombstoneを含めCATEGORY内で一意、タグ名はorigin・親・tombstone状態を問わずTAG内で一意で、全TAGが存在するCATEGORYを参照し、ACTIVE TAGはACTIVE親を持つ。検索token正規化を変えてもLabelの同一性は変わらない。同じ `(bookmarkId, labelId)` edgeや同じ作成要求の再送は重複せず、BookmarkのACTIVE CATEGORY edge集合がACTIVE Tag親集合と完全一致する。
 - Tag作成・編集のCategory候補がACTIVEだけ・最大8件で、nested Category side-view後もdraftを保持し、返却ID・revisionを選択できる。UpdateTagが期待Tag／親revisionとrequestIdを検証し、親変更時に新旧親・全参照Bookmark・edgeを原子的に再検証する。Category closure、Bookmark revision／監査、検索文書、同期Outbox、receiptの部分更新がなく、同request再送は同じ結果、別payload再利用は拒否となり、AI再分類Jobを生成しない。

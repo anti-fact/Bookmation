@@ -37,6 +37,8 @@
 | SaveBookmarkByUrl | ユーザーが入力したURL、任意タイトル | 保存済みBookmarkと分類Job |
 | OpenDashboardHome | popupまたはショートカットの要求 | 最近追加したBookmarkを表示する拡張機能ページ |
 | OpenOnboardingAfterInstall | runtime.onInstalledのinstall理由 | 初回だけ表示する拡張機能内ウェルカムページ |
+| GetCategoryTemplateCatalog | 同梱catalog version、locale | 初回用Category候補。具体的なsetはISSUE-022で決定する |
+| ApplyCategoryTemplates | 利用者が明示したtemplate項目、catalog version、requestId | 通常のUSER Category作成規則を満たす適用結果 |
 | CreateCategory / CreateTag | 名称、Tagでは選択済みのACTIVE親カテゴリID・revision、作成要求ID | 親子整合を満たす新規Label。Tag作成中のCategory side-view作成も別要求として冪等化する |
 | UpdateCategory | categoryId、expectedRevision、name、requestId | CATEGORY内の名称一意性を満たす更新 |
 | UpdateTag | tagId、expectedTagRevision、name、parentCategoryId、expectedParentRevision、`tag-update:` requestId | TAG全体の名称一意性と親子整合を満たす名称・親Category更新 |
@@ -64,6 +66,8 @@
 | DeleteLocalData | 確認済みスコープ | 削除結果 |
 
 P0はローカル保存・分類・検索を先に完成させる。訪問リマインダー、自動アーカイブ、QR共有、Drive同期、標準Bookmarkインポート、context menu保存はP1の確定ユースケースであり、採否は未決ではない。P1の既定値や競合UIだけを未決事項として扱う。
+
+カテゴリテンプレート機能はP0オンボーディングの確定ユースケースである。ただしcatalog内容と選択導線はISSUE-022の決定待ちであり、未決の候補名をDomainやmigrationへ埋め込まない。
 
 ## Portインターフェース案
 
@@ -353,6 +357,8 @@ AI Hostがclaimしたときにpendingからrunningへ条件付き更新し、att
 
 ブックマーク本体をchrome.storage.localへ二重保存しない。訪問回数とアーカイブ化の閾値は有限整数・許容範囲・単位を検証し、空欄、NaN、Infinity、指数表記、範囲外を保存しない。スライダーを使う設定は `aiGranularity` だけであり、`contextMenuBookmarkEnabled` はswitchである。アーカイブ判定は検証済み `archiveAfterDays` に常に従い、別の有効化フラグを持たない。初回開始または閾値確定時に目的を説明して `history` だけを要求し、拒否時も閾値を保持して `archiveHistoryAccess="DENIED"` とし、判定を権限待ちで停止する。保存状態はUI用cacheであり、実行前にChromeの実権限を再確認する。`onboardingState` は `runtime.onInstalled` の `reason="install"` かつ未初期化の場合だけ作り、update、startup、Service Worker再起動で上書きしない。stepごとに進捗を保存して途中再開し、完了状態も保持する。
 
+カテゴリテンプレートcatalogはアプリへ同梱した版付き参照データとして読み、`chrome.storage.local` やIndexedDBへcatalog全体を複製しない。適用済みcatalog versionとstep進捗だけをonboarding stateへ保持できる。catalog閲覧では書き込まず、利用者が明示した候補だけを既存の `CreateCategory` 境界へ渡し、Normalizer、一意名、`origin=USER`、creationRequestIdを再検証する。同じ適用requestの再送は同じ結果へ収束させ、update／reloadでは再適用しない。
+
 ## Chrome権限
 
 P0の初期候補は storage と activeTab である。commandsはManifest宣言として「現在タブを保存」「ホームを開く」の2ショートカットを定義する。IndexedDB自体に拡張権限は不要である。
@@ -437,7 +443,7 @@ UI向けメッセージと診断情報を分ける。URL、ページタイトル
 ## テスト方針
 
 - Domain単体: project-vendored Unicode 15.1.0 Normalizer v1 fixture、runtime ICU差異無視、実asset hash照合、カテゴリ名のkind内一意、タグ名の親横断・kind内一意、tombstoneの名前予約、カテゴリのAI作成拒否、全TAGの親record存在、ACTIVE TAGのACTIVE親、Tag親変更後もTAG名一意性が親に依存しないこと、複数Tag、BookmarkのCategory edgeがACTIVE Tag親集合と完全一致、最後の同親Tag解除で親edgeも外れること、edge一意性、policyVersion 1の細分化 `0→0 / 1→1 / 2→2 / 3→4 / 4→6` と任意組合せ拒否
-- Application単体: 現在タブ保存、URL指定保存、install時だけ初期化するオンボーディングの完了・途中再開、ホーム表示、AI失敗、再試行、重複要求、Tagの名称・親同時更新、Category候補最大8件、nested Category作成後のdraft保持、旧親に別Tagが残る場合／最後のTagの場合のclosure、全参照Bookmark revision・監査・検索・Outbox更新、UpdateTag再送の同一結果とrequestId別payload拒否、途中競合時の全件rollback、親変更でAI再分類Jobを作らないこと、Bookmark／Tagの確認なし論理削除、Categoryの警告確認済み連鎖削除、削除後にUndo tokenを返さないこと、削除済みLabelとの同名作成拒否と別名案内、ACTIVE／削除済み子Tagの冪等tombstone化、影響Bookmark保持・親closure再計算・Bookmark別再分類Jobの冪等作成、旧RUNNING結果拒否、AI失敗時NEEDS_REVIEWと手動Tag編集、子TAG tombstone消滅前のCategory物理GC拒否、Bookmark削除時の検索派生文書除外と参照Blob保持
+- Application単体: 現在タブ保存、URL指定保存、install時だけ初期化するオンボーディングの完了・途中再開、Category template catalog閲覧時の書込みなし・明示適用・同名競合・同request再送・update／reload非再適用、ホーム表示、AI失敗、再試行、重複要求、Tagの名称・親同時更新、Category候補最大8件、nested Category作成後のdraft保持、旧親に別Tagが残る場合／最後のTagの場合のclosure、全参照Bookmark revision・監査・検索・Outbox更新、UpdateTag再送の同一結果とrequestId別payload拒否、途中競合時の全件rollback、親変更でAI再分類Jobを作らないこと、Bookmark／Tagの確認なし論理削除、Categoryの警告確認済み連鎖削除、削除後にUndo tokenを返さないこと、削除済みLabelとの同名作成拒否と別名案内、ACTIVE／削除済み子Tagの冪等tombstone化、影響Bookmark保持・親closure再計算・Bookmark別再分類Jobの冪等作成、旧RUNNING結果拒否、AI失敗時NEEDS_REVIEWと手動Tag編集、子TAG tombstone消滅前のCategory物理GC拒否、Bookmark削除時の検索派生文書除外と参照Blob保持
 - Repository契約: IndexedDB各実装で同じテストを実行
 - Service Worker結合: popupと2つのcommands、イベント途中の停止・再起動・メッセージ再送。Service WorkerからLanguageModelを呼ばないこと
 - AI Host結合: 分類・AI検索・機能案内の可用性、Capability Catalog grounding、ユーザー操作、モデル取得、ページ終了、lease回収、結果再送

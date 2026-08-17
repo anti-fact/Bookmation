@@ -34,7 +34,7 @@
 
 ## 主要画面
 
-- welcome: install時だけ開く初回ホーム。
+- welcome: install時だけ開く初回ホーム。カテゴリテンプレート機能のstepを含むが、具体的なcatalogとcontrolはISSUE-022で決める。
 - popup: 保存／ホーム、実ショートカット、変更案内。
 - bookmark list: 最近追加／分類別、LIST / GRID、件数、無限スクロール。
 - search: キーワード確定後に切り替わる全画面結果。
@@ -113,6 +113,8 @@ Tag編集は名前と親Categoryを変更できる。親Categoryはactiveな既�
 ## 初回ホーム
 
 install eventだけで `#/welcome` を開き、短い説明と開始操作を示す。初期設定の完了状態を保存し、更新時に再表示しない。インストールイベントの重複やタブ作成失敗を冪等に扱う。
+
+オンボーディングには版付きのカテゴリテンプレートcatalogを提示できる境界を設ける。catalogはアプリ同梱の参照データであり、閲覧だけではLabelを作らない。利用者の適用操作を通常のCategory作成use caseへ渡し、`origin=USER`、名称一意性、作成requestの冪等性を維持する。AIはcatalog生成や適用を行わず、update／reloadで既存Categoryを追加・改名・削除しない。候補内容、選択UX、再表示とversion移行はISSUE-022で確定してから実装する。
 
 ## 訪問リマインダーと自動アーカイブ
 

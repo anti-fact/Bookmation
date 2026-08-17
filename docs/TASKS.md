@@ -16,6 +16,7 @@
 | TASK-002 | Plasmo 拡張 bootstrap | Backlog | TASK-001 | popup、dashboard、worker を開ける |
 | TASK-003 | JSONドキュメントデータ層 | Backlog | TASK-002 | Bookmark / Label / Job が再読込後も残る |
 | TASK-004 | popup・commands・保存・初回ホーム | Backlog | TASK-003 | 現在ページ／URLを保存し、初回と通常のホームを開ける |
+| TASK-014 | 初回カテゴリテンプレート | Backlog | ISSUE-022、TASK-003、004、006 | 初回にテンプレート候補を提示し、利用者が適用したCategoryだけを安全に作成できる |
 | TASK-005 | Bookmark list UI | Backlog | TASK-002、003 | 最近追加を LIST / GRID で探索・編集できる |
 | TASK-006 | Full-screen Category / Tag UI | Backlog | TASK-003、005 | 親カテゴリ／子タグを作成・管理・選択できる |
 | TASK-007 | Prompt API host spike | Backlog | TASK-002、ISSUE-001 | 対応条件と fallback が実証される |
@@ -23,8 +24,8 @@
 | TASK-009 | Full-page search / AI assistant | Backlog | TASK-003、006、007 | 最大8件の候補検索とAIへの検索・機能質問ができる |
 | TASK-010 | Security / media / permissions | Backlog | TASK-002〜004 | 最小権限と入力検証が成立する |
 | TASK-013 | UI Web preview / Playwright harness | Backlog | TASK-002 | 同じUIをWebで確認し、実拡張をAIエージェントが自動確認できる |
-| TASK-011 | Recovery / quality | Backlog | TASK-004〜010、013 | 中断・再送・大量件数に耐える |
-| TASK-012 | P0 integrated demo / human acceptance | Backlog | TASK-004〜011、013 | AIエージェント確認後、人間が保存から検索・編集まで受入できる |
+| TASK-011 | Recovery / quality | Backlog | TASK-004〜010、013、014 | 中断・再送・大量件数に耐える |
+| TASK-012 | P0 integrated demo / human acceptance | Backlog | TASK-004〜011、013、014 | AIエージェント確認後、人間が初回設定から保存・検索・編集まで受入できる |
 
 ## Task 詳細
 
@@ -69,6 +70,17 @@
 - [ ] `http:` / `https:` URL の直接入力、検証、保存を実装する。
 - [ ] `runtime.onInstalled` の `reason=INSTALL` だけで初回状態を初期化し、初回だけ導入ホーム、完了後は最近追加ホームを開く。
 - 完了条件: 3保存入口が共通 use case を使い、worker 再起動でもデータを失わない。
+
+### TASK-014: 初回カテゴリテンプレート
+
+- [ ] ISSUE-022で候補名／件数、set構成、選択方式、初期選択、skip、名前編集、初回後の再表示、locale、catalog version、再適用と名前競合のUXを決定する。決定前に本番候補をhardcodeしない。
+- [ ] version付きのローカルCategory template catalogを定義し、remote fetchや実行コードを含めずbundleする。
+- [ ] 初回オンボーディングへtemplate stepを追加し、catalog表示だけではCategoryを作らない。途中終了時は既存のonboarding進捗から再開する。
+- [ ] 利用者の明示適用を通常のCategory作成use caseへ渡し、`origin=USER`、Normalizer、一意名、tombstone予約を維持する。AI用Category作成経路や `origin=TEMPLATE` を追加しない。
+- [ ] 複数候補の適用requestを冪等化し、応答消失後の再送、既存／tombstone同名、部分失敗、update／reloadでの意図しない再適用を扱う。
+- [ ] 作成されたCategoryを通常の一覧・編集・削除から扱え、既存Categoryを自動改名・削除しない。
+- [ ] Webプレビュー、Playwright実拡張E2E、人間受入で未適用／適用中／成功／競合／再開状態を確認する。
+- 完了条件: ISSUE-022がDecidedになり、利用者操作前のCategory件数が変わらず、明示適用後だけ通常のUSER Categoryが重複なく作成され、update／reload／retryで再作成されない。
 
 ### TASK-005: Bookmark list UI
 
@@ -144,7 +156,7 @@
 
 - [ ] [TESTING.md](TESTING.md) の通常Webページとして、production React componentとTailwind tokenをfake Adapterで表示する。
 - [ ] popup、ホーム、カテゴリ一覧、主要dialogと、空／通常／大量／エラー／権限拒否等の版管理fixtureを直接開けるようにする。
-- [ ] 初回ホーム、検索候補0／8／9件以上、AI検索／機能質問、Unicode 15.1.0 vendored Normalizer asset＋hash、Tag作成／編集のCategory候補／side view／draft、親変更の0件／1件／多数Bookmark参照・revision競合・同request再送／別payload再利用拒否・rollback・AI再分類なし、Bookmark編集のTag-only入力、Category使用状況、Bookmark／Tagの確認なしdelete、Category警告付きcascade deleteと再分類、削除Undo経路なし、AI snapshot、設定境界値、URL単位SUPPRESSED、archive復元、Drive／QRをfixture化する。
+- [ ] 初回ホーム、未適用／適用済み／競合／再開のCategory template step、検索候補0／8／9件以上、AI検索／機能質問、Unicode 15.1.0 vendored Normalizer asset＋hash、Tag作成／編集のCategory候補／side view／draft、親変更の0件／1件／多数Bookmark参照・revision競合・同request再送／別payload再利用拒否・rollback・AI再分類なし、Bookmark編集のTag-only入力、Category使用状況、Bookmark／Tagの確認なしdelete、Category警告付きcascade deleteと再分類、削除Undo経路なし、AI snapshot、設定境界値、URL単位SUPPRESSED、archive復元、Drive／QRをfixture化する。
 - [ ] `ui:preview`、`ui:build`、`test:e2e`、`test:e2e:ui` scriptを実装し、preview／fixture／debug UIを本番拡張成果物から除外する。
 - [ ] Playwrightの隔離persistent Chromium contextへビルド済み拡張機能を読み込み、popupと `chrome-extension://` ページを操作する。
 - [ ] AIエージェントがHTML report、失敗時screenshot、trace、console error、skipを保存して人間へ渡せるようにする。
@@ -165,7 +177,7 @@
 
 ### TASK-012: P0 integrated demo
 
-- [ ] 初回ホーム、popup shortcut表示、現在ページ／URL保存、分類、settings、フルページkeyword、AI検索／機能質問、Tag-only Bookmark edit、Tag／Category side view作成、Tag親変更fan-out、Category cascade delete／再分類を一連にする。
+- [ ] 初回ホーム、Category templateの明示適用、popup shortcut表示、現在ページ／URL保存、分類、settings、フルページkeyword、AI検索／機能質問、Tag-only Bookmark edit、Tag／Category side view作成、Tag親変更fan-out、Category cascade delete／再分類を一連にする。
 - [ ] LIST / GRID、infinite scroll、full-screen category list、back-to-topを示す。
 - [ ] AI対応／非対応の両経路を用意する。
 - [ ] [REQUIREMENTS.md](REQUIREMENTS.md) の P0 を照合する。

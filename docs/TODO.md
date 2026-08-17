@@ -59,6 +59,8 @@
   - 完了条件: Unicode 15.1.0のNFKC／`White_Space`／`Default_Ignorable_Code_Point`／`CaseFolding.txt` C＋F assetをprojectへ生成し、asset hash、runtime ICU非依存、normalizerVersion、tombstone予約、物理回収後の再利用をgolden／拒否fixtureで固定する。
 - [ ] **TODO-024: 右クリック保存toggle fixtureを作る**
   - 完了条件: `contextMenuBookmarkEnabled` のfield欠損→ON、破損値→OFF、ON／OFF反復、page／link固定ID各1件、登録／解除失敗rollback、Service Worker再起動、OFF直前の遅延click、危険schemeを再現し、OFF中にBookmarkが増えないことを確認できる。
+- [ ] **TODO-025: Category template候補比較fixtureを作る**
+  - 完了条件: 個数・名前・set構成・選択方式・初期選択・skip・名前編集・再表示・locale・versionの異なる案を個人情報なしのmock catalogで比較し、明示適用前にCategoryが増えない境界を保った判断材料をISSUE-022へ記録する。
 
 ## 完了済み
 

@@ -62,6 +62,7 @@ flowchart LR
 - 空、通常件数、大量件数、長い日本語、画像なし。
 - LIST / GRID、カテゴリ常時表示、タグ閉／開。
 - `runtime.onInstalled` のINSTALLで開く初回ホームと、UPDATE／導入完了後の最近追加ホーム。
+- 初回Category templateのcatalog表示だけではCategoryが増えない状態、明示適用中／成功／既存active同名／tombstone同名／部分失敗／応答消失後再送／onboarding再開。具体的catalog内容と選択controlのfixtureはISSUE-022の決定後に固定する。
 - 親カテゴリ／子タグ、親カテゴリ欠落、Label Normalizer v1のproject-vendored Unicode 15.1.0 asset（NFKC、`White_Space`、`Default_Ignorable_Code_Point`、`CaseFolding.txt` C＋F）、asset hash、runtime ICU非依存golden vector、カテゴリ／タグ各namespace内の名前競合、カテゴリ名とタグ名の相互一致。
 - ブックマーク編集の名前／URL／Tag入力、Tag候補0／1／8／9件以上、Category直接入力がない状態、選択Tagの親からCategoryが自動導出される状態、同じmodal内のTag作成side view、draft保持。
 - Tag作成／編集の親Category入力候補0／1／8／9件以上、active候補だけからの必須選択、同じmodal内のCategory新規作成side view、Tag draft保持、戻った時の新規Category自動選択。
@@ -154,7 +155,7 @@ P1機能を実装した後は、訪問／archive正整数入力、`frequentVisit
 
 - Webプレビューで主要fixtureとresponsive状態を目視する。
 - PlaywrightのHTML report、失敗／skip、screenshot差分、traceを確認する。
-- 対象Chromeへ拡張機能を読み込み、初回ホーム、popup、dashboard、フルページ検索、AI入力ポップアップ、保存、Tag-only Bookmark編集、Tag／Category side view作成、Tag親変更fan-out、Category使用状況、Category削除警告と再分類、設定の主要導線を操作する。P1実装後は一般設定から右クリック保存をON／OFFし、実際のpage／link menuの出現／消失と再起動後の維持を人間も確認する。
+- 対象Chromeへ拡張機能を読み込み、初回ホーム、Category templateの明示適用、popup、dashboard、フルページ検索、AI入力ポップアップ、保存、Tag-only Bookmark編集、Tag／Category side view作成、Tag親変更fan-out、Category使用状況、Category削除警告と再分類、設定の主要導線を操作する。templateを表示しただけではCategoryが増えず、適用後のCategoryが通常の管理画面で編集・削除できることを確認する。P1実装後は一般設定から右クリック保存をON／OFFし、実際のpage／link menuの出現／消失と再起動後の維持を人間も確認する。
 - Prompt APIの検索／機能説明、実ショートカット競合、OS通知、canonical URL単位の「次回以降表示しない」、archiveのhistory権限待ち、QR checksum説明／カメラ読取、Driveアカウント選択／OAuth／明示resolution planと暗黙remapがないconflict解決等、自動環境で実証できない項目を確認する。
 - デザインシートとの視覚差、Tag編集のCategory候補／新規作成／draft復帰と親変更結果を理解できるか、Category cascade削除警告で対象・影響件数・Bookmark保持／再分類を理解できるか、文言、フォーカス、スクリーンリーダー等の人間判断を記録する。
 

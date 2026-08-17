@@ -511,6 +511,7 @@ interface LocalSettings {
 - `frequentVisitReminderEnabled=false` の間は新規候補の生成と通知を行わない。端末固有表示設定は同期せず、行動履歴関連の設定を同期するかは同期Planで固定する。
 - `contextMenuBookmarkEnabled` は端末固有設定としてDrive同期しない。旧settingsにfieldがない場合は既存の右クリック保存を維持するため `true` へ移行し、boolean以外の破損値は安全側の `false` として扱う。`true` はBookmation所有のpage／link menu IDを重複なく登録し、`false` はその2件を解除する。クリック処理も保存直前に現在値を再確認し、`false` なら保存しない。
 - `onboardingState` は `runtime.onInstalled` の `reason="install"` でレコードがない時だけ初期化する。update、startup、Service Worker再起動で上書きせず、currentStepIdから途中再開し、完了後もCOMPLETEDを保持する。端末固有のためDrive同期しない。
+- カテゴリテンプレートcatalogはIndexedDBの正本Storeではなく、アプリに同梱する版付き参照データとする。ISSUE-022でcatalog schemaを決めるまでは仮の候補名をmigrationやseedへ埋め込まない。catalogを表示しただけではLabelを作らず、利用者の適用操作で通常のCategory作成transactionを呼ぶ。作成後は `kind="CATEGORY"`、`origin="USER"` とし、Normalizer、一意索引、creationRequestId、論理削除規則を例外なく適用する。stepは既存の `onboardingState.currentStepId` で追跡し、catalog versionの永続fieldとmigrationはISSUE-022決定後にschemaへ追加する。update／reloadだけで再適用しない。
 - アーカイブは確定機能であり、`archiveAfterDays` の検証済み閾値に従って評価する。現行設定に別の有効化フラグを持たせない。初回開始または閾値確定時に目的説明後 `history` だけを要求し、拒否時も閾値を保持して `archiveHistoryAccess="DENIED"` とし判定を停止する。この値はUI表示と再要求導線用のcacheであり、実行前にChromeの実権限を再確認して取消も反映する。アーカイブを理由に `notifications` を要求しない。
 
 ## visitReminders
@@ -1050,6 +1051,7 @@ interface SyncOperationRecord {
 - Service WorkerからLanguageModelを実行せず、PENDING JobはAI Hostが開くまで保持される。
 - URL hash衝突でも異なるURLを誤って同一扱いしない。
 - 設定破損でIndexedDBを初期化しない。onboardingStateはinstall時だけ初期化され、途中stepと完了状態をupdate／startup／Service Worker再起動後も保持する。
+- Category template catalogを表示しただけではLabel件数が変わらない。明示適用した候補だけが `origin=USER` Categoryとして作成され、同じ適用request、onboarding再開、update／reloadで重複せず、既存／tombstone同名は通常の一意性エラーになる。
 - `archiveState` が文字列 `ACTIVE` / `ARCHIVED` で保存され、ARCHIVEDはmetadataと `payload { title, url, categories, tags }` が分離され、設定から復元できる。自動アーカイブは最終訪問日時がない項目を変更しない。archive専用toggleを持たず、history拒否時もarchiveAfterDaysを保持して判定を権限待ち停止し、notificationsを要求しない。
 - 同じURLの訪問リマインダーを重複生成せず、利用者が保存を選ぶまでBookmarkを作らない。「次回以降表示しない」にしたURLはグローバル設定を変えず再候補化しない。
 - Bookmark／Tag削除は確認画面なし、Category削除は影響件数を示す警告確認済みrequestだけで対象IDと期待revisionを検証する。1件でも失敗したら全件をrollbackし、Undo tokenや利用者向け復元導線は作らない。削除済みLabelのunique keyは物理GCまで名称を予約し、その間は同名別IDを拒否して別名だけを許可する。Bookmark削除でSearchDocumentを同時に除外し、参照Blobは同期tombstone保持と参照解消が済むまで回収しない。

@@ -54,6 +54,7 @@ UI の画面構成・外観は、リポジトリ直下の `デザインシート
 | FR-028 | カテゴリ／タグを連続作成する | カテゴリ・タグ一覧の `新規作成` で種類をプルダウン選択してモーダルを開く。Bookmark編集のTag入力とTag作成／編集の親Category入力では、説明横の新規作成ボタンから同じモーダル内のサイドビューで各対象を作成できる。Tag作成／編集では既存active Categoryの入力／選択を必須とし、Categoryをサイドビューで作成した場合はTag draftを保持して戻り、新しいCategoryを自動選択する。閉じるまで複数件を作成でき、カテゴリ／タグとも同名作成を拒否する |
 | FR-029 | カテゴリ／タグを管理モードで編集する | 一覧ヘッダーの管理ボタンで管理モードへ切り替える。管理中はカテゴリリボンまたはタグチップの選択で編集モーダルを開き、鉛筆アイコンはhover／focus時だけ表示する。Category編集にはactiveな子Tagの件数と実名一覧、および関連するactive Bookmarkの重複を除いた件数を表示する。Tag編集では名前と親Categoryを変更できる。保存はTagと選択親のexpected revision、およびsubmit開始時に1回発行して同一retryで再利用する `tag-update:` requestIdを受け、新旧親、Tag、全参照active Bookmark／edgeを1 transactionで再検証し、影響BookmarkのCategory edgeを残存active Tagの親集合へ完全一致させ、Bookmark revisionと検索文書を更新する。Tag IDは維持してAI再分類は行わず、Tag名のglobal unique判定も親変更では変わらない |
 | FR-030 | 種類ごとの削除規則を適用し、取り消し機能を設けない | BookmarkとTagは確認なしで即時に論理削除する。Category削除だけは、削除されるCategory、全active子Tag、影響するactive Bookmark件数と再分類されることを警告し、明示確認後にCategory、全子Tag、関連edgeを同一処理で論理削除して影響Bookmarkを再分類する。いずれも削除後の取り消し機能や利用者向け復元経路を提供しない |
+| FR-031 | 初回用のカテゴリテンプレート機能を提供する | 初回オンボーディングで、あらかじめ用意したカテゴリ候補を利用できる機能を設ける。テンプレートの適用は利用者の明示操作として通常のCategory作成規則を通し、作成されたCategoryは `origin=USER`、名称一意、編集・削除可能とする。更新やreloadだけで既存データを追加・上書きしない。候補名、件数、選択方式、初期選択、skip、再表示、地域化、catalog versionは [ISSUE-022](ISSUES.md) で決定するまでhardcodeしない |
 
 ## P1 確定要件
 

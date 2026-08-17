@@ -33,6 +33,7 @@
 - archive後はカテゴリ・タグ、ページ名、URLだけを保持し、設定の一覧から選択して復元する。
 - ユーザー間共有はカテゴリ／タグ／個別Bookmarkを選んだQRと読取取込を使う。Driveは同一Googleアカウントの端末間同期を `appDataFolder`、別アカウントへの権限共有を通常Drive file＋permissions/capabilities検証として分離し、設定で対象アカウントを選ぶ。標準Bookmarkは明示取込とする。右クリック保存は端末固有toggleがONの時だけpage／link menuを表示し、共通保存use caseを使う。
 - 一覧のページサイズは内部設定とし、利用者が変更するプルダウンや永続設定を作らない。
+- 初回カテゴリテンプレート機能はP0確定とする。具体的catalogと導線はISSUE-022で決め、利用者の明示適用前にCategoryをseedせず、適用時は通常のUSER Category作成へ合流させる。
 
 ## 実装依存フロー
 
@@ -45,6 +46,8 @@ flowchart TD
     BE03 --> BE04
     BE02 --> BE05["BE-05 編集・親子Label・一覧Query"]
     BE03 --> BE05
+    BE03 --> BE19["BE-19 初回Category template適用"]
+    BE05 --> BE19
     BE04 --> BE06["BE-06 永続AI Jobと再送制御"]
     BE03 --> BE07["BE-07 Prompt API Hostスパイク"]
     BE05 --> BE08["BE-08 AI分類と結果適用"]
@@ -60,6 +63,7 @@ flowchart TD
     BE09 --> BE11
     BE04 --> BE12["BE-12 統合テストと引き渡し"]
     BE05 --> BE12
+    BE19 --> BE12
     BE08 --> BE12
     BE09 --> BE12
     BE10 --> BE12
@@ -85,6 +89,7 @@ flowchart TD
 | BE-03 | Message契約とService Worker | 未着手 | 未定 | BE-01 | popup、dashboard、workerが安全に連携できる |
 | BE-04 | 現在ページ・URL保存 | 未着手 | 未定 | BE-02、BE-03 | AIなしでもBookmarkを保存できる |
 | BE-05 | 編集・親子Label・一覧Query | 未着手 | 未定 | BE-02、BE-03 | 編集、削除、親カテゴリ／子タグ管理、候補・一覧取得ができる |
+| BE-19 | 初回Category template適用 | 未着手 | 未定 | ISSUE-022、BE-03、BE-05 | 利用者が明示適用したtemplate Categoryだけを通常規則で重複なく作成できる |
 | BE-06 | 永続AI Job | 未着手 | 未定 | BE-03、BE-04 | workerやAI Hostが止まっても分類要求を失わない |
 | BE-07 | Prompt API Hostスパイク | 未着手 | 未定 | BE-00、BE-03 | 対応環境とAI実行場所を実証できる |
 | BE-08 | AI分類と結果適用 | 未着手 | 未定 | BE-05〜BE-07 | カテゴリ／タグ規則どおり分類し、失敗時も保存を守る |
@@ -241,6 +246,22 @@ sequenceDiagram
 成果物: Bookmark/Label CRUD use case、soft-delete契約、一覧Query、cursor page、件数契約。
 
 完了条件: edit競合、BookmarkのCategory直接更新拒否、カテゴリ／タグ名競合、tombstone予約、削除後の同名作成拒否、namespace分離、親子不整合、Tag親変更の0件／1件／多数Bookmark参照、親候補0／8／9件以上、Category side view／draft、全件rollback、同request再送／別payload再利用拒否、AI再分類なし、連続作成、Category編集のTag実名／件数、Bookmark／Tagの確認なしsoft-delete、Category警告確認後のcascade soft-delete、影響Bookmark再分類、削除Undo経路がないこと、Label条件、cursor終端のテストが通る。
+
+### BE-19 初回Category template適用
+
+目的: 初回利用者へCategory templateを提示し、明示適用されたものだけを既存のCategory不変条件で作成する。
+
+- [ ] ISSUE-022をDecidedにし、catalogの候補名／件数、set、選択、初期選択、skip、再表示、locale、version、再適用、競合UXを固定する。決定前に本番catalogをhardcodeしない。
+- [ ] template catalogをversion付き・実行コードなしのlocal assetとして定義し、外部取得やIndexedDB seedにしない。
+- [ ] `GetCategoryTemplateCatalog` はcatalog versionと表示候補を返すだけとし、Labelを書き込まない。
+- [ ] `ApplyCategoryTemplates` は利用者が明示した候補、catalog version、安定requestIdを受け、各候補をBE-05のCreateCategoryへ渡す。Categoryは `origin=USER` のままにし、TEMPLATE originやAI Category作成経路を追加しない。
+- [ ] Normalizer、一意名、tombstone予約、creationRequestIdを再検証し、既存／削除済み同名と部分失敗を利用者が判断できる項目別結果にする。transaction単位はISSUE-022で決定する。
+- [ ] 同request再送は同じ結果へ収束し、別payloadでの再利用、update／reload／onboarding再開による無断再適用を拒否する。
+- [ ] catalog versionとonboarding stepの保持形式をISSUE-022の決定後にLocalSettings schemaへ追加し、旧settingsを非破壊移行する。
+
+成果物: Category template catalog schema／asset、取得・適用use case、onboarding進捗、競合・再送fixture。
+
+完了条件: catalog閲覧だけではCategory件数が変わらず、利用者の明示適用後だけ通常のUSER Categoryが作成され、同名、応答消失、worker再起動、update／reloadで重複・上書きが起きない。
 
 ### BE-06 永続AI Job
 
@@ -478,6 +499,7 @@ sequenceDiagram
 | 現在ページを保存 | `SaveCurrentTab` | Bookmark、重複状態、分類Job状態 |
 | URLを入力して保存 | `SaveBookmarkByUrl` | Bookmark、metadata代替状態、分類Job状態 |
 | 初回／通常ホーム | `GetHomeState` / `CompleteOnboarding` | 初回状態、最近追加一覧へ進む状態 |
+| 初回Category template | `GetCategoryTemplateCatalog` / `ApplyCategoryTemplates` | catalog version、未適用候補、項目別の作成／既存／競合結果、onboarding step |
 | 最近追加／Label別一覧 | `ListBookmarks` | items、totalCount、nextCursor、hasNext |
 | フルページkeyword入力 | `Suggest/SearchAllByKeyword` | 最大8候補、labels、bookmarks。結果はlabelsが先 |
 | 全画面カテゴリ・タグ一覧 | `ListLabels` | 親子items、利用件数、nextCursor、hasNext |

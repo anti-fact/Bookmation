@@ -37,7 +37,8 @@
 
 | component | 責務 |
 | --- | --- |
-| `WelcomePage` | 初回説明、開始、再開可能な初期設定 |
+| `WelcomePage` | 初回説明、開始、再開可能な初期設定、カテゴリテンプレートstepの進行 |
+| `CategoryTemplateStep` | 同梱catalogの表示、未適用preview、利用者操作によるCategory作成。具体的な選択controlはISSUE-022で確定する |
 | `StickyBookmarkHeader` | `SearchBox`、AI、件数、LIST / GRID、一覧・設定導線 |
 | `BookmarkList` / `BookmarkItem` | cursor描画、カテゴリ常時、タグdisclosure、編集 |
 | `SearchBox` | 最大8件typeahead、検索ページ遷移 |
@@ -66,13 +67,15 @@
 | 状態 | 置き場所 |
 | --- | --- |
 | Bookmark / Category / Tag正本 | IndexedDB repository |
-| onboarding状態、LIST / GRID、数値閾値、reminder有効、AI細分化0〜4 | `chrome.storage.local` |
+| onboarding状態／Category template step、LIST / GRID、数値閾値、reminder有効、AI細分化0〜4 | `chrome.storage.local`。catalog versionの永続形式はISSUE-022で決める |
 | categoryId、tagId、検索query、設定section | hash route |
 | AI conversation、dialog、side view、管理モード | React画面内state |
 | cursor、requestId、hasNext | query state |
 | 一覧へ戻るscroll anchor | navigation state |
 
 React stateをデータ正本にしない。保存commandにはrevisionとidempotency keyを含め、完了応答後にquery cacheを更新する。
+
+`CategoryTemplateStep` はcatalogを表示しただけではRepositoryへ書き込まない。利用者が適用を実行した時だけ、選ばれた候補を通常のCategory作成commandへ変換する。途中終了後は `onboardingState.currentStepId` から再開し、応答消失後の再送でも同じCategoryを重複作成しない。候補名、件数、set、初期選択、skip、名前編集、初回後の再表示UIはISSUE-022が決まるまで仮実装を本番へ入れない。
 
 ## 分類階層のUI不変条件
 
@@ -186,6 +189,7 @@ Prompt APIは対応を実証したトップレベル拡張ページのadapterで
 詳細な実行順序は [TESTING.md](./TESTING.md) を正本とする。Webプレビューと実拡張E2Eで最低限次を確認する。
 
 - welcome: install時だけ開く、更新時は開かない、開始後の遷移。
+- category template: catalog閲覧時の書込みなし、明示適用、同名競合、retry、途中再開、適用後の通常Category管理。具体的な候補とcontrolはISSUE-022決定後にfixture化する。
 - search: 0／8／9候補、IME、keyboard、全画面遷移、上下グループ、戻り状態。
 - AI: popup内入力／応答、検索、製品ヘルプ、未実装説明、fallback、mutation拒否。
 - bookmark edit: Tag-only combobox、カテゴリ自動導出、Tag side view、draft復元、確認なしの即時論理削除。

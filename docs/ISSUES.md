@@ -29,6 +29,7 @@
 | ISSUE-017 | Open | P1 | QRへ収まらない共有をどう扱うか未定である | 分割QRまたは別の明示exportを決め、無言の切捨てを禁止する |
 | ISSUE-018 | Open | P0 | UI Webプレビューのrunner、Playwright／Chromium版、CI artifact保持条件が未確定である | Storybookまたは同等preview appを比較し、`ui:preview` / `ui:build` / `test:e2e` / `test:e2e:ui`、visual baseline、report／trace保持期間をTASK-013で固定する。通常Webページ、AIエージェント先行、人間最終受入という要件は変更しない |
 | ISSUE-020 | Open | P0 | keyword autocompleteは最大8件で確定したが、一致度と種類混在時の配分が未定である | 正規化、前方一致／部分一致、カテゴリ・タグ・Bookmarkの配分、同点規則、IME中の挙動を固定し、キーボード操作を試験する |
+| ISSUE-022 | Open | P0 | 初回カテゴリテンプレート機能は採用確定だが、具体的なcatalogと導線が未確定である | 候補名と件数、1組／複数set、選択方式、初期選択、skip可否、名前編集、初回後の再表示場所、言語・地域、catalog version、再適用、既存／tombstone同名競合時の表示を決める。利用者の明示適用前にCategory recordを作らず、適用時は通常のUSER Category作成規則を通す境界は維持する |
 
 ## 決定済み
 
@@ -66,5 +67,6 @@
 | ISSUE-D30 | Decided | P1 Drive競合はimmutable syncSnapshotsと明示resolution planで扱う。open中は参照snapshotをGCせず、解決後30日保持し、Label ID／edgeを暗黙にremapしない | 競合解決の監査性と巻戻し余地を保ち、同名禁止・親子edgeを暗黙処理で破壊しないため |
 | ISSUE-D31 | Decided | Bookmark、Category、Tagの削除Undoは提供しない。削除後のUndo toast／token／期限／復元入口を作らず、論理削除tombstoneと物理回収条件を維持する。Bookmark／Tagは確認なし、Categoryだけはcascade影響警告を確認する | 2026-08-17の利用者による最新上書き。アーカイブからの復元とDrive同期競合のtombstone処理は削除Undoではないため維持する |
 | ISSUE-D32 | Decided | `contextMenuBookmarkEnabled` は端末固有で既定ONとする。ONではpage／link固定IDを冪等登録し、OFFではBookmation所有IDを解除して遅延clickも拒否する | 2026-08-17の利用者による設定toggle追加。既存の右クリック保存を維持し、Drive同期や権限取消とは分離する |
+| ISSUE-D33 | Decided | 初回オンボーディングにカテゴリテンプレート機能を設ける。具体的な候補と操作方式はISSUE-022で決める | 2026-08-17の利用者による機能採用。Categoryは利用者の明示操作で作成する既存不変条件を維持する |
 | ISSUE-019 | Decided | 管理モードのTag編集から親Categoryを変更できる。activeな既存Categoryを最大8候補から選ぶか同一モーダルのサイドビューで作成し、Tag／親expected revisionとsubmit開始時に1回発行する `tag-update:` requestIdを検証して全参照BookmarkのCategory closure・revision・検索派生データを原子的に更新する。同request再送は同じ `UpdateTagResult` へ収束する | 更新済みデザインシートと2026-08-17の最新利用者指示。親変更ではAI再分類を行わず、Tag名のglobal uniqueを維持する。Category削除は別の `category-delete:` namespaceとする |
 | ISSUE-006 | Decided | pnpm 10.15.1、Plasmo 0.90.5、React 18.3.1、Tailwind 3.4.17、TypeScript 5.9.2。推奨 Node 22。品質コマンドは `dev` / `build` / `lint` / `typecheck` / `test` | TASK-001 の scaffold と lockfile。`engines` は Plasmo/Parcel の解決バグを避けるため置かない |

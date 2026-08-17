@@ -45,6 +45,8 @@
 
 `chrome.runtime.onInstalled` の `reason === "install"` のときだけ `#/welcome` を開く。ロゴ、短い説明、`ここからはじめる` を表示し、押下後に必要最小限の初期設定を経て `#/home` へ移る。更新時や通常起動時には再表示しない。途中で閉じても次回ホームから再開できる導線を残す。
 
+初期設定の一部としてカテゴリテンプレートを利用できるstepを置く。テンプレート候補を見ただけではCategoryを作成せず、利用者の明示的な適用操作後にだけ通常のユーザー作成Categoryとして追加する。適用済みカテゴリは通常の管理画面で改名・削除できる。候補名、件数、set構成、選択control、初期選択、skip、名前編集、初回後の再表示位置は [ISSUE-022](ISSUES.md) の決定事項であり、現時点のデザインシートへ未確定controlを描き足さない。
+
 ## 拡張機能ポップアップ
 
 次の2操作を同じ順で表示する。
@@ -167,13 +169,14 @@ Chrome標準Bookmark取込は権限説明、folder別件数、プレビュー、
 
 ## テスト用Webプレビュー
 
-welcome、popup、一覧、検索ページ、AIポップアップ、カテゴリ・タグ一覧の通常／管理、作成連続操作、ブックマーク編集サイドビュー、設定3区分、リマインダー、アーカイブ復元、Drive／QRを本番と同じReact componentとTailwind tokenで通常Webページ表示する。
+welcomeとCategory template step、popup、一覧、検索ページ、AIポップアップ、カテゴリ・タグ一覧の通常／管理、作成連続操作、ブックマーク編集サイドビュー、設定3区分、リマインダー、アーカイブ復元、Drive／QRを本番と同じReact componentとTailwind tokenで通常Webページ表示する。
 
-fake Adapterと版管理fixtureで、0／8／9件候補、カテゴリ／タグの同名作成拒否、親カテゴリ欠損、Tag作成／編集中のCategory side view、Tag親変更の影響Bookmark更新とrevision競合、細分化0〜4、権限拒否、抑止済みURL、Bookmark／Tagの即時論理削除、Category削除警告、子Tag連鎖削除、影響Bookmark再分類、QR破損、Drive競合、200%拡大等を選べるようにする。Webプレビュー後にAIエージェントが実拡張をPlaywrightで確認し、最後に人間が同じbuildを受け入れる。
+fake Adapterと版管理fixtureで、Category templateの未適用／明示適用／同名競合／途中再開、0／8／9件候補、カテゴリ／タグの同名作成拒否、親カテゴリ欠損、Tag作成／編集中のCategory side view、Tag親変更の影響Bookmark更新とrevision競合、細分化0〜4、権限拒否、抑止済みURL、Bookmark／Tagの即時論理削除、Category削除警告、子Tag連鎖削除、影響Bookmark再分類、QR破損、Drive競合、200%拡大等を選べるようにする。Webプレビュー後にAIエージェントが実拡張をPlaywrightで確認し、最後に人間が同じbuildを受け入れる。
 
 ## 主要な受け入れ確認
 
 - インストール直後だけ初回ホームが開く。
+- Category templateは閲覧だけでCategoryを作らず、明示適用後だけ通常のCategoryとして追加され、retry／再開で重複しない。
 - 検索入力中に最大8候補が出て、確定検索は全画面へ移る。
 - AIポップアップ内で入力と応答を確認でき、保存データ検索と製品機能の質問に対応する。
 - ブックマーク編集では名前、URL、タグだけを変更でき、タグからカテゴリを自動導出する。

@@ -507,6 +507,33 @@ Bookmark、Category、Tagの削除後にUndoを提供しないという最新の
 - `npx --yes pnpm@10.15.1 build`: 成功、Chrome MV3向けPlasmo production build。
 - UIとChrome API実装は未実装であり、実際のmenu表示／解除はTASK-106とPlaywright／人間受入で確認する。
 
+## 2026-08-17 — 初回Category template機能を仕様・タスク化
+
+### 目的
+
+具体的なcatalog内容は未確定のまま、初回オンボーディングでCategory templateを利用できる機能の採用を確定し、判断待ちと実装作業を追跡可能にする。
+
+### 変更
+
+- P0要件FR-031と決定ISSUE-D33で機能採用を確定し、候補名／件数、set、選択、初期選択、skip、名前編集、再表示、locale、version、再適用、競合UXをISSUE-022へ分離した。
+- catalog閲覧だけではCategoryをseedせず、利用者の明示適用を既存の `origin=USER` Category作成へ合流させる境界を、UI、Frontend、Backend、DB、Securityへ反映した。
+- TASK-014とBE-19を追加し、P0依存フロー、request冪等性、onboarding途中再開、update／reload非再適用、同名／tombstone競合、Web preview／Playwright／人間受入まで作業化した。
+- TODO-025に比較fixture、TD-018に未実装リスク、TROUBLESHOOTINGに閲覧時seed／retry重複の診断を追加した。
+- GitHubへ [#43 ISSUE-022](https://github.com/anti-fact/Bookmation/issues/43) と [#44 TASK-014](https://github.com/anti-fact/Bookmation/issues/44) を追加し、統合デモ [#22](https://github.com/anti-fact/Bookmation/issues/22) とWebプレビュー／Playwright [#38](https://github.com/anti-fact/Bookmation/issues/38) の本文を現行仕様へ更新した。
+
+### 検証
+
+- `git diff --check`: 成功。
+- Markdown 25ファイル、相対リンク264件、code fence、table列数: 異常0件。
+- FR 41件、ISSUE 50件、TASK見出し14件、BE見出し20件のID重複: 0件。
+- `docs/AI_GUIDE.md`: 0バイトを維持し、編集していない。
+- `npx --yes pnpm@10.15.1 lint`: 成功。
+- `npx --yes pnpm@10.15.1 typecheck`: 成功。
+- `npx --yes pnpm@10.15.1 test`: 成功、Vitest 1ファイル／2件。
+- `npx --yes pnpm@10.15.1 build`: 成功、Chrome MV3向けPlasmo production build。
+- `gh issue view 22 38 43 44` 相当の個別照合: #43／#44はopen、`p0` と既存種別／領域label、`P0-3 一覧とカテゴリ` milestoneを持つ。#22のclosed、#38のopen、および両Issueの既存label／milestoneを維持した。
+- Category templateのUI、catalog、Repository、E2Eは未実装であり、具体仕様はISSUE-022をDecidedにしてからTASK-014／BE-19で実装する。
+
 ## 追記テンプレート
 
 ```markdown

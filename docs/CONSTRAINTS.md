@@ -53,6 +53,7 @@
 38. Category／Tagの論理削除tombstoneは一意名を予約し、同名の別ID作成を防ぐ。名前を再利用できるのは物理回収後だけである。
 39. P1 Drive競合はimmutableな `syncSnapshots` と明示的なresolution planで扱う。競合がopenの間は参照snapshotをGCせず、解決後も30日保持する。Label IDまたはBookmark-Label edgeを暗黙にremapしない。
 40. Tagの親Category変更は管理モードの利用者操作だけに限定する。Tagと選択先Categoryの期待revision、およびsubmit開始時に1回発行して同一retryで再利用する `tag-update:<UUID>` requestIdを検証し、Tagの親、全参照BookmarkのCategory closure・revision・検索派生データ、同期Outbox、mutation receiptを1 transactionで更新する。Category削除requestは別の `category-delete:` namespaceとする。途中失敗は全件rollbackし、同じrequest再送は同じ `UpdateTagResult` へ収束させ、別payloadでのrequestId再利用を拒否する。AI再分類Jobは作らず、Tag名のglobal unique規則は変更しない。
+41. 初回オンボーディングにカテゴリテンプレート機能を設ける。catalogを表示しただけ、install、update、reloadだけではCategory recordを作らず、利用者が明示的に適用した項目だけを通常の `origin=USER` Categoryとして名称一意性と冪等性を検証して作成する。具体的なcatalogと導線はISSUE-022の決定前に固定しない。
 
 ## AI と実行環境
 

@@ -34,7 +34,7 @@
 | TD-015 | P1 | インポート | 標準Bookmark Folderの対応、重複UI、途中再開が未確定 | 分類乱立、二重取込、元データ変更の危険がある | 読取専用adapter、preview、Import Job、元tree不変契約、folder対応を実装する | 登録 |
 | TD-016 | P0 | DB | JSON documentのruntime schema、size limit、migration形式が未実装 | 型castだけでは破損・過大・未知版データを防げない | 全StoreのJSON Schema、read/write検証、unknown version隔離、Blob分離、round-trip testを実装する | 登録 |
 | TD-017 | P0 | テスト | production UIのWeb harnessと実拡張Playwright E2Eがない | Tag編集のCategory候補／side view／親変更fan-out、Category使用状況、cascade削除／再分類、削除Undo経路の誤混入、AI snapshot、URL抑止、右クリック設定と実menuのずれ、Drive snapshot／resolutionを人間が再現しにくく、Chrome固有不具合を見逃す恐れがある | [TESTING.md](TESTING.md) とTASK-013に沿い、Tag／親expected revision、Category自動導出、side view draft、全参照Bookmarkの原子的更新／AI再分類なし、Category警告付きcascadeとPENDING／NEEDS_REVIEW再分類、Undo経路なし、右クリックON／OFF・再起動・遅延clickを含む決定的fixture、隔離profile、report／screenshot／trace、人間受入記録を実装する | 登録 |
-| TD-018 | P1 | 初回導線 | 初回インストール用ホームと通常ホームの状態遷移・再表示手段が未実装 | UPDATEをINSTALLと誤認して初回説明が再表示される、または一度も見られず利用開始に失敗し得る | `runtime.onInstalled` の `reason=INSTALL` だけで永続状態を冪等初期化し、INSTALL／UPDATE／再訪／状態破損fixtureとヘルプ導線を実装する | 登録 |
+| TD-018 | P0 | 初回導線 | 初回インストール用ホーム、通常ホーム、Category template stepの状態遷移が未実装で、catalog詳細もISSUE-022で未決 | UPDATEをINSTALLと誤認して初回説明が再表示される、template閲覧だけでCategoryがseedされる、retry／再開で重複する、または一度も初期導線を見られず利用開始に失敗し得る | ISSUE-022を決め、`runtime.onInstalled` の `reason=INSTALL` だけで永続状態を冪等初期化する。version付きlocal catalog、明示適用、通常のUSER Category作成、INSTALL／UPDATE／再訪／retry／途中再開／同名競合fixtureとヘルプ導線を実装する | 登録 |
 
 ## 更新規則
 
