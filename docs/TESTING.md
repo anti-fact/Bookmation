@@ -63,16 +63,20 @@ flowchart LR
 - LIST / GRID、カテゴリ常時表示、タグ閉／開。
 - `runtime.onInstalled` のINSTALLで開く初回ホームと、UPDATE／導入完了後の最近追加ホーム。
 - 親カテゴリ／子タグ、親カテゴリ欠落、Label Normalizer v1のproject-vendored Unicode 15.1.0 asset（NFKC、`White_Space`、`Default_Ignorable_Code_Point`、`CaseFolding.txt` C＋F）、asset hash、runtime ICU非依存golden vector、カテゴリ／タグ各namespace内の名前競合、カテゴリ名とタグ名の相互一致。
-- ブックマーク編集のカテゴリ／タグ別入力、既存候補0／1／8／9件以上、同じmodal内の新規作成side view、draft保持。
-- Bookmark／Category／Tagの確認画面なしsoft-deleteと、削除後にUndo toast／token／期限／復元操作が現れない状態。
+- ブックマーク編集の名前／URL／Tag入力、Tag候補0／1／8／9件以上、Category直接入力がない状態、選択Tagの親からCategoryが自動導出される状態、同じmodal内のTag作成side view、draft保持。
+- Tag作成／編集の親Category入力候補0／1／8／9件以上、active候補だけからの必須選択、同じmodal内のCategory新規作成side view、Tag draft保持、戻った時の新規Category自動選択。
+- Bookmark／Tagの確認画面なしsoft-delete、Category削除の警告取消／確認／revision競合エラーと、全削除でUndo toast／token／期限／復元操作が現れない状態。
 - カテゴリ・タグ作成の種類プルダウン、閉じるまでの連続作成、tombstone名前予約、削除済み同名項目がある場合の別名案内、削除後の同名作成拒否、active Tag／active親、tombstone Tag／deleted親、子Tag tombstone残存中の親Category GC拒否、物理回収後の名前再利用。
-- タグ編集modalの親カテゴリ読取専用表示。親カテゴリ変更はISSUE-019決定前のfixture／commandへ含めない。
-- 通常／管理モード、hover／focus鉛筆、子タグ残存カテゴリの削除BLOCK、子タグ削除／中止だけの案内、移動／cascadeなし。
+- Tag編集modalに名前、親Category、作成元、利用件数があり、名前と親を変更できる状態。親変更の参照Bookmark 0件／1件／多数、同じ旧親を残す別Tagあり／なし、Tag／選択親revision競合、transaction途中失敗、`tag-update:` requestIdをsubmit開始時に1回だけ発行すること、応答消失後の同request再送、別payloadでのrequestId再利用を含める。初回と再送の `UpdateTagResult` が同じであることも確認する。
+- Tag親変更後にTag IDとglobal unique名規則が維持され、全参照BookmarkのCategory closure・revision・検索文書が更新される状態。AI再分類Jobが作られず、競合・失敗時は全件rollbackされる状態。
+- Category編集の使用中Tag実名一覧・件数と関連Bookmark unique件数。通常／管理モード、hover／focus鉛筆、Category削除警告内の同じ件数。
+- Category、全子Tag、関連edgeの原子的なcascade soft-delete、影響Bookmark本体の保持、再分類JobのPENDING、AI成功、AI失敗後のNEEDS_REVIEW／手動分類。途中失敗時は削除前状態へrollbackする。
 - フルページ検索の両入口、入力候補0／1／8／9件以上、選択、結果0件／複数件。カテゴリ・タグが上、Bookmarkが下。
 - AI入力ポップアップのBookmark検索／機能説明、AI利用可／利用不可／準備中／失敗／古い応答。
 - 読込中、追加読込、終端、再試行、遅延。
 - 訪問回数／archive日数の正整数入力（空、0、小数、境界外）とAI Jobのdiscriminated `{ granularity, maxNewTags }` snapshot全5組／不一致。`0` で新規AIタグなし／既存タグ自動付与あり。
 - `frequentVisitReminderEnabled`、canonical URL単位SUPPRESSED、別URL継続、通知前未保存、history／notifications権限未要求／拒否。
+- `contextMenuBookmarkEnabled` のfield欠損→ON移行、破損値→OFF縮退、ON／OFF表示、登録失敗時rollback、Service Worker再起動、page／link固定IDの重複なし、OFF直前の遅延click拒否。
 - archive初回開始時のhistory権限説明、拒否後も日数保持＋`権限待ち`、notifications未要求、`autoArchiveEnabled` UIなし。
 - カテゴリ・タグ／ページ名／URLだけのarchive、設定のarchive一覧、単数／複数選択復元。
 - カテゴリ別／タグ別／個別BookmarkのQR選択・生成、QR読取preview、破損／切詰め、checksum真正性非保証、異親同名Tagの別名／skip／cancel後再preview。
@@ -115,19 +119,24 @@ AIエージェントがPlaywrightを起動できない環境では、Webプレ�
 - 現在ページまたはURLを保存し、拡張機能の再読込後も一覧へ残る。
 - 一覧からフルページ検索へ切り替え、入力候補が最大8件で選択でき、カテゴリ・タグの検索結果が上、Bookmarkが下に表示される。
 - AI入力ポップアップ内でBookmark検索の入力・結果と、Bookmationの機能質問・説明を確認する。
-- LIST / GRID切替、カテゴリ／タグ展開、カテゴリ／タグ別入力によるBookmark編集、side view作成、3 entityの確認なしsoft-deleteを行う。
-- 削除後にUndo toast／復元操作がなく、Undo用message、token、期限、error codeが生成されないことを確認する。
+- LIST / GRID切替、カテゴリ／タグ展開、名前／URL／TagだけのBookmark編集を行い、CategoryがTagの親から自動導出され、Category直接入力がないことを確認する。
+- Bookmark編集からTag作成side viewへ進み、Category候補を最大8件から選ぶ。必要なCategoryを同じmodalのside viewで作り、Tag draftを失わず戻って新規Categoryが自動選択されることを確認する。
+- Bookmark／Tagを確認なしでsoft-deleteし、削除後にUndo toast／復元操作がなく、Undo用message、token、期限、error codeが生成されないことを確認する。
 - カテゴリ・タグ一覧で新規作成を閉じるまで繰り返し、tombstoneを含む同名作成を拒否する。削除済み同名項目には別名を案内し、削除後も名前予約が維持されることを確認する。
 - active Tag作成ではactive親Categoryを要求し、tombstone Tagだけがdeleted親を参照できること、子Tag tombstoneが残る親Categoryを物理GCできないことを確認する。
-- タグ編集では親カテゴリを読取専用で表示し、ISSUE-019決定前に親変更commandを送らない。
-- 管理モードの鉛筆から編集し、確認画面なしのsoft-deleteを行う。削除Undoは表示せず、子タグが残るカテゴリはBLOCKされ、cascade deleteされない。
+- Tag編集で親Categoryをactive候補最大8件から選ぶ。Category作成side viewへ移ってもTag draftを失わず、作成後に戻って新規Categoryが自動選択されることを確認する。
+- Tagと選択親のexpected revisionおよびsubmit開始時に1回発行した `tag-update:` requestIdを送って保存し、Tag IDとglobal unique名規則を維持したまま全参照BookmarkのCategory表示・revision・検索文書が一括更新され、AI再分類が開始されないことを確認する。競合・途中失敗時は全件rollbackし、dialogとdraftを保持する。同request再送は同じmutation receiptの同じ `UpdateTagResult` へ収束し、別payloadでのrequestId再利用は拒否する。
+- 管理モードの鉛筆からCategory編集を開き、使用中Tagの実名一覧・件数と関連Bookmark unique件数を確認する。
+- Category削除で全子Tagと関連edgeの連鎖削除、影響件数、Bookmark再分類を同じsnapshotから警告する。取消では変更しない。警告後に子Tagの作成／削除、BookmarkへのTag追加／解除、対象revision更新をそれぞれ行い、`expectedImpactFingerprint` 不一致で削除せず最新影響を再警告することを確認する。一致時だけcascade soft-deleteしてBookmark本体を残し、PENDING再分類を開始する。
+- Category cascadeは子Tag 0件／Bookmark 0件、1件のBookmarkが同じCategory配下の複数Tagを持つ場合、大量件数をfixture化する。成功responseだけを失って同じCategory・`category-delete:` requestIdのcommandを再送しても、revision／fingerprintのstale errorではなくno-op成功となり、Job、Outbox、BookmarkRevisionが増えないことを確認する。同じrequestIdを別Categoryへ使うと拒否され、`tag-update:` requestIdを受理しないことも確認する。
+- Category cascade削除の途中失敗が全体rollbackされること、AI分類失敗がBookmark消失ではなくNEEDS_REVIEW／手動分類になること、削除Undoは表示されないことを確認する。
 - AI Jobのdiscriminated snapshot全5組と不一致拒否を確認し、`0` では新規AIタグを作らず既存タグは自動付与されることを確認する。
 - AIのTag名競合ではoriginを問わず既存Tagを再評価し、USER優先、親／意味不適合のNEEDS_REVIEWを確認する。
 - AI利用不可でも保存、手動分類、keyword検索が継続する。
 - Message再送やService Worker再起動で重複作成または部分保存が起きない。
 - Webプレビューで確認した主要画面と実拡張機能のスクリーンショットに意図しない構造差がない。
 
-P1機能を実装した後は、訪問／archive正整数入力、`frequentVisitReminderEnabled` とcanonical URL単位SUPPRESSED、archiveのhistory権限待ち、最小archive復元、QR checksum境界と異親同名Tag再preview、同一accountの `appDataFolder` 同期、別accountの通常Drive file権限共有、Drive競合4種のimmutable syncSnapshots／明示resolution plan／open中GC拒否／解決後30日保持／暗黙Label・edge remap拒否、標準Bookmark非破壊取込、context menuの危険URL拒否を追加する。
+P1機能を実装した後は、訪問／archive正整数入力、`frequentVisitReminderEnabled` とcanonical URL単位SUPPRESSED、archiveのhistory権限待ち、最小archive復元、QR checksum境界と異親同名Tag再preview、同一accountの `appDataFolder` 同期、別accountの通常Drive file権限共有、Drive競合4種のimmutable syncSnapshots／明示resolution plan／open中GC拒否／解決後30日保持／暗黙Label・edge remap拒否、標準Bookmark非破壊取込を追加する。context menuは設定欠損時の既定ON、ON／OFF反復、page／link各1件、worker再起動、登録失敗rollback、危険URL拒否、OFF直前の遅延clickでBookmarkが増えないことを実拡張E2Eで確認する。
 
 ### Playwrightで守る境界
 
@@ -145,9 +154,9 @@ P1機能を実装した後は、訪問／archive正整数入力、`frequentVisit
 
 - Webプレビューで主要fixtureとresponsive状態を目視する。
 - PlaywrightのHTML report、失敗／skip、screenshot差分、traceを確認する。
-- 対象Chromeへ拡張機能を読み込み、初回ホーム、popup、dashboard、フルページ検索、AI入力ポップアップ、保存、編集、カテゴリ・タグ作成／管理、設定の主要導線を操作する。
+- 対象Chromeへ拡張機能を読み込み、初回ホーム、popup、dashboard、フルページ検索、AI入力ポップアップ、保存、Tag-only Bookmark編集、Tag／Category side view作成、Tag親変更fan-out、Category使用状況、Category削除警告と再分類、設定の主要導線を操作する。P1実装後は一般設定から右クリック保存をON／OFFし、実際のpage／link menuの出現／消失と再起動後の維持を人間も確認する。
 - Prompt APIの検索／機能説明、実ショートカット競合、OS通知、canonical URL単位の「次回以降表示しない」、archiveのhistory権限待ち、QR checksum説明／カメラ読取、Driveアカウント選択／OAuth／明示resolution planと暗黙remapがないconflict解決等、自動環境で実証できない項目を確認する。
-- デザインシートとの視覚差、文言の理解しやすさ、フォーカス、スクリーンリーダー等の人間判断を記録する。
+- デザインシートとの視覚差、Tag編集のCategory候補／新規作成／draft復帰と親変更結果を理解できるか、Category cascade削除警告で対象・影響件数・Bookmark保持／再分類を理解できるか、文言、フォーカス、スクリーンリーダー等の人間判断を記録する。
 
 ### 最終承認の条件
 

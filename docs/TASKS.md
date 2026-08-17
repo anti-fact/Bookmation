@@ -51,12 +51,14 @@
 - [ ] カテゴリの `categoryUniqueName` とタグの `tagUniqueName` を各namespaceでglobal uniqueにする。カテゴリ名とタグ名の相互一致は許可する。
 - [ ] Label Normalizer v1を、project-vendored Unicode 15.1.0のNFKC／`White_Space`／`Default_Ignorable_Code_Point`／`CaseFolding.txt` C＋F assetで実装する。runtime ICUへ依存せず、生成assetのhashを実装時に固定する。
 - [ ] Category／Tagのtombstone中も名前を予約し、同名別IDを拒否する。削除済みなら物理回収まで別名だけを許し、回収後に予約を解放する。
-- [ ] Bookmark／Category／Tagの削除は確認なしのsoft-deleteとし、tombstoneの `deletedAt` とrevisionを保存する。削除Undo用のtoken、期限、復元経路は作らない。
+- [ ] Bookmark／Tagは確認なしのsoft-deleteとし、Categoryは警告確認後にCategory／全子Tag／関連edgeをcascade soft-deleteする。いずれもtombstoneの `deletedAt` とrevisionを保存し、削除Undo用のtoken、期限、復元経路は作らない。
 - [ ] active Tagへactive親Categoryを必須とする。tombstone Tagのdeleted親参照は許し、全子Tag tombstoneが消滅するまで親Categoryの物理GCをblockする。
+- [ ] BookmarkのCategory関連を選択Tagの親から自動導出する。Category直接編集は拒否し、管理モードのTag親変更ではTag／選択親のexpected revisionとsubmit開始時に1回発行する `tag-update:` requestIdを検証して、全参照BookmarkのCategory closure・revision・検索派生データ、同期Outbox、mutation receiptを原子的に更新する。同じrequest再送は同じ `UpdateTagResult` へ収束し、別payloadでのrequestId再利用を拒否する。AI再分類Jobは作らない。
+- [ ] Category cascade削除と、影響Bookmarkを保持したPENDING再分類Job作成を1 transactionにする。AI失敗はNEEDS_REVIEWと手動分類へ送る。
 - [ ] `(bookmarkId, labelId)` edge と作成 request を冪等にする。
 - [ ] Bookmark と PENDING Job を同一 transaction で保存する。
 - [ ] SearchDocument と favicon / thumbnail Blob の再構築・回収境界を作る。
-- 完了条件: JSON不正、Normalizer v1、カテゴリ／タグ名競合、tombstone予約、削除後の同名作成拒否、削除Undo経路なし、namespace分離、複数カテゴリ／タグ、再送、中断migrationの自動テストが通る。
+- 完了条件: JSON不正、Normalizer v1、カテゴリ／タグ名競合、tombstone予約、削除後の同名作成拒否、削除Undo経路なし、namespace分離、Tag親変更の原子的fan-outとAI再分類なし、Category自動導出、Category cascadeと再分類、再送、中断migrationの自動テストが通る。
 
 ### TASK-004: popup・commands・保存
 
@@ -73,8 +75,8 @@
 - [ ] `savedAt desc` の最近追加とlabel条件一覧を実装する。
 - [ ] sticky headerに検索画面を開く入口、AI button、件数、LIST / GRID segmentを置く。
 - [ ] カテゴリを常時表示し、タグをclick / keyboard disclosure、pointer hover previewで表示する。
-- [ ] 全項目にedit buttonを置き、name、URL、カテゴリ、タグを別々に変更できるmodalを実装する。
-- [ ] カテゴリ／タグ入力中に既存候補を最大8件表示し、各説明横の新規作成ボタンから同じmodal内のside viewへ移る。
+- [ ] 全項目にedit buttonを置き、name、URL、Tagだけを変更できるmodalを実装する。Categoryは選択Tagの親から自動導出して読取表示する。
+- [ ] Tag入力中に既存候補を最大8件表示し、説明横の新規作成ボタンから同じmodal内のTag作成side viewへ移る。
 - [ ] Bookmark削除は確認画面を挟まずsoft-deleteする。削除後にUndo toast、復元ボタン、Undo用errorを表示しない。
 - [ ] cursor infinite scroll、追加失敗 retry、終端、back-to-top を実装する。
 - [ ] 弁当表示、列数設定、表示数変更プルダウン、右 sidebar がないことを確認する。
@@ -86,11 +88,14 @@
 - [ ] フルページ検索とAI入力ポップアップを開くボタン、カテゴリ・タグ新規作成、名前付きcloseを置く。
 - [ ] 新規作成ボタンから種類をプルダウンで選び、作成modalを開く。閉じるまで連続作成できるようにする。
 - [ ] カテゴリ／タグ作成でtombstoneを含む各namespace内の正規化名重複を拒否する。有効項目なら元画面で選択し、削除済みなら物理回収まで別名を案内する。
-- [ ] タグ作成では親カテゴリを必須選択し、親をまたいでも同名タグを作らない。タグ親変更はP0で提供しない。
+- [ ] タグ作成ではactiveな既存カテゴリを入力し、一致度の高い候補を最大8件から必須選択する。親をまたいでも同名タグを作らない。
+- [ ] Tag作成画面にCategory新規作成ボタンを置き、同じmodal内のside viewへ移る。Tag入力draftを保持し、Category作成後はTag作成へ戻って新規Categoryを自動選択する。
 - [ ] headerの管理ボタンで管理モードへ切り替え、カテゴリリボン／タグチップのhover・focus時だけ鉛筆を示し、選択で編集modalを開く。
-- [ ] タグ編集modalに親カテゴリを読取専用で表示する。親カテゴリ変更は [ISSUE-019](ISSUES.md) 決定後の別タスクとし、P0 commandへ含めない。
-- [ ] カテゴリ／タグ削除は確認画面を挟まずsoft-deleteし、削除Undoの操作や復元経路を用意しない。
-- [ ] 子タグが残るカテゴリはBLOCKし、「子タグを削除」「中止」だけを案内する。cascade deleteやタグ移動を出さない。
+- [ ] Tag編集modalは名前、親Category、作成元、利用件数を表示し、名前と親を変更できるようにする。親Categoryはactive候補を最大8件から選択し、説明横の新規作成から同じmodal内のCategory作成side viewへ移る。Tag draftを保持し、作成後は新規Categoryを自動選択する。
+- [ ] Tag親変更の保存ではTag／選択親expected revisionと `tag-update:` requestIdを送り、Tag IDとglobal unique名規則を維持したまま、全参照BookmarkのCategory closure・revision・検索文書を1 transactionで更新する。同じrequest再送はmutation receiptの同じ `UpdateTagResult` へ収束し、別payload再利用を拒否する。競合・失敗は全件rollbackし、AI再分類を行わない。
+- [ ] Category編集modalに、使用中Tagの実名一覧と件数、関連Bookmarkのunique件数を表示する。
+- [ ] Bookmark／Tagは確認画面を挟まずsoft-deleteし、削除Undoの操作や復元経路を用意しない。
+- [ ] Category削除だけは、全子Tagと関連edgeの連鎖削除、Tag件数、関連Bookmark unique件数、削除後の再分類を警告する。確認後にcascade soft-deleteし、Bookmarkを保持してPENDING再分類、AI失敗時NEEDS_REVIEW／手動分類へ送る。
 - [ ] label selection、infinite scroll、back-to-top、直前状態復元を実装する。
 - 完了条件: 親子関係をIDで識別し、通常モードでは対象Bookmark一覧へ移動し、管理モードでは作成・編集・削除をキーボードでも行える。
 
@@ -139,7 +144,7 @@
 
 - [ ] [TESTING.md](TESTING.md) の通常Webページとして、production React componentとTailwind tokenをfake Adapterで表示する。
 - [ ] popup、ホーム、カテゴリ一覧、主要dialogと、空／通常／大量／エラー／権限拒否等の版管理fixtureを直接開けるようにする。
-- [ ] 初回ホーム、検索候補0／8／9件以上、AI検索／機能質問、Unicode 15.1.0 vendored Normalizer asset＋hash、tombstone予約と親子GC、3 entityの確認なしdeleteと削除Undo経路なし、AI snapshot、設定境界値、URL単位SUPPRESSED、archive復元、Drive／QRをfixture化する。
+- [ ] 初回ホーム、検索候補0／8／9件以上、AI検索／機能質問、Unicode 15.1.0 vendored Normalizer asset＋hash、Tag作成／編集のCategory候補／side view／draft、親変更の0件／1件／多数Bookmark参照・revision競合・同request再送／別payload再利用拒否・rollback・AI再分類なし、Bookmark編集のTag-only入力、Category使用状況、Bookmark／Tagの確認なしdelete、Category警告付きcascade deleteと再分類、削除Undo経路なし、AI snapshot、設定境界値、URL単位SUPPRESSED、archive復元、Drive／QRをfixture化する。
 - [ ] `ui:preview`、`ui:build`、`test:e2e`、`test:e2e:ui` scriptを実装し、preview／fixture／debug UIを本番拡張成果物から除外する。
 - [ ] Playwrightの隔離persistent Chromium contextへビルド済み拡張機能を読み込み、popupと `chrome-extension://` ページを操作する。
 - [ ] AIエージェントがHTML report、失敗時screenshot、trace、console error、skipを保存して人間へ渡せるようにする。
@@ -149,8 +154,9 @@
 ### TASK-011: Recovery / quality
 
 - [ ] worker停止、AI Host終了、message再送、DB transaction失敗をテストする。
-- [ ] 確認なし削除、削除後の同名作成拒否、削除Undo経路がないこと、物理回収後の名前再利用をテストする。
+- [ ] Bookmark／Tagの確認なし削除、Category警告後のcascade soft-delete、影響Bookmark保持とPENDING／NEEDS_REVIEW再分類、削除後の同名作成拒否、削除Undo経路がないこと、物理回収後の名前再利用をテストする。
 - [ ] runtime ICU差に依存しないNormalizer golden vector、active／tombstone Tagの親状態、子Tag tombstone残存中の親GC拒否をテストする。
+- [ ] Tag親変更で全参照BookmarkのCategory edge、revision、SearchDocumentが原子的に更新されること、途中失敗で全件rollbackすること、同じrequest再送はreceiptへ収束し別payload再利用を拒否すること、AI再分類Jobを作らないことをテストする。
 - [ ] 1万件規模でinfinite scroll、count、フルページkeyword候補、可変高タグを測る。
 - [ ] keyboard、screen reader、200% zoom、sticky offset、dialog、back-to-top を確認する。
 - [ ] lint、typecheck、unit、component、E2E、build を CI で実行する。
@@ -159,7 +165,7 @@
 
 ### TASK-012: P0 integrated demo
 
-- [ ] 初回ホーム、popup shortcut表示、現在ページ／URL保存、分類、settings、フルページkeyword、AI検索／機能質問、edit/deleteを一連にする。
+- [ ] 初回ホーム、popup shortcut表示、現在ページ／URL保存、分類、settings、フルページkeyword、AI検索／機能質問、Tag-only Bookmark edit、Tag／Category side view作成、Tag親変更fan-out、Category cascade delete／再分類を一連にする。
 - [ ] LIST / GRID、infinite scroll、full-screen category list、back-to-topを示す。
 - [ ] AI対応／非対応の両経路を用意する。
 - [ ] [REQUIREMENTS.md](REQUIREMENTS.md) の P0 を照合する。
@@ -178,7 +184,7 @@
 | TASK-103 | QR共有／読取取込 | Backlog | TASK-003、010 | 選択したBookmarkをQRで交換できる |
 | TASK-104 | Google Drive同期・権限共有 | Backlog | TASK-003、010、011 | 同一アカウント同期と別アカウント共有を混ぜずに扱える |
 | TASK-105 | Chrome標準Bookmarkインポート | Backlog | TASK-003、010 | 元treeを変えずpreview後に専用領域へコピーできる |
-| TASK-106 | context menu保存 | Backlog | TASK-004、010 | page／linkを右クリックから共通use caseで保存できる |
+| TASK-106 | context menu保存 | Backlog | TASK-003、004、010 | 一般設定toggleに従ってpage／link menuを登録／解除し、ON時だけ共通use caseで保存できる |
 
 ### P1タスクの確定受け入れ条件
 
@@ -186,6 +192,7 @@
 - **TASK-102**: アーカイブ化閾値は正整数の日数入力とし、最新UIにない `autoArchiveEnabled` を要求しない。初回開始時にhistory権限の目的を説明し、拒否時は日数を保持して「権限待ち」で停止する。notificationsは要求しない。archive後はカテゴリ・タグ、ページ名、URLだけを保持し、設定のリストから復元する。
 - **TASK-103**: カテゴリ別、タグ別、個別Bookmarkを検索とcheckboxで選び、QRを生成する。checksumは破損／切詰め検出だけで真正性を保証しない。異親同名Tagは既存再利用／親変更せず、別名／skip／cancel後に再previewする。
 - **TASK-104**: 設定でGoogleアカウントを明示選択する。同一アカウント端末間同期は `appDataFolder` を使い、`appDataFolder` 自体は別アカウントへ共有しない。別アカウント共有は通常Drive file＋permissions/capabilities検証という別経路にする。同一field更新、update-delete、add-delete、名前競合を自動LWWせず `syncConflicts` へ隔離する。local／remote／baseをimmutableな `syncSnapshots` として保持し、版付きの明示resolution planだけを適用する。open中はGCせず、解決後30日保持し、Label ID／edgeを暗黙にremapしない。
+- **TASK-106**: 一般設定に `contextMenuBookmarkEnabled` switchを置き、旧settingsのfield欠損はONへ移行する。ONではpage／linkの固定IDを各1件だけ表示し、OFFではBookmation所有IDだけを解除する。設定は端末固有でDrive同期せず、Service Worker再起動後も整合し、OFF直前の遅延clickでは保存しない。登録／解除失敗時は以前の実効値へ戻してエラーを表示する。
 
 ## 更新規則
 

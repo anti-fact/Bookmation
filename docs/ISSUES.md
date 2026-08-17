@@ -28,7 +28,6 @@
 | ISSUE-016 | Open | P1 | Chrome標準BookmarkのFolderを親カテゴリ／子タグへどう対応するか未定である | tagなし取込、folder path保持、利用者確認付き階層化を比較し、元tree非変更と重複規則を固定する |
 | ISSUE-017 | Open | P1 | QRへ収まらない共有をどう扱うか未定である | 分割QRまたは別の明示exportを決め、無言の切捨てを禁止する |
 | ISSUE-018 | Open | P0 | UI Webプレビューのrunner、Playwright／Chromium版、CI artifact保持条件が未確定である | Storybookまたは同等preview appを比較し、`ui:preview` / `ui:build` / `test:e2e` / `test:e2e:ui`、visual baseline、report／trace保持期間をTASK-013で固定する。通常Webページ、AIエージェント先行、人間最終受入という要件は変更しない |
-| ISSUE-019 | Open | P0 | Tagの親Categoryを後から変更できるかが未確定である | Tag名のglobal uniqueを守り、親変更時のBookmark割当、検索表示、AI再利用、履歴を決める |
 | ISSUE-020 | Open | P0 | keyword autocompleteは最大8件で確定したが、一致度と種類混在時の配分が未定である | 正規化、前方一致／部分一致、カテゴリ・タグ・Bookmarkの配分、同点規則、IME中の挙動を固定し、キーボード操作を試験する |
 
 ## 決定済み
@@ -51,19 +50,21 @@
 | ISSUE-D14 | Decided | 最終訪問日時と数値入力した期間で休眠Bookmarkを判定し、アーカイブ後はページ名、URL、カテゴリ、タグだけを利用者データとして残し、設定内リストから選択復元する | 2026-08-17の利用者依頼 |
 | ISSUE-D15 | Decided | ユーザー間共有は選択式QR生成／読取インポート、同一Googleアカウントの端末間同期は `appDataFolder`、所有権／共有権限を確認できる別アカウントとの共有は通常Drive fileとする | 2026-08-17の利用者依頼とDriveの共有境界。詳細はISSUE-011で閉じる |
 | ISSUE-D16 | Decided | 標準Bookmarkは明示操作でBookmationへコピーし、元データを変更しない | 2026-08-16の利用者依頼 |
-| ISSUE-D17 | Decided | page／linkのcontext menu保存を通常保存use caseへ合流させる | 2026-08-16の利用者依頼 |
+| ISSUE-D17 | Decided | page／linkのcontext menu保存を通常保存use caseへ合流させ、一般設定の端末固有toggleで登録／解除する | 2026-08-16の保存要件と2026-08-17の設定toggle要件 |
 | ISSUE-D18 | Decided | DB正本はIndexedDB上の版付きJSON互換documentとし、Blobは別Storeにする | 2026-08-16の利用者依頼 |
 | ISSUE-D19 | Decided | 本番UIを通常Webページでモック表示し、AIエージェントがPlaywrightで実拡張を確認した後、人間が最終受入する | 2026-08-16の利用者による明示要件。詳細はTESTING.mdを正本とする |
 | ISSUE-D20 | Decided | 訪問回数閾値とアーカイブ閾値は数値入力、AI細分化度だけは0〜4のスライダーとする。0でも既存カテゴリ／タグの自動付与は続ける | 2026-08-17の利用者依頼 |
 | ISSUE-D21 | Decided | `runtime.onInstalled` の `reason=INSTALL` だけで初回ウェルカム画面を表示し、開始後の通常ホームを最近追加一覧にする | 2026-08-17の利用者依頼と更新済みSVG。更新／開発時reloadを初回扱いしない |
-| ISSUE-D22 | Decided | Bookmark編集のカテゴリ／タグ入力を分け、それぞれ既存候補の選択と同一モーダル内サイドビューでの新規作成を提供する | 2026-08-17の利用者依頼 |
+| ISSUE-D22 | Decided | Bookmark編集では名前、URL、Tagだけを編集し、CategoryはTagの親から自動導出する。Tagの新規作成は同一モーダル内サイドビューで提供する | 2026-08-17の最新利用者依頼。CategoryをBookmarkから直接編集しない |
 | ISSUE-D23 | Decided | カテゴリ・タグ一覧の新規作成プルダウン、閉じるまでの連続作成、管理モード、項目選択編集、hover／focus時の鉛筆表示を採用する | 2026-08-17の利用者依頼と更新済みSVG |
-| ISSUE-D24 | Decided | Bookmark、カテゴリ、タグの削除では確認画面を表示しない | 2026-08-17の利用者依頼。削除は論理削除とし、子Tagが残るCategoryはblockする |
+| ISSUE-D24 | Decided | BookmarkとTagの削除では確認画面を表示しない。Category削除だけは全子Tagの連鎖削除と影響Bookmark再分類を警告して確認する | 2026-08-17の最新利用者依頼。いずれも論理削除でUndoは提供しない |
 | ISSUE-D25 | Decided | AI細分化度0／1／2／3／4の1件あたり新規Tag上限を0／1／2／4／6件とし、0でも既存カテゴリ／タグの自動付与を続ける | 2026-08-17の0〜4要件を実装可能な上限へ具体化した |
-| ISSUE-D26 | Decided | 有効な子Tagが残るCategoryの削除はblockし、cascade deleteしない | 親子階層を壊さず、削除確認なしでも子Tagの意図しない一括削除を防ぐため |
+| ISSUE-D26 | Decided | Category削除は確認後、Category、全子Tag、関連edgeを原子的にcascade soft-deleteし、Bookmark本体を残して影響Bookmarkを再分類する | 2026-08-17の最新利用者依頼。AI失敗はNEEDS_REVIEWと手動分類へ送る |
 | ISSUE-D27 | Decided | Label名称正規化v1はproject-vendored Unicode 15.1.0のNFKC／`White_Space`／`Default_Ignorable_Code_Point`／`CaseFolding.txt` C＋F assetだけを使い、runtime ICUへ依存しない。生成assetのhashは実装時に固定する | 端末・入力経路によって「同名」判定が変わらないようにする。検索queryのtoken正規化とは分離し、version更新時は再索引前に競合を隔離する |
-| ISSUE-D28 | Decided | 自動archiveの設定は日数の数値入力だけとし、独立した有効／無効toggleは現行UIへ追加しない。toggleを持つのは自動Bookmarkリマインダーだけとする | 2026-08-17の最新設定要件と更新済みデザインシート |
+| ISSUE-D28 | Decided | 自動archiveの設定は日数の数値入力だけとし、独立した有効／無効toggleは現行UIへ追加しない。AI細分化だけをsliderにし、自動Bookmarkリマインダーと右クリック保存は独立したtoggleとする | 2026-08-17の最新設定要件と更新済みデザインシート |
 | ISSUE-D29 | Decided | active Tagだけにactive親Categoryを必須とする。tombstone Tagはdeleted親を参照でき、親Categoryの物理GCは全子Tag tombstoneが消滅するまでblockする | soft-delete中の親子参照とtombstoneの同期安全性を保つため |
 | ISSUE-D30 | Decided | P1 Drive競合はimmutable syncSnapshotsと明示resolution planで扱う。open中は参照snapshotをGCせず、解決後30日保持し、Label ID／edgeを暗黙にremapしない | 競合解決の監査性と巻戻し余地を保ち、同名禁止・親子edgeを暗黙処理で破壊しないため |
-| ISSUE-D31 | Decided | Bookmark、Category、Tagの削除Undoは提供しない。削除後のUndo toast／token／期限／復元入口を作らず、確認なしの論理削除tombstoneと物理回収条件だけを維持する | 2026-08-17の利用者による最新上書き。アーカイブからの復元とDrive同期競合のtombstone処理は削除Undoではないため維持する |
+| ISSUE-D31 | Decided | Bookmark、Category、Tagの削除Undoは提供しない。削除後のUndo toast／token／期限／復元入口を作らず、論理削除tombstoneと物理回収条件を維持する。Bookmark／Tagは確認なし、Categoryだけはcascade影響警告を確認する | 2026-08-17の利用者による最新上書き。アーカイブからの復元とDrive同期競合のtombstone処理は削除Undoではないため維持する |
+| ISSUE-D32 | Decided | `contextMenuBookmarkEnabled` は端末固有で既定ONとする。ONではpage／link固定IDを冪等登録し、OFFではBookmation所有IDを解除して遅延clickも拒否する | 2026-08-17の利用者による設定toggle追加。既存の右クリック保存を維持し、Drive同期や権限取消とは分離する |
+| ISSUE-019 | Decided | 管理モードのTag編集から親Categoryを変更できる。activeな既存Categoryを最大8候補から選ぶか同一モーダルのサイドビューで作成し、Tag／親expected revisionとsubmit開始時に1回発行する `tag-update:` requestIdを検証して全参照BookmarkのCategory closure・revision・検索派生データを原子的に更新する。同request再送は同じ `UpdateTagResult` へ収束する | 更新済みデザインシートと2026-08-17の最新利用者指示。親変更ではAI再分類を行わず、Tag名のglobal uniqueを維持する。Category削除は別の `category-delete:` namespaceとする |
 | ISSUE-006 | Decided | pnpm 10.15.1、Plasmo 0.90.5、React 18.3.1、Tailwind 3.4.17、TypeScript 5.9.2。推奨 Node 22。品質コマンドは `dev` / `build` / `lint` / `typecheck` / `test` | TASK-001 の scaffold と lockfile。`engines` は Plasmo/Parcel の解決バグを避けるため置かない |

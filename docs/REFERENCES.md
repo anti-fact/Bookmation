@@ -7,15 +7,17 @@
 
 ### 2026-08-17 の最新依頼と更新済みデザインシート
 
-最新の明示要件により、カテゴリ／タグの平坦モデルを廃止し、カテゴリを親、タグを子とする。カテゴリ名とTag名はそれぞれ論理削除中を含めて正規化後にglobal uniqueとし、Tagは親Categoryが異なっても同名別IDを作らない。Bookmark編集ではカテゴリとタグを別入力にし、入力中の既存候補をkeyword一致度順で最大8件表示する。各入力の新規作成は同一モーダル内のサイドビューで行う。カテゴリ・タグ一覧には種類選択式の新規作成と管理モードを置き、管理中の項目選択で編集モーダルを開く。作成モーダルは閉じるまで連続利用し、Tagには親Categoryを必須とする。同名入力時は既存候補を選択する元画面へ戻り、削除済み同名tombstoneがあれば物理回収まで別名を入力するよう案内する。削除確認画面は設けず論理削除するが、2026-08-17の追加上書きにより削除Undo／復元入口は設けない。子Tagが残るCategoryの削除はblockする。アーカイブ一覧からの復元とDrive同期競合のtombstone処理は別機能として維持する。
+最新の明示要件により、カテゴリを親、タグを子とする。カテゴリ名とTag名はそれぞれ論理削除中を含めて正規化後にglobal uniqueとし、Tagは親Categoryが異なっても同名別IDを作らない。Bookmark編集では名前、URL、Tagだけを変更し、CategoryはTagの親から自動導出する。Tag作成／編集ではactiveな既存Categoryを入力し、keyword一致度の高い候補を最大8件から必ず選ぶ。必要なCategoryは同じモーダルのサイドビューで新規作成し、Tag draftを保持して戻った時に自動選択する。Tag編集で親を変更する場合はTagと選択親のexpected revisionを検証し、全参照BookmarkのCategory closure・revision・検索派生データを1 transactionで更新する。Tag IDとglobal unique名規則を維持し、AI再分類は行わない。Category編集には使用中Tagの実名一覧と件数、関連Bookmark unique件数を表示する。同名入力時は既存候補を選択する元画面へ戻り、削除済み同名tombstoneがあれば物理回収まで別名を入力するよう案内する。
+
+BookmarkとTagは確認画面なしで論理削除する。Category削除だけは、全子Tagと関連edgeの連鎖削除、影響Tag件数、関連Bookmark unique件数、削除後の再分類を警告して確認する。承認後はCategory、全子Tag、関連edgeをcascade soft-deleteし、Bookmark本体は保持して分類JobをPENDINGにする。AI分類失敗はNEEDS_REVIEWと手動分類へ送り、削除Undo／復元入口は設けない。アーカイブ一覧からの復元とDrive同期競合のtombstone処理は別機能として維持する。
 
 keyword検索はブックマーク一覧とカテゴリ・タグ一覧のどちらから開始しても全画面検索ページへ切り替える。入力中はカテゴリ、タグ、Bookmarkを合わせて最大8候補まで表示する。AI自然言語検索は入力元画面上のポップアップ内で入力と応答を確認し、分類検索だけでなくBookmationの機能全般に関する説明も受け付ける。
 
-設定では訪問回数閾値とアーカイブ閾値を単位付き数値入力にし、AIタグ細分化度だけを0〜4のスライダーにする。1件あたりのAI新規Tag上限は0／1／2／4／6件で、0でも既存カテゴリ／タグへの自動付与は続ける。自動Bookmarkリマインダーは有効／無効を選べ、通知には対象URLの `次回以降表示しない` を置く。アーカイブ済みBookmarkの利用者データはページ名、URL、カテゴリ、タグだけを残し、設定内のリストから選択復元する。
+設定では訪問回数閾値とアーカイブ閾値を単位付き数値入力にし、AIタグ細分化度だけを0〜4のスライダーにする。1件あたりのAI新規Tag上限は0／1／2／4／6件で、0でも既存カテゴリ／タグへの自動付与は続ける。自動Bookmarkリマインダーは有効／無効を選べ、通知には対象URLの `次回以降表示しない` を置く。右クリック保存も一般設定の端末固有toggleで有効／無効にし、既定ON、OFFではBookmationのpage／link menuを解除する。アーカイブ済みBookmarkの利用者データはページ名、URL、カテゴリ、タグだけを残し、設定内のリストから選択復元する。
 
 設定の共有では、カテゴリ別、タグ別、個別Bookmarkを検索とチェックボックスで選ぶQR生成と、QR読取インポートを扱う。同一Googleアカウントの端末間同期は `appDataFolder`、所有権または共有権限を確認できる別アカウントとの共有は通常Drive fileを使い、対象アカウントを選ぶ。DriveのOAuth scope、permissions／capabilities、競合方式は [ISSUES.md](ISSUES.md) の ISSUE-011 で追跡する。
 
-更新済み `デザインシート.svg` を2026-08-17にPNGへレンダリングして目視した。初回ウェルカム、LIST / GRID、Bookmark編集、AI応答ポップアップ、カテゴリ親リボンと子タグチップを並べる全画面一覧、新規作成プルダウン、管理モード、設定の一般／アーカイブ／共有ナビゲーション、訪問回数とアーカイブの数値欄、リマインダー切替、0〜4スライダーを確認した。画面配置・外観の正本であり、挙動は最新の明示要件を優先する。現行SVGのSHA-256は `067d7b4a6b242a3aefa51f386cee4e57baf1c8896d7b4f26f54d420d5edc89ca` である。
+更新済み `デザインシート.svg` を2026-08-17の画面配置・外観の正本とし、挙動は最新の明示要件を優先する。現行SVGのSHA-256は `44b39333bd9d91d3f617508703273bfed0c766802ecce935226a8c62c0bcd751` である。
 
 ### 2026-08-16 の依頼
 
@@ -90,7 +92,8 @@ UI 参考サイトは静的確認が中心であり、全ブレークポイン�
 - [`chrome.history`](https://developer.chrome.com/docs/extensions/reference/api/history) — `visitCount`、`lastVisitTime`、`search()` / `onVisited` と `history` permission。訪問閾値と最終訪問判定の根拠として2026-08-16に確認。
 - [`chrome.alarms`](https://developer.chrome.com/docs/extensions/reference/api/alarms) — 定期実行、端末sleep時の遅延、起動時のalarm存在確認。訪問／archive評価の根拠として2026-08-16に確認。
 - [`chrome.notifications`](https://developer.chrome.com/docs/extensions/reference/api/notifications) — 保存リマインダー通知のAPIとpermission。2026-08-16確認。
-- [`chrome.contextMenus`](https://developer.chrome.com/docs/extensions/reference/api/contextMenus) — page／link contextの右クリック操作とpermission。2026-08-16確認。
+- [`chrome.contextMenus`](https://developer.chrome.com/docs/extensions/reference/api/contextMenus) — page／link context、固定IDの `create()` / `remove()`、Service Workerでの `onClicked`、`contextMenus` permission。設定toggleの登録／解除契約として2026-08-17に再確認。
+- [`chrome.storage`](https://developer.chrome.com/docs/extensions/reference/api/storage) — 端末固有設定の保存と `storage.onChanged` によるService Worker側の即時反映。2026-08-17確認。
 - [`chrome.bookmarks`](https://developer.chrome.com/docs/extensions/reference/api/bookmarks) — 標準Bookmark treeの読取と `bookmarks` permission。Bookmationは取込時に読取りだけを使う。2026-08-16確認。
 - [`chrome.permissions`](https://developer.chrome.com/docs/extensions/reference/api/permissions) — 任意権限を利用者操作から要求・確認・削除する設計根拠。2026-08-16確認。
 - [`chrome.identity`](https://developer.chrome.com/docs/extensions/reference/api/identity) — extension OAuth2設定と明示操作からのinteractive token取得。2026-08-16確認。
@@ -117,7 +120,7 @@ UI 参考サイトは静的確認が中心であり、全ブレークポイン�
 ### アクセシビリティ
 
 - [WAI-ARIA APG: Slider Pattern](https://www.w3.org/WAI/ARIA/apg/patterns/slider/) — 細分化スライダーのキーボード操作と値説明。
-- [WAI-ARIA APG: Combobox Pattern](https://www.w3.org/WAI/ARIA/apg/patterns/combobox/) — 統合検索、カテゴリ入力、タグ入力で最大8件の既存候補を表示し、キーボード選択と展開状態を伝える設計候補。
+- [WAI-ARIA APG: Combobox Pattern](https://www.w3.org/WAI/ARIA/apg/patterns/combobox/) — 統合検索、Tag入力、Tag作成／編集時の親Category入力で最大8件の既存候補を表示し、キーボード選択と展開状態を伝える設計候補。
 - [WCAG 2.2](https://www.w3.org/TR/WCAG22/) — キーボード、フォーカス、コントラスト、リフローの基準。
 
 ## 参照時の注意

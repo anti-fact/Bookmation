@@ -50,13 +50,15 @@
 - [ ] **TODO-019: フルページ検索の入力候補fixtureを作る**
   - 完了条件: ブックマーク一覧／カテゴリ・タグ一覧の両入口、IME、0件、1件、8件、9件以上、カテゴリ名とタグ名の相互一致、古い応答を用意し、候補が最大8件で選択後に正しい対象へ移動する。
 - [ ] **TODO-020: カテゴリ・タグ作成／管理fixtureを作る**
-  - 完了条件: 種類プルダウン、親カテゴリ選択、閉じるまでの連続作成、create-only、tombstone同名競合時の別名案内、active Tag／active親、tombstone Tag／deleted親、子Tag tombstone残存中の親Category GC拒否、タグ親読取専用、管理モード、hover／focus鉛筆、3 entityの確認なしsoft-delete、削除Undoの操作／token／復元経路なし、削除後の同名作成拒否、子タグ残存カテゴリの削除／中止案内だけを再現できる。親変更はISSUE-019決定後とする。
+  - 完了条件: 種類プルダウン、Tag作成／編集のactive Category候補0／1／8／9件以上と必須選択、同じmodalのCategory作成side view、Tag draft保持／復帰後の自動選択、Tag親変更の参照Bookmark 0件／1件／多数・同じ旧親を残す別Tagあり／なし・Tag／親revision競合・同request再送／別payload再利用拒否・mutation receipt・全件rollback・AI再分類なし、閉じるまでの連続作成、create-only、tombstone同名競合時の別名案内、active Tag／active親、tombstone Tag／deleted親、global Tag名unique、管理モード、hover／focus鉛筆、Category編集の使用Tag実名／件数とBookmark unique件数、Bookmark／Tagの確認なしsoft-delete、Category警告の取消／確認／revision競合、cascade soft-delete、Bookmark保持とPENDING／NEEDS_REVIEW再分類、削除Undo経路なし、削除後の同名作成拒否、親Category GC拒否を再現できる。
 - [ ] **TODO-021: 初回ホームとBookmark編集fixtureを作る**
-  - 完了条件: `runtime.onInstalled` のINSTALL／UPDATEと再訪のホーム分岐、カテゴリとタグの別入力、最大8件の既存候補、各新規作成ボタン、同じmodal内side view、入力draft保持を確認できる。
+  - 完了条件: `runtime.onInstalled` のINSTALL／UPDATEと再訪のホーム分岐、名前／URL／Tagだけの編集、Tag最大8候補、Category直接入力なし、Category自動導出、Tag新規作成ボタン、同じmodal内side view、入力draft保持を確認できる。
 - [ ] **TODO-022: archive／共有fixtureを作る**
   - 完了条件: 最小archive document、複数選択復元、カテゴリ別／タグ別／個別QR選択、checksum真正性非保証、異親同名Tagの別名／skip／cancel再preview、Driveアカウント選択、同一accountのappDataFolder、別accountの通常Drive file、同一field／update-delete／add-delete／名前競合、immutable syncSnapshots、明示resolution plan、open中GC拒否、解決後30日保持、暗黙Label／edge remap拒否を個人情報なしで再現できる。
 - [ ] **TODO-023: Label Normalizer v1 fixtureを作る**
   - 完了条件: Unicode 15.1.0のNFKC／`White_Space`／`Default_Ignorable_Code_Point`／`CaseFolding.txt` C＋F assetをprojectへ生成し、asset hash、runtime ICU非依存、normalizerVersion、tombstone予約、物理回収後の再利用をgolden／拒否fixtureで固定する。
+- [ ] **TODO-024: 右クリック保存toggle fixtureを作る**
+  - 完了条件: `contextMenuBookmarkEnabled` のfield欠損→ON、破損値→OFF、ON／OFF反復、page／link固定ID各1件、登録／解除失敗rollback、Service Worker再起動、OFF直前の遅延click、危険schemeを再現し、OFF中にBookmarkが増えないことを確認できる。
 
 ## 完了済み
 

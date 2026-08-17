@@ -337,47 +337,59 @@ Chromeは拡張service workerを非活動時に終了するため、グローバ
 **症状**
 
 - タグが親カテゴリの外に表示される、または親なしで保存される。
-- Bookmark編集のカテゴリ入力とタグ入力が同時に置き換わる。
+- Bookmark編集にCategory入力が表示される、またはTagを変えてもCategoryが自動更新されない。
+- Tag作成／編集で既存Category候補を選べない、Category作成side viewから戻るとTag入力が消える。
+- Tagの親変更後、一部BookmarkのCategory表示または検索結果だけが古いままになる、あるいは不要なAI再分類が開始される。
 - 作成modalが1件ごとに閉じる、既存項目を新規として追加できてしまう。
 - 管理モードで鉛筆が表示されない、または通常モードのクリックで編集が開く。
-- カテゴリ／タグ削除後にUndo操作が表示される。
+- Category編集の使用中Tagまたは関連Bookmark件数が実データと合わない。
+- Bookmark／Tag削除後にUndo操作が表示される、またはCategory削除前の警告が出ない。
 
 **確認**
 
 1. TAGの親カテゴリIDを確認する。active TAGなら親CATEGORYもactive、tombstone TAGなら親CATEGORY recordが物理的に残っていることを確認する。
-2. Bookmark編集でカテゴリ／タグが別field・別候補集合となり、各候補が最大8件か確認する。
-3. 新規作成ボタンが同じmodal内のside viewを開き、元draftを保持するか確認する。作成画面は既存IDの選択／関連付けを行わず、同名競合時は既存項目を選ぶ元画面または別名入力へ案内する。
-4. 全画面一覧の管理状態と、hover／focus時の鉛筆表示を確認する。
-5. タグ編集modalでは親カテゴリが読取専用であることを確認する。親変更はISSUE-019の決定前に有効化しない。
-6. 削除に確認画面が出ずsoft-delete revisionが残ること、Undo用token／期限／復元操作が作られないことを確認する。activeな子タグが残るカテゴリはBLOCKされ、cascade deleteされないこと、子Tag tombstoneが残る親Categoryは物理回収されないことも確認する。
+2. Bookmark編集が名前、URL、Tagだけを更新し、Category edgeを選択Tagの親から同じtransactionで導出しているか確認する。
+3. Tag作成／編集のCategory入力がactive候補だけをkeyword一致度で最大8件返し、候補IDの選択を必須としているか確認する。
+4. Tag作成／編集内のCategory新規作成ボタンが同じmodalのside viewを開き、Tag draftを保持し、作成後に戻って新規Categoryを自動選択するか確認する。
+5. 作成画面は既存IDの選択／関連付けを行わず、同名競合時は既存項目を選ぶ元画面または別名入力へ案内することを確認する。
+6. 全画面一覧の管理状態とhover／focus時の鉛筆表示、Category編集のTag実名一覧・件数と関連Bookmark unique件数が同じrevision snapshotか確認する。
+7. Tag編集modalで名前と親Categoryを変更でき、保存commandがTagと選択親のexpected revision、およびsubmit開始時に1回発行した `tag-update:<UUID>` requestIdを持つことを確認する。同一retryでIDを再利用し、初回とreceipt再送で同じ `UpdateTagResult` を返す必要がある。親変更時はTag、新旧Category、全参照active Bookmark／edgeを1 transactionで再検証し、BookmarkのCategory closure・revision・検索文書、同期Outbox、mutation receiptを更新する一方、AI再分類Jobは作らないことを確認する。別payload再利用は拒否でなければならない。
+8. Bookmark／Tag削除は確認なし、Category削除だけはTag実名・件数、Bookmark unique件数、連鎖削除、再分類を警告することを確認する。Category削除commandにexpected revision、`expectedImpactFingerprint`、警告確認済みflagが揃い、preview stale時は無変更で再警告することも確認する。全削除でUndo用token／期限／復元操作を作らず、子Tag tombstoneが残る親Categoryを物理回収しないことも確認する。
 
 **対処**
 
 - 親カテゴリが存在しないタグの保存を拒否し、表示側だけで補正しない。
-- 既存候補の選択と新規作成を別commandにし、作成画面では既存IDを追加しない。カテゴリ／タグ各namespaceの同名作成を拒否し、作成成功後もmodalは利用者が閉じるまで維持する。
+- Bookmark更新payloadからCategory入力を除き、Tag親から派生Categoryを再構築する。Tag親変更は管理モードの利用者commandだけに限定し、AI／Import／同期競合から暗黙実行しない。
+- 既存候補の選択と新規作成を別commandにし、作成画面では既存IDを追加しない。カテゴリ／タグ各namespaceの同名作成を拒否し、作成成功後もmodalは利用者が閉じるまで維持する。side view遷移はdraftとfocus復帰先を保存する。
+- Tag親変更で1件でもrevision競合または更新失敗があれば全件rollbackし、dialogとdraftを保持する。部分更新を修復するためにAI再分類を起動せず、正本transactionを修正して再実行する。
 - 通常モードはBookmark一覧への移動、管理モードは編集modalという操作を混ぜない。
-- 削除確認画面やUndo toastを追加せず、対象名を削除操作自体へ明示してsoft-deleteする。子タグが残る親カテゴリでは子タグ削除または中止だけを案内し、移動や連鎖削除を出さない。
+- Bookmark／Tagには削除確認やUndo toastを追加しない。Categoryだけは同じdetail snapshotから得た `expectedImpactFingerprint` とexpected revisionを警告確認済みcommandへ含める。実行時の集合が変わって `CATEGORY_DELETE_PREVIEW_STALE` になった場合は自動再送せず、最新のTag実名・件数とBookmark件数を再取得して警告し直す。成功応答だけを失った同一Category・requestIdの再送は追加Jobなしのno-op成功とし、別CategoryへのrequestId再利用は拒否する。
 
 ## 削除処理が正しくない
 
 **症状**
 
-- 削除前に確認画面が表示される、または削除直後にUndo toast／復元操作が表示される。
+- Bookmark／Tag削除前に確認画面が表示される、Category削除前の警告が表示されない、または削除直後にUndo toast／復元操作が表示される。
 - 削除した項目がactive一覧や検索結果に残る。
 - Category／Tag削除後に同名の別IDを作成できる。
+- Categoryだけ削除されて子Tag／edgeが残る、Bookmark本体まで消える、または再分類が開始されない。
 
 **確認**
 
-1. Bookmark／Category／Tagのdeleteが物理削除ではなく、`deletedAt` とrevisionを持つsoft-deleteを作成しているか確認する。
-2. Undo用message、token、期限、error code、設定／管理画面の削除復元入口が存在しないことを確認する。
-3. active一覧、検索索引、通常の候補からtombstoneが除外されることを確認する。
-4. Category／Tagのtombstoneが物理回収まで名前を予約し、同名別ID作成を拒否することを確認する。
-5. 子Tag tombstoneが残る親Categoryの先行GCを拒否し、Drive同期ではdelete tombstoneを競合規則どおり扱うことを確認する。
+1. Bookmark／Tagのdeleteが確認なしのsoft-deleteであること、Category deleteは `GetCategoryEditDetail` の警告表示後に `DeleteCategoryCascade` を呼ぶことを確認する。
+2. Category警告に子Tagの実名一覧・件数、関連Bookmark unique件数、edge連鎖削除、Bookmark再分類が表示され、削除commandがexpected revision、`expectedImpactFingerprint`、`category-delete:<UUID>` requestId、`warningAcknowledged=true` を要求するか確認する。Tag更新の `tag-update:` requestIdを流用しない。
+3. Category、全子Tag、関連edgeの `deletedAt` とrevision更新、および影響BookmarkごとのPENDING再分類Job作成が1 transactionであるか確認する。Bookmark本体はactiveのままでなければならない。
+4. transaction途中失敗では全変更がrollbackされ、AI分類失敗ではBookmarkを残したままNEEDS_REVIEW／手動分類になるか確認する。
+5. Undo用message、token、期限、error code、設定／管理画面の削除復元入口が存在しないことを確認する。
+6. active一覧、検索索引、通常の候補からtombstoneが除外されることを確認する。
+7. Category／Tagのtombstoneが物理回収まで名前を予約し、同名別ID作成を拒否することを確認する。
+8. 子Tag tombstoneが残る親Categoryの先行GCを拒否し、Drive同期ではdelete tombstoneを競合規則どおり扱うことを確認する。
 
 **対処**
 
-- 削除確認画面とUndo UI／APIを追加せず、対象名を削除操作自体へ明示してsoft-deleteする。
+- Bookmark／Tagの削除確認画面と全削除のUndo UI／APIは追加しない。Category警告は削除対象と再分類への影響を理解するための必須導線として維持する。
 - 削除requestの再送を冪等にし、別のtombstoneや物理削除を重複実行しない。
+- Category cascadeの再送では同じtombstoneと再分類Jobを再利用し、Bookmarkを二重処理しない。
 - tombstoneの物理回収は名前予約、親子参照、同期outbox／競合参照の安全条件を満たしてから行う。
 - 誤って削除した項目をアーカイブ復元として扱わない。アーカイブ一覧からの復元はARCHIVED状態だけに限定する。
 
@@ -421,7 +433,8 @@ Chromeは拡張service workerを非活動時に終了するため、グローバ
 - Driveは設定で選択した接続アカウントと利用経路を確認する。同一アカウント同期なら `appDataFolder`、別アカウント共有なら通常Drive fileのowner、permissions、capabilities、必要scopeを確認する。tokenをログへ貼らない。
 - Driveの同一field更新、update対delete、add対delete、カテゴリ／タグ名前競合が自動LWWされず `syncConflicts` に残るか確認する。
 - 標準Bookmark取込は `bookmarks` 権限、Import Jobのcursor、skip／failed理由を確認し、Chrome側treeの不変性を確認する。
-- context menuは固定menu ID、`page` / `link` context、対象URL scheme、worker errorを確認する。
+- context menuは一般設定の `contextMenuBookmarkEnabled` 実効値、固定ID `bookmation-save-page` / `bookmation-save-link`、`page` / `link` context、対象URL scheme、`chrome.storage.onChanged` とworker errorを確認する。旧settingsのfield欠損はON、boolean以外の破損値はOFFへ移行される。
+- toggleがONなのに項目がない、OFFなのに残る、同名項目が重複する場合は、Service Worker再起動後のreconcile結果と `CONTEXT_MENU_RECONCILE_FAILED` を確認する。OFF直前のclickでBookmarkが増えていないことも確認する。
 
 **対処**
 
@@ -431,7 +444,8 @@ Chromeは拡張service workerを非活動時に終了するため、グローバ
 - `appDataFolder` を別アカウントへ共有しようとせず、通常Drive file共有へ戻す。owner／permissions／capabilities不一致、認証失効は明示的な選択／再接続で直し、ローカル編集とOutboxを消さない。
 - Drive競合をtimestampだけでLWWせず、`syncConflicts` の利用者解決へ回す。
 - 取込は失敗分だけ再実行し、元の標準Bookmarkを削除・更新しない。
-- 右クリック経路も通常のURL検証と重複判定を通し、権限やschemeを緩めて回避しない。
+- 設定を一度OFF、再度ONにして所有IDをreconcileする。それでも失敗する場合はworkerを再読込してChrome API errorを確認し、BookmarkデータやBookmationの全menuを削除しない。
+- 実装側はBookmation所有の2 IDだけを登録／解除し、`removeAll()` で解消しない。右クリック経路も現在設定、通常のURL検証、重複判定を通し、権限やschemeを緩めて回避しない。
 
 ## popupまたはshortcutが意図した操作をしない
 

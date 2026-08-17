@@ -22,7 +22,7 @@
 - 独自リモートバックエンドを置かず、データの正本はIndexedDB上の版付きJSON documentとする。Blobだけは別Storeへ分離する。
 - Bookmark保存をAI処理より先に完了し、AI失敗で保存データを失わない。
 - Prompt APIをService Workerで実行しない。対応確認済みのトップレベル拡張ページだけをAI Hostにする。
-- カテゴリを親、タグを子とする固定2階層とし、activeな各タグはactiveな親カテゴリIDを持つ。正規化名はCATEGORY内とTAG内でそれぞれglobal uniqueとし、タグは親をまたいでも同名別IDを許可しない。soft-delete中も名前を予約し、物理回収後だけ再利用できる。CATEGORYとTAGは別namespaceである。
+- カテゴリを親、タグを子とする固定2階層とし、activeな各タグはactiveな親カテゴリIDを持つ。Tagの親は管理モードの利用者操作で変更でき、BookmarkのCategory集合は常にTagの親から自動導出する。正規化名はCATEGORY内とTAG内でそれぞれglobal uniqueとし、タグは親をまたいでも同名別IDを許可しない。soft-delete中も名前を予約し、物理回収後だけ再利用できる。CATEGORYとTAGは別namespaceである。
 - active Tagだけにactive親Categoryを必須とする。tombstone Tagはdeleted親を参照できる。親Categoryの物理回収は、そのIDを参照する全子Tag tombstoneが消滅するまでblockする。
 - Label Normalizer v1はproject-vendored Unicode 15.1.0 assetだけを使い、runtime ICUへ依存しない。NFKC、`White_Space`、`Default_Ignorable_Code_Point`、`CaseFolding.txt` C＋F mappingと、実装時に生成・固定するasset hashを契約に含める。
 - AIは既存カテゴリを選択できるが、新規カテゴリを作成できない。
@@ -31,7 +31,7 @@
 - keyword検索は両一覧から開くフルページ検索へ最大8件の入力候補を返す。AI入力ポップアップはLabel／Bookmark検索とBookmationの機能説明を扱い、検索結果はLabelを先にし、順位・スコアを契約に含めない。
 - 訪問回数／archive日数は正整数設定とし、AI細分化だけをslider値にする。訪問保存は有効化時かつ閾値到達後、リマインダーで利用者が確認した場合だけ行う。「次回以降表示しない」は対象canonical URLだけを `SUPPRESSED` にし、globalな `frequentVisitReminderEnabled` と別URLのリマインダーは維持する。
 - archive後はカテゴリ・タグ、ページ名、URLだけを保持し、設定の一覧から選択して復元する。
-- ユーザー間共有はカテゴリ／タグ／個別Bookmarkを選んだQRと読取取込を使う。Driveは同一Googleアカウントの端末間同期を `appDataFolder`、別アカウントへの権限共有を通常Drive file＋permissions/capabilities検証として分離し、設定で対象アカウントを選ぶ。標準Bookmarkは明示取込、右クリック保存は共通保存use caseを使う。
+- ユーザー間共有はカテゴリ／タグ／個別Bookmarkを選んだQRと読取取込を使う。Driveは同一Googleアカウントの端末間同期を `appDataFolder`、別アカウントへの権限共有を通常Drive file＋permissions/capabilities検証として分離し、設定で対象アカウントを選ぶ。標準Bookmarkは明示取込とする。右クリック保存は端末固有toggleがONの時だけpage／link menuを表示し、共通保存use caseを使う。
 - 一覧のページサイズは内部設定とし、利用者が変更するプルダウンや永続設定を作らない。
 
 ## 実装依存フロー
@@ -95,7 +95,7 @@ flowchart TD
 | BE-13 | 訪問閾値と保存リマインダー | 未着手 | 未定 | BE-03、BE-04、BE-10、BE-12 | 有効化と数値閾値に従い、確認したURLだけを保存できる |
 | BE-14 | 最終訪問日時による自動アーカイブ | 未着手 | 未定 | BE-05、BE-13 | 最小項目へarchiveし、設定一覧から復元できる |
 | BE-15 | Chrome標準Bookmarkインポート | 未着手 | 未定 | BE-02、BE-10、BE-12 | 元treeを変えずJSON documentへ取込できる |
-| BE-16 | context menu保存 | 未着手 | 未定 | BE-03、BE-04、BE-10 | page／linkを共通保存use caseへ渡せる |
+| BE-16 | context menu保存 | 未着手 | 未定 | BE-01、BE-03、BE-04、BE-10 | 設定toggleに従ってpage／link menuを重複なく登録／解除し、ON時だけ共通保存use caseへ渡せる |
 | BE-17 | QR共有・読取取込 | 未着手 | 未定 | BE-02、BE-10、BE-12 | 選択したBookmarkを確認付きJSON payloadで交換できる |
 | BE-18 | Google Drive同期・権限共有 | 未着手 | 未定 | BE-02、BE-10、BE-11、BE-12 | 同一アカウント同期と別アカウント共有を混ぜずに扱える |
 
@@ -152,25 +152,29 @@ sequenceDiagram
 - [ ] `LabelNormalizer v1` 用にUnicode 15.1.0のNFKC、`White_Space`、`Default_Ignorable_Code_Point`、`CaseFolding.txt` status C＋Fをprojectへvendoringする生成処理を作る。runtime ICU／端末Unicode版を参照せず、生成assetのhashを実装時に固定して `normalizerVersion` と検証する。
 - [ ] 有効カテゴリの `categoryUniqueName`、有効タグの `tagUniqueName` を各namespaceでglobal uniqueにし、カテゴリの `origin=USER` を保証する。
 - [ ] active TAGにはactive CATEGORYの親IDを必須とし、親子は2階層より深くならないよう検証する。tombstone TAGだけはdeleted親参照を許す。
-- [ ] 同一Bookmarkへカテゴリ／タグを各複数付与できるようにする。
-- [ ] `LocalSettings` へ初回ホーム完了状態、`frequentVisitReminderEnabled`、訪問回数／archive日数、AI細分化度 `0`〜`4` を型付きで定義する。`autoArchiveEnabled` は要求しない。
+- [ ] TAGの親CATEGORY変更を管理モードの利用者向け更新commandとして定義し、AI／Import／同期競合の暗黙処理からは呼べないようにする。
+- [ ] 同一Bookmarkへ複数TAGを付与し、CATEGORY集合をその親から自動導出する。BookmarkからCATEGORYだけを直接更新する入力は拒否する。
+- [ ] `LocalSettings` へ初回ホーム完了状態、`frequentVisitReminderEnabled`、端末固有の `contextMenuBookmarkEnabled`、訪問回数／archive日数、AI細分化度 `0`〜`4` を型付きで定義する。`autoArchiveEnabled` は要求しない。右クリック設定はfield欠損を `true` へ移行し、boolean以外を `false` へ縮退する。
 - [ ] エラーコードと、UIに見せる安全なメッセージへの変換規則を定義する。
 - [ ] AI由来のunknown入力をDomain型へ直接castしない検証境界を作る。
 
 成果物: Domain型、validator、error型、単体テストfixture。
 
-完了条件: Normalizer v1のUnicode境界、カテゴリ／タグ同名競合、tombstone予約、親カテゴリ欠落、AIのカテゴリ作成、設定不正値、危険URL、上限超過、古いrevisionを単体テストで拒否できる。
+完了条件: Normalizer v1のUnicode境界、カテゴリ／タグ同名競合、tombstone予約、親カテゴリ欠落、Tag／選択親の古いrevision、AI／ImportからのTag親変更、AIのカテゴリ作成、設定不正値、危険URL、上限超過を単体テストで拒否できる。
 
 ### BE-02 IndexedDBとRepository
 
 目的: ローカルデータを正本として安全に読み書きする。
 
-- [ ] `bookmarks`、`labels`、`bookmarkLabels`、`classificationJobs`、`bookmarkRevisions`、`searchDocuments`、`blobs`、`schemaMeta`を作る。
+- [ ] `bookmarks`、`labels`、`bookmarkLabels`、`classificationJobs`、`bookmarkRevisions`、`searchDocuments`、`tagMutationReceipts`、`blobs`、`schemaMeta`を作る。
 - [ ] Blob以外をJSON互換に限定し、各documentのschemaVersion、size上限、unknown version隔離を実装する。
 - [ ] [DBスキーマ](docs/DB-SCHEMA.md) のunique/non-unique indexを実装する。
 - [ ] Bookmark保存とPENDING Job作成を1transactionにする。
 - [ ] `(bookmarkId, labelId)`、`creationRequestId`、カテゴリ名、タグ名を冪等・一意に扱う。名前unique indexはtombstoneも対象にし、物理回収transaction後だけ予約を解放する。
 - [ ] `labels` の親カテゴリ参照と、active／tombstoneを区別して親子関係をたどるindexを実装する。親Categoryの物理回収は参照する全子Tag tombstoneが物理回収され、参照が0件になるまで拒否する。
+- [ ] Category、全子Tag、関連BookmarkLabel edgeのcascade soft-deleteと、影響BookmarkごとのPENDING ClassificationJob作成を1 transactionで確定できるRepository契約を作る。Bookmark本体は削除しない。
+- [ ] Tag親変更ではTagと選択先Categoryの期待revisionを検証し、Tag、新旧Category、全参照Bookmark／edgeを固定して、Tag親、BookmarkのCategory closure・revision、検索派生文書を1 transactionで更新するRepository契約を作る。AI分類Jobは作らない。
+- [ ] Tag更新requestIdとpayload fingerprintを `tagMutationReceipts` へ同じtransactionで保存し、同じrequest再送は保存済み結果へ収束、別対象／payloadでのrequestId再利用は拒否する。
 - [ ] `savedAt + id` 等の安定カーソル、総件数、条件別一覧をRepository契約にする。
 - [ ] 内部ページサイズを定数または内部設定に置き、`chrome.storage.local`やUI向け表示数設定にしない。
 - [ ] schema versionと中断可能なmigration骨格を作る。
@@ -214,25 +218,29 @@ sequenceDiagram
 
 目的: UIがBookmarkとカテゴリ／タグを安全に管理・表示できる契約を揃える。
 
-- [ ] Bookmarkの名前、URL、複数カテゴリ、各カテゴリ配下のタグをrevision付きで別々に更新する。
-- [ ] Bookmark／Category／Tagの削除は確認済みflagを要求せず、`deletedAt` とrevisionを更新するsoft-deleteとして原子的に実装する。
+- [ ] Bookmarkの名前、URL、複数Tagだけをrevision付きで更新し、Category edgeをTagの親から同じtransaction内で自動導出する。Bookmark更新payloadのCategory直接指定は拒否する。
+- [ ] Bookmark／Tagの削除は確認済みflagを要求せず、`deletedAt` とrevisionを更新するsoft-deleteとして原子的に実装する。
 - [ ] 削除Undo用のoperation、期限、error code、復元commandを作らない。同じ削除requestの再送は冪等に扱う。
 - [ ] Bookmark削除では関連・Blobを表示対象から外し、tombstoneと同期安全性を保った物理回収境界を定義する。
 - [ ] カテゴリ作成・改名時に正規化名競合を返し、既存カテゴリを選べる情報を返す。
-- [ ] タグ作成時は親カテゴリIDを必須とする。作成use caseは既存IDの選択／関連付けを受理せず、親をまたぐ場合も正規化名競合を返して新規IDを作らない。
+- [ ] タグ作成時はactiveな既存親カテゴリIDを必須とする。Category keyword入力には一致度の高いactive候補を最大8件返し、自由入力文字列だけでは作成しない。作成use caseは既存Tag IDの選択／関連付けを受理せず、親をまたぐ場合も正規化名競合を返して新規IDを作らない。
 - [ ] カテゴリ／タグの名前競合時はtombstoneを含む既存IDと状態を返す。有効なら元画面で選択し、削除済みなら物理回収まで別名だけを許して別ID作成を拒否する。
 - [ ] tombstone Tagからdeleted親への参照を物理回収まで保持し、子Tag tombstoneが残る親Categoryの先行回収を拒否する。
-- [ ] タグ編集responseでは親カテゴリを返すが、親変更commandは [ISSUE-019](docs/ISSUES.md) 決定後の別タスクとし、P0の更新allowlistへ含めない。
-- [ ] カテゴリ／タグ入力向けに、keyword一致度、親カテゴリ、由来、利用件数を持つ候補を最大8件返す。
+- [ ] タグ編集responseに現在の親Category ID／revisionを返し、名前と親Categoryを更新できるようにする。保存時はTagと選択先Categoryのexpected revision、およびsubmit開始時に1回発行して同一retryで再利用する `tag-update:<UUID>` requestIdを必須とし、Tag名のglobal uniqueを親変更前後で維持する。
+- [ ] タグ入力とTag作成／編集の親Category入力向けに、keyword一致度、親カテゴリ、由来、利用件数を持つactive候補を最大8件返す。
+- [ ] Tag編集からのCategory新規作成を別の冪等requestとして扱い、元のTag編集draftを保存せず保持できるresponseを返す。作成したCategory ID／revisionを再検証して親候補として選べるようにする。
+- [ ] Tag親変更では参照する全active Bookmarkの残存active Tag親集合へCategory edgeを完全一致させ、Bookmark revisionとSearchDocumentを更新する。`tagMutationReceipts` へ `UpdateTagResult { tagId, resultTagRevision, affectedBookmarkCount }` を保存し、同request再送で同じ結果を返す。1件でも競合・失敗すれば全件rollbackし、AI再分類Jobを作らない。
+- [ ] `GetCategoryEditDetail` で、activeな使用中TagのID・実名一覧と件数、配下Tagを1件以上持つ関連Bookmarkのunique件数、Category／全物理子Tag／影響edge・Bookmarkのrevisionを含むcanonicalな `impactFingerprint` を返す。件数、一覧、fingerprintは同じsnapshotから生成する。
 - [ ] 作成modalを閉じるまで複数作成できるよう、各requestを一意キーで独立かつ冪等に処理する。
-- [ ] 管理モードのカテゴリ／タグ削除はUI確認済みflagを要求せずsoft-deleteする。子タグが残るカテゴリはBLOCKし、子タグ削除または中止だけを返す。cascade deleteや親変更案内を返さない。
+- [ ] `DeleteCategoryCascade` はCategory編集detailを使った警告を利用者が確認した後だけ呼び、category ID、expected revision、`expectedImpactFingerprint`、`category-delete:<UUID>` requestId、`warningAcknowledged=true` を必須とする。Tag更新の `tag-update:` とnamespaceを分け、requestIdを1つのCategoryだけへ結び付ける。同一Categoryの完了済み再送はrevision／fingerprint検証前にno-op成功、別Categoryでの再利用は拒否する。新規requestでrevisionまたは影響集合が変わっていれば削除せず最新detailで再確認を求める。
+- [ ] `DeleteCategoryCascade` はCategory、物理的に存在する全子Tag、関連edgeを1 transactionでcascade soft-deleteし、影響Bookmark本体を保持したまま各Bookmarkの再分類Jobを `PENDING` で冪等作成する。成功response消失後の同一command再送でもJob、Outbox、BookmarkRevisionを増やさない。分類失敗はBookmarkを削除せず `NEEDS_REVIEW` と手動分類へ送る。
 - [ ] 最近追加、labelId条件、Label／Bookmark候補、総件数、読込済み件数を取得する。
 - [ ] 無限スクロール用cursorで同じIDを二重返却しない。
 - [ ] 手動アーカイブと復元を削除とは別の状態変更として実装する。
 
 成果物: Bookmark/Label CRUD use case、soft-delete契約、一覧Query、cursor page、件数契約。
 
-完了条件: edit競合、カテゴリ／タグ名競合、tombstone予約、削除後の同名作成拒否、namespace分離、親子不整合、候補0／8／9件以上、連続作成、3 entityの確認なしsoft-delete、削除Undo経路がないこと、子タグ残存時BLOCK、Label条件、cursor終端のテストが通る。
+完了条件: edit競合、BookmarkのCategory直接更新拒否、カテゴリ／タグ名競合、tombstone予約、削除後の同名作成拒否、namespace分離、親子不整合、Tag親変更の0件／1件／多数Bookmark参照、親候補0／8／9件以上、Category side view／draft、全件rollback、同request再送／別payload再利用拒否、AI再分類なし、連続作成、Category編集のTag実名／件数、Bookmark／Tagの確認なしsoft-delete、Category警告確認後のcascade soft-delete、影響Bookmark再分類、削除Undo経路がないこと、Label条件、cursor終端のテストが通る。
 
 ### BE-06 永続AI Job
 
@@ -275,6 +283,7 @@ sequenceDiagram
 - [ ] 細分化度を整数 `0`〜`4` として検証し、新規タグ上限 `0 / 1 / 2 / 4 / 6` へ対応付ける。`0` では新規AIタグproposalを拒否するが、既存タグの自動選択・付与は続ける。
 - [ ] 新規AIタグproposalが `tagUniqueName` と競合したらoriginを問わず既存Tagを再評価する。USER由来を優先するが、親カテゴリまたは意味が不適合なら関連付けも新規作成もせず `NEEDS_REVIEW` にする。
 - [ ] AIによるカテゴリ作成・改名・削除と、候補外IDを拒否する。
+- [ ] AI分類結果から既存Tagの親Categoryを変更できないようにし、親変更を管理モードの利用者commandだけへ限定する。
 - [ ] AIが選んだタグの親カテゴリも同じBookmarkへ整合して付与されるよう、適用transactionで検証する。
 - [ ] Service Worker側でrevision、lease、候補ID、Domain規則を再検証して1transactionで適用する。
 - [ ] 失敗時はBookmarkを残し、FAILEDまたはNEEDS_REVIEWへ更新する。
@@ -338,9 +347,11 @@ sequenceDiagram
 
 目的: バックエンド単体の完成ではなく、UIから再現できるP0成果として渡す。
 
-- [ ] 保存→再読込→一覧→編集→確認なし削除をE2Eで通し、削除項目が一覧から消え、削除Undoの操作やAPIが提供されないことを確認する。
+- [ ] 保存→再読込→一覧→名前／URL／Tagだけの編集→Bookmarkの確認なし削除をE2Eで通し、CategoryがTag親から自動導出され、削除項目が一覧から消え、削除Undoの操作やAPIが提供されないことを確認する。
 - [ ] 初回インストール用ホームと、完了後の最近追加ホームを別fixture／E2Eで通す。
-- [ ] 親カテゴリ／子タグ作成→別入力で付与→管理モード編集／確認なし削除→同名作成拒否→label条件一覧を通す。
+- [ ] Tag作成／編集でactive Categoryを最大8候補から選ぶ→Category新規作成side view→draftを保って戻り自動選択→保存を通す。
+- [ ] 複数Bookmarkが参照するTagの親を変更し、Tag IDとglobal unique名を維持したまま、全参照BookmarkのCategory closure・revision・検索文書が原子的に更新され、AI再分類Jobが作られないことを通す。同じrequest再送は同じreceiptへ収束し、別payloadでのrequestId再利用を拒否する。
+- [ ] Category編集で使用中Tag実名一覧・件数と関連Bookmark unique件数を表示し、削除警告を確認後にCategory／全子Tag／edgeをcascade soft-deleteして、Bookmarkを残した再分類PENDING、失敗時NEEDS_REVIEWを通す。
 - [ ] 両一覧からフルページkeyword検索へ移り、入力候補が最大8件であることを通す。
 - [ ] AI対応時の分類・自然言語検索・機能説明と、AI非対応時のfallbackを通す。
 - [ ] AI細分化の全5値でdiscriminated snapshotを検証し、`0` で新規AIタグ0件かつ既存タグの自動付与ありを通す。
@@ -408,11 +419,15 @@ sequenceDiagram
 
 目的: ページ／リンクを右クリックから通常保存と同じ安全性で保存する。
 
-- [ ] `contextMenus` を宣言し、install/startupで固定menu IDを冪等登録する。
+- [ ] `contextMenus` を宣言し、端末固有設定 `contextMenuBookmarkEnabled`（既定ON）を一般設定のswitchから変更できるuse caseを実装する。設定はDrive同期しない。
+- [ ] page用 `bookmation-save-page` とlink用 `bookmation-save-link` をBookmation所有の固定IDとし、install／startup／`chrome.storage.onChanged` で設定と登録状態を照合する。ONでは各1件を冪等登録し、OFFでは所有IDだけを解除する。
+- [ ] 設定変更の登録／解除失敗時は以前の実効値へ補償し、UIへ実効値と再試行可能なエラーを返す。同じ操作の再送やService Worker再起動で重複項目を作らない。
 - [ ] `page` と `link` contextにそれぞれ日本語ラベルを表示する。
-- [ ] click時にmenu IDと送信元を検証し、`pageUrl` / `linkUrl` を選び分ける。
+- [ ] click時にmenu ID、送信元、保存直前の現在設定を検証し、ONの場合だけ `pageUrl` / `linkUrl` を選び分ける。OFF直前に配送された遅延clickは保存しない。
 - [ ] `http:` / `https:`、長さ、正規化、重複をSaveBookmarkで再検証する。
 - [ ] 成功、既存、保存不可、失敗を通知し、ページ本文を取得しない。
+
+完了条件: 初期移行、ON／OFF反復、Service Worker再起動、API失敗、OFF直前の遅延clickを自動テストし、menuが設定と一致して重複せず、OFF中にはBookmarkが増えない。
 
 成果物: context menu adapter／handler、manifest設定、統合テスト。
 
@@ -466,8 +481,10 @@ sequenceDiagram
 | 最近追加／Label別一覧 | `ListBookmarks` | items、totalCount、nextCursor、hasNext |
 | フルページkeyword入力 | `Suggest/SearchAllByKeyword` | 最大8候補、labels、bookmarks。結果はlabelsが先 |
 | 全画面カテゴリ・タグ一覧 | `ListLabels` | 親子items、利用件数、nextCursor、hasNext |
-| カテゴリ・タグ作成／編集／削除 | `Create/Update/DeleteLabel` | 親子関係、名前予約、競合、削除後revision |
-| Bookmark編集 | `UpdateBookmark` | 更新後Bookmark、カテゴリ関連、タグ関連、revision |
+| カテゴリ・タグ作成／編集 | `SuggestCategories` / `CreateCategory` / `CreateTag` / `UpdateCategory` / `UpdateTag` / `GetTagEditDetail` / `GetCategoryEditDetail` | 最大8件のactive Category候補、Tag／親expected revision、requestId／receipt、参照Bookmark更新、Tag実名一覧・件数、Bookmark unique件数、名前予約、競合 |
+| Category削除 | `DeleteCategoryCascade` | 警告確認、cascade結果、再分類Job状態、削除後revision |
+| Tag削除 | `DeleteTag` | 対象ID、削除後revision |
+| Bookmark編集 | `UpdateBookmark` | 更新後Bookmark、Tag関連、自動導出Category関連、revision |
 | Bookmark削除 | `DeleteBookmark` | 対象ID、削除後revision |
 | AI分類 | `ClassifyBookmark` | Job状態、提案、適用結果または要確認 |
 | AI検索／機能質問 | `AskBookmationAssistant` | 検索候補または機能説明、`AI`／`LEXICAL_FALLBACK` |
@@ -489,8 +506,8 @@ sequenceDiagram
 - [ ] エラー時に既存Bookmarkを失わず、UIが回復操作を判断できる結果を返す。
 - [ ] URL、title、Label名、AI queryなどの利用者データを通常ログへ出していない。
 - [ ] 追加した権限、Store、index、message、設定の理由を文書化した。
-- [ ] 数値入力、AI slider `0`〜`4`、最大8候補、親子整合、初回状態、確認なしLabel削除、最小archive、共有選択の境界fixtureを追加した。
-- [ ] Label Normalizer v1のUnicode 15.1.0 vendored asset＋hash、tombstone名前予約と親子GC、確認なしsoft-deleteと削除Undo経路なし、discriminated granularity snapshot、QR checksum境界、Drive conflict snapshot／resolution／GC／remap拒否をfixtureで固定した。
+- [ ] 数値入力、AI slider `0`〜`4`、Tag／Categoryの最大8候補、Tag親変更のexpected revision／requestId／receipt、Category自動導出、全参照Bookmarkの原子的closure更新／AI再分類なし、Category使用状況、初回状態、Bookmark／Tagの確認なし削除、Category警告付きcascade削除と再分類、最小archive、共有選択の境界fixtureを追加した。
+- [ ] Label Normalizer v1のUnicode 15.1.0 vendored asset＋hash、tombstone名前予約と親子GC、Category cascade soft-delete、削除Undo経路なし、PENDING／NEEDS_REVIEW再分類、discriminated granularity snapshot、QR checksum境界、Drive conflict snapshot／resolution／GC／remap拒否をfixtureで固定した。
 - [ ] `lint`、`typecheck`、対象テスト、`build` の結果をWORKLOGへ記録した。
 - [ ] Webプレビュー、AIエージェントのPlaywright確認、人間受入を順番どおり実施し、同じcommit／buildと証拠を記録した。
 - [ ] 未実装・未実証を成功扱いせず、ISSUESまたはTECH-DEBTへ残した。

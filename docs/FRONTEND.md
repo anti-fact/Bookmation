@@ -47,12 +47,13 @@
 | `FullScreenCategoryTagPage` | 親カテゴリごとの子タグ、通常／管理モード |
 | `StickyCategoryTagHeader` | 統合検索、AI検索、新規作成dropdown、管理、閉じる |
 | `CategoryRibbon` / `TagChip` | 遷移、管理時の編集trigger |
-| `BookmarkEditDialog` | title、URL、カテゴリ／タグ別編集、削除 |
-| `ExistingCategoryCombobox` | 既存カテゴリを最大8候補から複数選択 |
+| `BookmarkEditDialog` | title、URL、タグ編集、タグからのカテゴリ自動導出、削除 |
 | `ExistingTagCombobox` | 親カテゴリ付き既存タグを最大8候補から複数選択 |
-| `LabelCreateSideView` | Bookmark draftを保持した新規作成 |
+| `ParentCategoryCombobox` | Tag作成／編集時にactiveな既存Categoryを最大8候補から単一選択 |
+| `LabelCreateSideView` | Bookmark／Tag draftを保持した同一Dialog内の新規作成 |
 | `CategoryTagCreateDialog` | 種類別の連続作成 |
-| `CategoryTagEditDialog` | 名前、親カテゴリの読取表示、利用件数、即時削除 |
+| `CategoryTagEditDialog` | 名前、Tagの親Category変更、Categoryの使用中Tag／関連Bookmark件数、種類別削除導線 |
+| `CategoryCascadeDeleteDialog` | Category、子Tag、影響Bookmarkを示す連鎖削除警告 |
 | `SettingsPage` | 一般／アーカイブ／共有のサイドナビ |
 | `VisitReminder` | はい／いいえ／URL単位の次回抑止 |
 | `ArchiveManager` | checkbox選択と一括復元 |
@@ -75,16 +76,16 @@ React stateをデータ正本にしない。保存commandにはrevisionとidempo
 
 ## 分類階層のUI不変条件
 
-タグは `parentCategoryId` を必須とする。選択済みタグの親カテゴリはBookmark draftにも必ず含める。
+タグは `parentCategoryId` を必須とする。Bookmark draftはTag IDだけを編集対象にし、Category ID集合は選択済みactive Tagの親集合から導出する。
 
-- タグ選択時、未選択の親カテゴリを同じdraftへ追加して通知する。
-- カテゴリ解除時、選択済みの子タグをdraftから同時に外し、影響したタグ名を表示する。保存前ならカテゴリとタグを再選択して戻せる。
-- タグ編集では親カテゴリを読取専用で表示し、未決の親変更commandを送らない。
+- タグ選択時は親カテゴリを導出結果へ追加する。
+- タグ解除時、同じ親を必要とする他の選択中Tagがなければ導出結果から親カテゴリを外す。
+- Tag編集では親Category comboboxを表示し、親変更はTag編集専用commandからだけ実行する。
 - タグ候補には親カテゴリ、origin、利用件数を表示し、表示名ではなくIDをReact keyと選択値にする。
 
 ## 入力中キーワード候補
 
-`SearchBox` と既存カテゴリ／タグcomboboxは共通の正規化と候補primitiveを使う。日本語IMEのcomposition中は確定検索を行わず、150〜250msを目安にdebounceする。
+`SearchBox`、Bookmark編集のTag combobox、Tag作成／編集の親Category comboboxは共通の正規化と候補primitiveを使う。日本語IMEのcomposition中は確定検索を行わず、150〜250msを目安にdebounceする。
 
 1. 正規化完全一致
 2. 前方一致
@@ -92,7 +93,7 @@ React stateをデータ正本にしない。保存commandにはrevisionとidempo
 4. 部分一致
 5. 安定tie-break（表示名、親カテゴリ名、ID）
 
-この順で候補を作り、検索ヘッダーは全種類合計8件、カテゴリ入力はカテゴリ8件、タグ入力はタグ8件まで返す。候補は `role=option`、入力は `role=combobox` とし、`aria-activedescendant`、上下キー、Enter、Escを実装する。候補が9件以上でも8件だけ描画し、確定検索で全画面結果へ移る。
+この順で候補を作り、検索ヘッダーは全種類合計8件、Bookmark編集のTag入力はTag 8件、Tag作成／編集の親Category入力はactive Category 8件まで返す。候補は `role=option`、入力は `role=combobox` とし、`aria-activedescendant`、上下キー、Enter、Escを実装する。候補が9件以上でも8件だけ描画し、検索ヘッダーの確定検索だけが全画面結果へ移る。
 
 ## フルページ検索
 
@@ -124,12 +125,13 @@ draftは次を持つ。
 type BookmarkEditDraft = {
   title: string
   url: string
-  categoryIds: string[]
   tagIds: string[]
 }
 ~~~
 
-カテゴリとタグは別のfield group／comboboxで変更する。各見出し横の `＋新規作成` は同じDialog内部を `FORM` から `CREATE_CATEGORY` または `CREATE_TAG` へ切り替え、親dialogを重ねない。戻るとdraft、dirty state、検索語、focusを復元し、新規作成成功時だけIDをdraftへ追加する。
+分類fieldはTagのcomboboxだけとする。Tag見出し横の `＋新規作成` は同じDialog内部を `FORM` から `CREATE_TAG` へ切り替え、親dialogを重ねない。戻るとBookmark draft、dirty state、検索語、focusを復元し、新規Tag作成成功時だけIDをdraftへ追加する。Category ID集合は保存直前にactive Tagの `parentCategoryId` から重複なく導出し、利用者の入力値として保持しない。
+
+Tag作成side viewではTag名draftと既存active Category 1件を保持する。親Categoryは最大8候補のcomboboxで選び、その説明横の `＋新規作成` で同じDialogを `CREATE_CATEGORY` へ切り替える。Category作成成功後はTag draftへ戻り、新Category IDを自動選択して元のTag名、dirty state、検索語を復元する。
 
 削除は確認画面を開かず、専用の論理削除command成功後にdialogを閉じる。削除後の取り消しUI、token、利用者向け復元commandは実装しない。通信失敗やrevision conflictでは論理削除せず、dialogと入力を保持してエラーを表示する。
 
@@ -137,11 +139,15 @@ type BookmarkEditDraft = {
 
 表示状態は `VIEW | MANAGE` とする。VIEWではCategoryRibbon／TagChip選択が絞込み遷移、MANAGEでは編集dialog起動になる。管理ボタンは `aria-pressed` を持ち、MANAGE中はデザインシートどおり反転表示する。鉛筆は `@media (hover: hover)` とfocus-visible時だけ補助表示し、操作名は常にaccessible nameへ含める。
 
-ヘッダーの `新規作成` はmenu buttonで、`カテゴリ作成`／`タグ作成` 選択後に共通dialogを開く。カテゴリは名前、タグは名前と親カテゴリを必須とする。
+ヘッダーの `新規作成` はmenu buttonで、`カテゴリ作成`／`タグ作成` 選択後に共通dialogを開く。カテゴリは名前、タグは名前と既存active Category 1件を必須とする。Tag作成のCategory comboboxは最大8候補とCategory作成side viewを持つ。
 
-作成成功後もdialogは開いたまま入力を初期化し、session内作成結果を表示する。既存項目を選択・関連付けるUIは置かない。カテゴリ名とタグ名はそれぞれ論理削除中を含めて正規化後に全体一意とし、重複時はfield errorと既存項目の状態を示す。有効なら元の入力画面で既存項目を選び、論理削除中なら別名を入力するか物理GC完了を待つよう案内する。タグは親カテゴリが異なっても同名の別IDを作成できない。
+作成成功後もdialogは開いたまま入力を初期化し、session内作成結果を表示する。既存項目をBookmarkへ関連付けるUIは置かないが、Tag作成では必須の親として既存active Categoryを1件選択する。カテゴリ名とタグ名はそれぞれ論理削除中を含めて正規化後に全体一意とし、重複時はfield errorと既存項目の状態を示す。有効なら元の入力画面で既存項目を選び、論理削除中なら別名を入力するか物理GC完了を待つよう案内する。タグは親カテゴリが異なっても同名の別IDを作成できない。
 
-編集dialogの削除は確認なしで即時に論理削除し、削除後の取り消し機能は提供しない。子タグが残るカテゴリの削除commandは送信せず、現行P0で可能な子タグの個別削除または操作中止を表示する。親変更はISSUE-019決定前に提示せず、連鎖削除もしない。
+Tag編集dialogは名前、親Category、作成元、利用件数を表示し、名前と親Categoryを編集可能にする。親Categoryは `ParentCategoryCombobox` で選び、説明横の `＋新規作成` から同じDialog内の `CREATE_CATEGORY` へ切り替える。Tagのname／parentCategoryId draft、dirty state、検索語、focusを保持し、Category作成成功後はTag編集へ戻って新Category IDを自動選択する。Category編集dialogはactiveな子Tagの件数と実名チップ、関連active Bookmarkのunique件数をqueryして表示する。
+
+Tag編集commandはexpected Tag revisionと選択した親Categoryのexpected revisionを持つ。submit開始時に `tag-update:<UUID>` requestIdを1回生成してpending stateへ保持し、応答消失を含む同一payloadのretryでは再利用する。入力変更後の再submitだけ新しいIDにする。Repositoryは新旧Category、Tag、参照する全active Bookmarkと関連edgeを1 transactionで再検証し、Tagの `parentCategoryId` を更新する。続けて各影響BookmarkのCategory edge集合を残存active Tagの親集合へ完全一致させ、Bookmark revisionと検索文書を更新する。Tag IDは維持するためAI再分類jobは作らない。Tag名はglobal uniqueなので親変更によって一意性判定を変えない。いずれかの競合や更新失敗時はtransaction全体をrollbackし、dialogとdraftを保持する。初回成功とreceipt再送は同じ `UpdateTagResult` へ収束させる。
+
+BookmarkとTagの削除は確認なしで即時に論理削除し、削除後の取り消し機能は提供しない。Category削除は `CategoryCascadeDeleteDialog` を開き、同じdetail snapshotのCategory名、全active子Tagの件数と実名、影響active Bookmarkのunique件数、再分類の発生を警告する。明示確認後だけexpected revisionと `expectedImpactFingerprint` 付きcommandを送り、Category、全子Tag、関連edgeの論理削除と影響Bookmarkの再分類予約が同一transactionで成功してから閉じる。preview staleでは自動再送せず最新detailで警告内容を更新して再確認を求め、その他の失敗でも削除せず警告dialogとエラーを保持する。
 
 ## 設定画面
 
@@ -151,6 +157,7 @@ type BookmarkEditDraft = {
 
 - 訪問回数: `input type=number`、整数、`min=1`、単位 `回`。
 - リマインダー: switch。オン操作で権限説明とrequestを行い、拒否時はoffへ戻す。
+- 右クリックメニューから保存: switch。`contextMenuBookmarkEnabled` の実効値を表示し、既定ONとする。変更中は再操作を抑止し、Application use caseの成功後だけ確定表示にする。登録／解除に失敗した場合は以前の実効値へ戻し、inline errorとlive regionで通知する。
 - アーカイブ日数: `input type=number`、整数、`min=1`、単位 `日`。
 - AI細分化: `input type=range`、`min=0`、`max=4`、`step=1`。目盛、現在値、効果説明を表示する。
 
@@ -181,8 +188,9 @@ Prompt APIは対応を実証したトップレベル拡張ページのadapterで
 - welcome: install時だけ開く、更新時は開かない、開始後の遷移。
 - search: 0／8／9候補、IME、keyboard、全画面遷移、上下グループ、戻り状態。
 - AI: popup内入力／応答、検索、製品ヘルプ、未実装説明、fallback、mutation拒否。
-- bookmark edit: separate combobox、親子整合、side view、draft復元、確認なしの即時論理削除。
-- labels: 通常／管理、hover／focus鉛筆、連続作成、カテゴリ／タグの同名拒否、親カテゴリ読取表示。
-- settings: 数値validation、reminder権限、細分化0〜4、0で既存付与、archive複数復元。
+- bookmark edit: Tag-only combobox、カテゴリ自動導出、Tag side view、draft復元、確認なしの即時論理削除。
+- labels: 通常／管理、hover／focus鉛筆、連続作成、カテゴリ／タグの同名拒否、Tag作成／編集のCategory候補と作成side view、Tag親変更transaction、Category編集の使用中Tag実名／件数。
+- category delete: 警告内容、明示確認、全子Tag／関連edgeの原子的論理削除、影響Bookmark再分類、失敗時保持、Undo非表示。
+- settings: 数値validation、reminder権限、細分化0〜4、0で既存付与、`contextMenuBookmarkEnabled` のON／OFF即時反映と失敗時rollback、archive複数復元。
 - share: account権限、Drive競合、QR選択dedupe、camera拒否、画像fallback、破損payload。
 - paging/accessibility: 多重observer、終端、再試行、200% zoom、focus、reduced motion。

@@ -16,7 +16,7 @@
 1. デスクトップ版 Chrome Manifest V3 拡張を初期対象とする。
 2. Bookmark は Bookmation 専用で、Chrome 標準 bookmark / folder を正本にしない。
 3. カテゴリを親、タグを子とする。activeなTagは1件のactiveな親Categoryに所属する。tombstone Tagはdeleted親Categoryを参照できる。親Categoryの物理GCは、そのIDを参照する全子Tag tombstoneが消滅するまでblockする。
-4. 1件のBookmarkにカテゴリ／タグを各複数付与でき、同じLabel IDを複数Bookmarkで再利用できる。子Tagを割り当てるtransactionでは親Category edgeも追加し、Category edgeを外す時は配下Tag edgeも外す。Tag edgeだけを外しても親Category edgeは残す。
+4. 1件のBookmarkに複数Tagを付与でき、同じLabel IDを複数Bookmarkで再利用できる。BookmarkのCategory集合はactiveなTagの親から自動導出し、直接編集させない。Tag割当transactionは親Category edgeを整合させ、最後の子Tag edgeが外れた時は不要になった派生Category edgeも外す。
 5. カテゴリはユーザーだけが作成し、正規化名が同じカテゴリは論理削除中を含めて1件だけとする。
 6. Tagは論理削除中を含め、親Categoryをまたいで正規化名をglobal uniqueにし、同名の別IDを許さない。AIは既存ユーザー定義タグを優先し、不足時だけ細分化度の範囲内で作る。
 7. 同じ `(bookmarkId, labelId)` edge は冪等性のため1件とする。
@@ -27,7 +27,7 @@
 12. ブックマーク一覧とカテゴリ・タグ一覧は同じ統合検索を使う。keyword結果は全画面検索ページへ切り替えて表示し、AI自然言語検索は入力元画面上のポップアップ内で入力と応答を完結させる。
 13. keyword／AIのどちらもカテゴリ、タグ、Bookmarkを検索し、カテゴリ・タグを上、Bookmarkを下に置く。AI候補は各グループ内で複数の無順位集合として表示し、score、順位、先頭への自動遷移を使わない。
 14. 一覧は cursor による無限スクロールで追加し、両一覧にトップへ戻る操作を置く。
-15. 各Bookmarkにedit操作を置き、name、URL、カテゴリ、タグをモーダルで扱う。カテゴリとタグは別々の既存候補入力にし、deleteでは確認画面を挟まない。
+15. 各Bookmarkにedit操作を置き、name、URL、Tagだけをモーダルで扱う。Categoryは選択中Tagの親から自動導出して読取表示し、直接入力を置かない。Bookmark deleteでは確認画面を挟まない。
 16. popup は保存／ホームの2操作、実キーまたは未割当、Chrome管理画面への変更案内を表示する。
 17. AI 細分化度は設定画面の0〜4スライダーだけで変更し、過去データを自動再分類しない。1件あたりのAI新規Tag上限は順に0／1／2／4／6件とし、0でも既存カテゴリ／タグへの自動付与を継続する。
 18. AI が使えなくても保存、編集、keyword検索、手動整理を継続できる。
@@ -38,20 +38,21 @@
 23. ユーザー間共有はQR、同一Googleアカウントの端末間同期は `appDataFolder`、所有権または共有権限を確認できる別アカウントとの共有は通常Drive fileを使い、用途とOAuth scopeを混同しない。Driveでは利用者が対象アカウントを選び、通常fileのpermissions／capabilitiesを確認する。
 24. QR共有はカテゴリ別、タグ別、個別Bookmarkから検索とチェックボックスで対象を選び、生成と読取インポートの双方を提供する。
 25. Chrome標準Bookmarkのインポートは明示操作でBookmationへコピーし、標準BookmarkとFolderを変更・削除しない。
-26. ページ／リンクの右クリック保存は既存のURL検証・重複検出・保存ユースケースを再利用する。
+26. ページ／リンクの右クリック保存は、端末固有の設定toggle `contextMenuBookmarkEnabled`（既定ON）で有効化する。ONではBookmation所有の固定menu IDだけを重複なく登録し、OFFでは解除する。保存直前にも設定を再確認し、既存のURL検証・重複検出・保存ユースケースを再利用する。
 27. 拡張機能UIは本番componentを共有するテスト／モック用の通常Webページでも表示できるようにする。プレビュー専用の画面コピーを作らない。
 28. Webプレビューはfake Adapterと版管理fixtureだけを使い、実Chrome profile、実閲覧履歴、実OAuth tokenを暗黙に参照しない。
 29. 人間の受入確認より先に、AIエージェントがビルド済み拡張機能をPlaywrightで確認し、report、screenshot、trace、skipを含む証拠を残す。
 30. WebプレビューとAIエージェント確認は人間の最終受入を代替しない。人間は同じcommit／buildを確認し、承認または差戻しを記録する。
 31. `runtime.onInstalled` の `reason=INSTALL` だけを初回ウェルカム表示の起点にし、`UPDATE` や開発時reloadでは再表示しない。開始完了後は最近追加したBookmark一覧を通常ホームにする。
-32. カテゴリ・タグ一覧の新規作成は種類をプルダウンで選んでモーダルを開き、閉じるまで連続作成できる。Tag作成には親Categoryを必須とする。Category／Tagとも正規化後の同名作成を拒否し、既存候補を選択する元画面へ戻るか別名を入力するよう案内する。
-33. Bookmark編集ではカテゴリ／タグの各説明横から新規作成を開始し、モーダルを重ねず同一モーダル内のサイドビューへ切り替える。
-34. カテゴリ・タグ一覧の管理ボタンで管理モードへ切り替える。管理中はカテゴリリボン／タグチップの選択で編集モーダルを開き、鉛筆はhover／focus時だけ補助表示する。
-35. Bookmark、カテゴリ、タグの削除に確認画面を設けず論理削除する。削除後のUndo toast、token、期限、設定／管理画面からの復元入口は設けない。有効な子Tagが1件でも残るCategoryの削除はblockし、cascade deleteしない。
+32. カテゴリ・タグ一覧の新規作成は種類をプルダウンで選んでモーダルを開き、閉じるまで連続作成できる。Tag作成にはactiveな既存Categoryの選択を必須とし、入力中に一致度の高い候補を最大8件表示する。Category／Tagとも正規化後の同名作成を拒否し、既存候補を選択する元画面へ戻るか別名を入力するよう案内する。
+33. Bookmark編集ではTagだけを分類入力とし、説明横の新規作成から同一モーダル内のTag作成サイドビューへ切り替える。Tag作成にはCategory新規作成ボタンを置き、同じモーダルのCategory作成サイドビューへ進む。各遷移で入力draftを保持し、Category作成後はTag作成へ戻って新規Categoryを自動選択する。
+34. カテゴリ・タグ一覧の管理ボタンで管理モードへ切り替える。管理中はカテゴリリボン／タグチップの選択で編集モーダルを開き、鉛筆はhover／focus時だけ補助表示する。Category編集にはactiveな使用中Tagの実名一覧と件数、および関連Bookmarkのunique件数を表示する。Tag編集ではactiveな既存Categoryを入力し、最大8候補から選択するか、同じモーダルのCategory作成サイドビューで新規作成する。draftを保持し、作成後は新規Categoryを自動選択する。
+35. BookmarkとTagは確認画面なしで論理削除する。Category削除だけは、全子Tagと関連edgeが連鎖削除され、Bookmarkが再分類されること、および影響するTag件数とBookmark unique件数を警告して確認する。承認後はCategory、全子Tag、関連edgeを1 transactionでsoft-deleteし、Bookmark本体を残して影響Bookmarkの分類Jobを `PENDING` にする。AI分類失敗は `NEEDS_REVIEW` と手動分類へ送り、削除後のUndo toast、token、期限、復元入口は設けない。
 36. 統合検索、カテゴリ入力、タグ入力のautocompleteは入力中のkeyword一致度で既存候補を最大8件表示し、8件超を一度に展開しない。
 37. Category／Tag名称正規化v1はprojectにvendoredしたUnicode 15.1.0のNFKCデータ、`White_Space` property、`Default_Ignorable_Code_Point` property、`CaseFolding.txt` のstatus C＋F mappingだけを使う。rawの`Cs`／Default Ignorable拒否、NFKC、TAB／LFを含む空白のtrim／単一ASCII空白化、残存`Cc`／`Cs`／Default Ignorable拒否、locale非依存case fold、最終再検証の順で決定的に適用し、空になった名前を保存しない。runtime ICUや端末Unicode版へ依存せず、生成assetのhashは実装時に生成・固定する。検索queryのtoken正規化とは別契約にする。
 38. Category／Tagの論理削除tombstoneは一意名を予約し、同名の別ID作成を防ぐ。名前を再利用できるのは物理回収後だけである。
 39. P1 Drive競合はimmutableな `syncSnapshots` と明示的なresolution planで扱う。競合がopenの間は参照snapshotをGCせず、解決後も30日保持する。Label IDまたはBookmark-Label edgeを暗黙にremapしない。
+40. Tagの親Category変更は管理モードの利用者操作だけに限定する。Tagと選択先Categoryの期待revision、およびsubmit開始時に1回発行して同一retryで再利用する `tag-update:<UUID>` requestIdを検証し、Tagの親、全参照BookmarkのCategory closure・revision・検索派生データ、同期Outbox、mutation receiptを1 transactionで更新する。Category削除requestは別の `category-delete:` namespaceとする。途中失敗は全件rollbackし、同じrequest再送は同じ `UpdateTagResult` へ収束させ、別payloadでのrequestId再利用を拒否する。AI再分類Jobは作らず、Tag名のglobal unique規則は変更しない。
 
 ## AI と実行環境
 
@@ -106,7 +107,6 @@
 - 訪問判定の集計期間、通知の再表示間隔、数値設定の既定値と上限
 - 最終訪問日時が存在しないBookmarkの再確認UI
 - QRの1件あたり上限、分割方式、任意暗号化
-- Tagの親変更UIと変更時の衝突処理
 - Google Driveの複数所有アカウント間方式、競合UI、tombstone保持期間、追加暗号化
 - Chrome標準Bookmark FolderのCategory／Tag階層への対応と重複時UI
 

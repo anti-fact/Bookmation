@@ -422,6 +422,91 @@ Bookmark、Category、Tagの削除後にUndoを提供しないという最新の
 
 - 実装時に削除Undo用のUI、message、store、error codeを追加せず、確認なしsoft-delete、tombstone予約、親子GC、Drive同期競合を自動／E2Eテストする。
 
+## 2026-08-17 — Tag-only Bookmark編集とCategory cascade再分類
+
+### 目的
+
+更新済みデザイン正本と利用者の最新指示に合わせ、Bookmark編集、Tag／Category作成、Category使用状況、Category削除後の再分類を同じ契約へ統一する。
+
+### 変更
+
+- Bookmark編集の分類入力をTagだけにし、名前／URL／Tagを編集対象とした。Categoryは選択Tagの親から自動導出し、直接入力を設けない。
+- Tag作成でactiveな既存Categoryをkeyword入力し、一致度の高い最大8候補から必須選択する。Category新規作成は同じmodalのside viewで行い、Tag draftを保持して戻った時に新規Categoryを自動選択する。
+- Tagの親Categoryを作成時固定とし、ISSUE-019をOpen一覧から外してDecidedへ移した。親変更UI／commandは提供しない。
+- Category編集へ使用中Tagの実名一覧と件数、関連Bookmarkのunique件数を追加した。
+- Bookmark／Tag削除は確認なしを維持し、Category削除だけは全子Tagと関連edgeのcascade soft-delete、影響件数、Bookmark再分類を警告して確認する。確認後はBookmark本体を残して再分類JobをPENDINGにし、AI失敗はNEEDS_REVIEW／手動分類へ送る。Undoは提供しない。
+- タスク、Execution Plan規約、Web fixture／Playwright／人間受入、技術的負債、障害対応を、警告取消、revision競合、transaction rollback、PENDING／NEEDS_REVIEWまで追跡できる形へ更新した。
+- `デザインシート.svg` は利用者が更新した正本をそのまま保持し、本作業では編集していない。現物のSHA-256 `1245e8b3f6eddaca45d1d821cd6800cca7c5321be30229b9e5f1e317df966522` を [REFERENCES.md](REFERENCES.md) へ記録した。
+- 過去のWORKLOGにあるBookmarkのCategory直接編集、ISSUE-019保留、非空Category削除BLOCK／cascade禁止は当時の履歴として残すが、本節と現行要件により置換済みである。
+
+### 検証
+
+- `sha256sum デザインシート.svg`: `1245e8b3f6eddaca45d1d821cd6800cca7c5321be30229b9e5f1e317df966522`。
+- 現行文書を逆検索し、ISSUE-019のOpen／決定待ち、非空Category削除BLOCK、cascade禁止、BookmarkのCategory直接編集が残っていないことを確認した。過去のWORKLOG記録だけは履歴として保持した。
+- `git diff --check`: 成功。
+- これは仕様文書と参照hashの静的検証である。UI Webプレビュー、Playwright、実Chrome、AI再分類、IndexedDB transactionの実行確認は実装後に必要であり、今回の成功条件には含めていない。hash一致だけではSVGの視覚的正しさを証明しない。
+
+### 残課題
+
+- Category cascade削除のexpected revision、原子的soft-delete、再分類Job冪等性を実装し、0件／大量件数／途中失敗をfixtureとE2Eで検証する。
+- 更新済みデザインシートと実装画面の視覚差、警告文の理解しやすさ、keyboard／screen reader操作はAIエージェント確認後に人間が受け入れる。
+
+## 2026-08-17 — Tag編集からの親Category変更を確定
+
+### 目的
+
+再保存された最新デザインシートと利用者指示を正本とし、管理モードのTag編集から親Categoryを変更できる仕様へ上書きする。
+
+### 変更
+
+- Tag編集modalへ親Category入力を置き、activeな既存Categoryをkeyword一致度順の最大8候補から選択できるようにした。必要なCategoryは同じmodalのside viewで作成し、Tag編集draftを保持して戻った時に自動選択する。
+- 保存時はTagと選択先Categoryのexpected revision、およびsubmit開始時に1回発行する `tag-update:<UUID>` requestIdを検証し、Tag、新旧Category、全参照active Bookmark／edgeを1 transactionで再検証する。Tagの親を更新した後、各BookmarkのCategory closure、revision、検索派生データ、同期Outbox、mutation receiptを原子的に更新する。同request再送はreceiptに保存した同じ `UpdateTagResult` へ収束させ、別payloadでのrequestId再利用を拒否する。
+- Category連鎖削除は `category-delete:<UUID>` requestIdとし、Tag更新とuse case別namespaceを分けて同期batch IDの衝突を防ぐ。UIは同一payloadの応答消失／retryで同じIDを再利用する。
+- Tag IDとTag名のglobal unique規則を維持し、親変更を理由とするAI再分類は行わない。競合または途中失敗時は全件rollbackし、Tag編集dialogとdraftを保持する。
+- 親変更は管理モードの利用者操作だけに限定し、AI分類、Import、同期競合から暗黙に実行しない。QR Importの異親同名競合を自動移動しない規則は維持する。
+- [ISSUES.md](ISSUES.md) のISSUE-019を「管理モードTag編集から親変更可」のDecidedへ更新し、タスク、fixture、技術的負債、障害対応を参照Bookmark 0件／1件／多数、expected revision競合、全件rollback、AI再分類なしまで揃えた。
+- 直前のWORKLOGにある「Tag親は作成時固定」とSHA-256 `1245e8b3...6522` は当時の入力に基づく履歴であり、本節で置換した。Category警告付きcascade soft-deleteと影響Bookmark再分類の契約は変更していない。
+
+### 検証
+
+- 完了直前の `sha256sum デザインシート.svg`: `44b39333bd9d91d3f617508703273bfed0c766802ecce935226a8c62c0bcd751`。
+- 現行文書を逆検索し、Tag親固定、親変更UIなし、immutable error、親変更拒否が担当文書に残っていないことを確認した。WORKLOGの置換済み履歴と、AI／Importが親を暗黙変更しない規則は除外した。
+- `git diff --check`: 成功。
+- Markdown 25ファイル、相対リンク262件、code fenceを検査し、リンク切れと未閉鎖fenceが0件であることを確認した。
+- ESLint、`tsc --noEmit`、Vitest 2件、Chrome MV3向けPlasmo production build: 成功。
+- GitHub Issue #7、#12、#21、#40を最新のTag親変更／Category cascade契約へ更新した。既存ラベル、マイルストーン、open／closed状態を維持し、#10と#42は現行仕様と一致するため変更していない。
+- `docs/AI_GUIDE.md`: 0バイトを維持し、編集していない。
+- これは文書と参照hashの静的検証である。hash一致はSVGの視覚的正しさを証明しない。UI Webプレビュー、Playwright、実Chrome、IndexedDBの多数Bookmark transactionは実装後に検証する。
+
+### 残課題
+
+- Tag親変更の参照Bookmark 0件／1件／多数、同じ旧親を残す別Tagあり／なし、Tag／親revision競合、quota失敗、再送をRepository／E2E fixtureで検証する。
+- 最新デザインシートと実装画面のCategory combobox、side view、draft／focus復帰をAIエージェントが確認し、その後に人間が受け入れる。
+
+## 2026-08-17 — 右クリック保存の設定toggleを追加
+
+### 目的
+
+利用者が設定画面からpage／linkの右クリック保存項目を有効化または無効化できる確定仕様へ更新する。
+
+### 変更
+
+- 一般設定に `右クリックメニューから保存` switchを追加し、端末固有の `contextMenuBookmarkEnabled` として既定ONにした。
+- ONではBookmation所有のpage／link固定IDを重複なく登録し、OFFではその2 IDだけを解除する契約へ統一した。OFF切替直前の遅延clickも保存前の設定再確認で拒否する。
+- 旧settingsのfield欠損はON、boolean以外の破損値はOFFへ移行し、install／startup／storage変更時にService Workerが登録状態をreconcileすることをDB、backend、security、task、test、troubleshootingへ反映した。
+- Chrome公式のcontextMenus APIとstorage.onChangedを2026-08-17に再確認し、参照先を更新した。
+
+### 検証
+
+- `git diff --check`: 成功。
+- Markdown 25ファイルの相対リンク、code fence、table列数: 異常0件。
+- `docs/AI_GUIDE.md`: 0バイトを維持し、編集していない。
+- `npx --yes pnpm@10.15.1 lint`: 成功。
+- `npx --yes pnpm@10.15.1 typecheck`: 成功。
+- `npx --yes pnpm@10.15.1 test`: 成功、Vitest 1ファイル／2件。
+- `npx --yes pnpm@10.15.1 build`: 成功、Chrome MV3向けPlasmo production build。
+- UIとChrome API実装は未実装であり、実際のmenu表示／解除はTASK-106とPlaywright／人間受入で確認する。
+
 ## 追記テンプレート
 
 ```markdown
