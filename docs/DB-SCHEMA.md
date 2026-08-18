@@ -17,7 +17,7 @@
 - 確定要件: カテゴリ名とタグ名はそれぞれ正規化後に全体で一意とする。タグ名は親カテゴリをまたいでも重複を許さず、分類ラベルの同一性は名称ではなく `id` で判断する。
 - 確定要件: 1件のBookmarkへ複数のタグを割り当て、Category関連は割り当てられたACTIVE Tagの親Category集合としてのみ保持する。同じ分類ラベルは複数のBookmarkで再利用できるが、CategoryをBookmarkから独立して追加・解除する入力は持たない。
 - 確定要件: `Label.kind` と `parentCategoryId` で1段階の親子関係を表す。カテゴリは `parentCategoryId=null`、タグは作成・編集時に選択した有効なカテゴリIDを必須とする。Tag編集では親Categoryを変更でき、全参照BookmarkのCategory edgeを同じtransactionで再計算する。[ISSUE-019](./ISSUES.md) はこの原子的な親更新を提供するルールで解決済みである。
-- P1確定要件: 訪問回数・最終訪問日時、文字列のアーカイブ状態、リマインダー、インポート、QR共有、Drive同期を本スキーマで扱う。
+- P1確定要件: 訪問日数リマインダー・最終訪問日時、文字列のアーカイブ状態、インポート、QR／CSV共有、Drive同期を本スキーマで扱う。
 
 ## 関係
 
@@ -112,8 +112,9 @@ v1 fixtureは最低限次を固定し、Category／Tag作成、改名、Import�
 | searchDocuments | id | 必須 | BookmarkとCategory／Tagの再生成可能な検索用データ |
 | blobs | id | 条件付き | サムネイル等のBlobとメタ情報 |
 | schemaMeta | key | 必須 | DBバージョン、移行状態 |
-| visitReminders | id | P1必須 | 訪問閾値到達後の通知と再通知抑止 |
+| visitReminders | id | P1必須 | 訪問日数閾値到達後の通知、URL別reset、再通知抑止 |
 | archiveOperations | id | P1必須 | アーカイブ理由・時刻・復元状態。最小payloadと分離 |
+| archiveEvaluationIssues | id | P1必須 | 履歴なし等、archiveしなかった項目の利用者向け状態 |
 | importJobs | id | P1必須 | Chrome標準Bookmark取込の進捗と結果 |
 | syncOutbox | id | P1必須 | Google Driveへの未同期操作 |
 | syncSnapshots | id | P1必須 | 競合のbase／local／remoteを再現するimmutable snapshot |
@@ -153,7 +154,6 @@ interface ActiveBookmarkRecord {
   savedAt: EpochMs
   updatedAt: EpochMs
   lastVisitedAt: EpochMs | null
-  visitCount: number | null
   revision: number
   deletedAt: EpochMs | null
 }
@@ -182,7 +182,7 @@ interface ArchivedBookmarkRecord {
 type BookmarkRecord = ActiveBookmarkRecord | ArchivedBookmarkRecord
 ~~~
 
-`ARCHIVED` は保存制御用のトップレベルID／状態と `metadata`、利用者データの `payload` を構造上分離する。payloadにはカテゴリ、タグ、ページ名、URLだけを残す。アーカイブ理由、時刻、revision、同期状態は別の `archiveOperations` に分離する。アーカイブ時に `siteName`、favicon／thumbnail参照、訪問回数、最終訪問日時、分類状態、取得元をpayloadへ複製しない。
+`ARCHIVED` は保存制御用のトップレベルID／状態と `metadata`、利用者データの `payload` を構造上分離する。payloadにはカテゴリ、タグ、ページ名、URLだけを残す。アーカイブ理由、時刻、revision、同期状態は別の `archiveOperations` に分離する。アーカイブ時に `siteName`、favicon／thumbnail参照、訪問統計、最終訪問日時、分類状態、取得元をpayloadへ複製しない。
 
 ### 索引
 
@@ -198,7 +198,7 @@ URL hashだけをuniqueにしない。hash衝突と、正規化規則の更新�
 
 faviconUrlは取得元の記録または未キャッシュ時の候補であり、一覧表示のたびに外部URLへアクセスするための値ではない。取得・検証できた画像はfaviconBlobIdでローカルBlobを参照し、取得できなければ文字ベースの代替表示を使う。
 
-`lastVisitedAt` と `visitCount` は、利用者が訪問機能を有効化して `history` 権限を許可した場合だけACTIVEレコードへ更新する。権限がない場合や履歴に該当URLがない場合は `null` とし、`savedAt` から推測しない。自動アーカイブは `lastVisitedAt=null` のBookmarkを変更しない。`MANUAL_URL` でも入力値をそのまま信用せず、許可スキーム、長さ、正規化結果を検証する。
+`lastVisitedAt` は、利用者が履歴を使う機能を開始して `history` 権限を許可した場合だけACTIVEレコードへ更新する。権限がない場合、または権限はあっても該当URLの信頼できる訪問日時を得られない場合を「履歴なし」とし、`null` のまま `savedAt` から推測しない。自動アーカイブは `lastVisitedAt=null` のBookmarkを変更せず、後者では `ARCHIVE_HISTORY_NOT_FOUND` を永続化して設定画面にエラー表示する。訪問リマインダー用の日別件数はBookmarkへ保存せず、評価時に履歴の `visitTime` から再計算する。旧 `visitCount` fieldは判定に使わず、schema migrationまたは次回書込みで除去する。`MANUAL_URL` でも入力値をそのまま信用せず、許可スキーム、長さ、正規化結果を検証する。
 
 Bookmarkの論理削除ではrevisionを1つ進め、`deletedAt` を必須にする。favicon／thumbnail参照はtombstoneへ残し、同期tombstone保持期間が終わり他の参照がないことを確認するまで参照Blobを回収しない。
 
@@ -484,6 +484,8 @@ IndexedDBのversionとアプリ内部のschemaVersionを対応付ける。`norma
 ドメインデータと混ぜず、次の設定オブジェクトだけを保存する。
 
 ~~~ts
+type FrequentVisitWindow = "LAST_7_DAYS" | "LAST_30_DAYS" | "LAST_365_DAYS"
+
 interface LocalSettings {
   settingsSchemaVersion: number
   onboardingState: {
@@ -498,7 +500,9 @@ interface LocalSettings {
   thumbnailEnabled: boolean
   contextMenuBookmarkEnabled: boolean
   frequentVisitReminderEnabled: boolean
-  frequentVisitThreshold: number
+  frequentVisitWindow: FrequentVisitWindow | null
+  frequentVisitDayThreshold: number | null
+  autoArchiveEnabled: boolean
   archiveAfterDays: number
   archiveHistoryAccess: "NOT_REQUESTED" | "GRANTED" | "DENIED"
 }
@@ -506,13 +510,14 @@ interface LocalSettings {
 
 - 不明なenum値は安全な既定値へ戻す。
 - 設定の破損でBookmarkデータを初期化しない。
-- `frequentVisitThreshold` と `archiveAfterDays` は数値入力から受けるが、有限の整数、安全な最小値・最大値、単位を保存前に検証する。空文字、指数表記、NaN、Infinity、範囲外を設定値へ変換しない。
+- `frequentVisitDayThreshold` は新規installでも既定値を持たずnullとする。`frequentVisitWindow` は3 enumだけを許可し、当日を含む直近7／30／365暦日へ対応させる。期間選択を変更した時点でも `frequentVisitDayThreshold=null` とし、判定を `REMINDER_CONFIG_REQUIRED` で停止する。再入力値は期間ごとに1〜7／1〜30／1〜365の有限整数だけを許可する。`archiveAfterDays` は新規installと欠損／不正値migrationで30とし、それ以外は有限の正整数として検証する。空文字、指数表記、NaN、Infinity、範囲外を有効設定へ変換しない。
+- 旧 `frequentVisitThreshold` は回数から日数へ暗黙変換しない。migrationでは旧fieldを除去し、`frequentVisitWindow=null`、`frequentVisitDayThreshold=null`、`frequentVisitReminderEnabled=false` として利用者の再設定を要求する。
 - `aiGranularity` だけを0〜4のスライダー値として扱う。Job作成時にpolicyVersion 1の対応 `0→0`、`1→1`、`2→2`、`3→4`、`4→6` でmaxNewTagsを固定する。0でもAIによる既存カテゴリ／既存タグの自動割当は実行する。
 - `frequentVisitReminderEnabled=false` の間は新規候補の生成と通知を行わない。端末固有表示設定は同期せず、行動履歴関連の設定を同期するかは同期Planで固定する。
 - `contextMenuBookmarkEnabled` は端末固有設定としてDrive同期しない。旧settingsにfieldがない場合は既存の右クリック保存を維持するため `true` へ移行し、boolean以外の破損値は安全側の `false` として扱う。`true` はBookmation所有のpage／link menu IDを重複なく登録し、`false` はその2件を解除する。クリック処理も保存直前に現在値を再確認し、`false` なら保存しない。
 - `onboardingState` は `runtime.onInstalled` の `reason="install"` でレコードがない時だけ初期化する。update、startup、Service Worker再起動で上書きせず、currentStepIdから途中再開し、完了後もCOMPLETEDを保持する。端末固有のためDrive同期しない。
 - カテゴリテンプレートcatalogはIndexedDBの正本Storeではなく、アプリに同梱する版付き参照データとする。ISSUE-022でcatalog schemaを決めるまでは仮の候補名をmigrationやseedへ埋め込まない。catalogを表示しただけではLabelを作らず、利用者の適用操作で通常のCategory作成transactionを呼ぶ。作成後は `kind="CATEGORY"`、`origin="USER"` とし、Normalizer、一意索引、creationRequestId、論理削除規則を例外なく適用する。stepは既存の `onboardingState.currentStepId` で追跡し、catalog versionの永続fieldとmigrationはISSUE-022決定後にschemaへ追加する。update／reloadだけで再適用しない。
-- アーカイブは確定機能であり、`archiveAfterDays` の検証済み閾値に従って評価する。現行設定に別の有効化フラグを持たせない。初回開始または閾値確定時に目的説明後 `history` だけを要求し、拒否時も閾値を保持して `archiveHistoryAccess="DENIED"` とし判定を停止する。この値はUI表示と再要求導線用のcacheであり、実行前にChromeの実権限を再確認して取消も反映する。アーカイブを理由に `notifications` を要求しない。
+- `autoArchiveEnabled` は新規installとfield欠損migrationでfalseとする。ON commandは利用者gesture内で目的説明後に `history` 実権限を確認・必要なら要求し、許可成功後だけtrueをcommitする。拒否、取消、例外ではfalseのままとし、後から権限が削除された場合もfalseへ戻してarchive alarmを止める。toggleをOFFにするだけでは、訪問リマインダーも利用し得る共有 `history` permissionを削除しない。`archiveHistoryAccess` はUI表示用cacheであり、実行前にChromeの実権限を再確認する。アーカイブを理由に `notifications` を要求しない。
 
 ## visitReminders
 
@@ -524,16 +529,19 @@ interface VisitReminderRecord {
   id: Id
   normalizedUrlHash: string
   normalizedUrl: string
-  visitCountAtReminder: number
-  state: "PENDING" | "SAVED" | "SNOOZED" | "DISMISSED" | "SUPPRESSED"
+  window: FrequentVisitWindow
+  windowStartedAt: EpochMs
+  visitDaysAtReminder: number
+  countingResetAt: EpochMs | null
+  state: "PENDING" | "SAVED" | "DECLINED" | "DISMISSED" | "SUPPRESSED"
   remindedAt: EpochMs
-  nextEligibleAt: EpochMs | null
+  respondedAt: EpochMs | null
   createdAt: EpochMs
   updatedAt: EpochMs
 }
 ~~~
 
-同じ正規化URLに有効な `PENDING` を複数作らない。リマインダーの「次回以降表示しない」は候補URL単位で `SUPPRESSED` にし、グローバル設定 `frequentVisitReminderEnabled` は変更しない。履歴件数がさらに増えても同じ正規化URLの候補を再生成しない。`SAVED` へ変えるのは利用者が通知または確認UIの `保存` を選び、Bookmark保存がcommitした後だけとする。
+同じ正規化URLに有効な `PENDING` を複数作らない。評価時は `chrome.history.getVisits()` の各 `visitTime` を現在の端末ローカル暦日へ変換し、同じcanonical URL・同じ暦日を1件へまとめる。選択期間の開始時刻と、そのURLの最新 `countingResetAt` の遅い方より後だけを数える。`いいえ` はstateを `DECLINED`、`respondedAt` と `countingResetAt` を応答時刻へ更新し、次の候補はそれ以降の訪問日だけで再判定する。同日中でもreset後の訪問は新しい1日目になり得る。「次回以降表示しない」は候補URL単位で `SUPPRESSED` にし、resetより優先する。グローバル設定 `frequentVisitReminderEnabled` は変更せず、履歴がさらに増えても同じURLを再候補化しない。`SAVED` へ変えるのは利用者が `はい` を選び、Bookmark保存がcommitした後だけとする。OS通知を明示回答せず閉じた `DISMISSED` の再表示規則はISSUE-008で決める。
 
 ## archiveOperations
 
@@ -561,6 +569,33 @@ interface ArchiveOperationRecord {
 
 - byBookmarkCreatedAt: bookmarkId, createdAt
 - byStateArchivedAt: state, archivedAt
+
+## archiveEvaluationIssues
+
+background評価でarchiveしなかった理由を、設定画面で利用者へ表示できる最小状態として保持する。完全な履歴や訪問日の配列は保存しない。
+
+~~~ts
+interface ArchiveEvaluationIssueRecord {
+  schemaVersion: number
+  id: Id
+  bookmarkId: Id
+  bookmarkRevision: number
+  code: "ARCHIVE_HISTORY_NOT_FOUND"
+  state: "OPEN" | "RESOLVED"
+  detectedAt: EpochMs
+  lastCheckedAt: EpochMs
+  resolvedAt: EpochMs | null
+  createdAt: EpochMs
+  updatedAt: EpochMs
+}
+~~~
+
+同じBookmarkとcodeにOPEN recordを複数作らない。`history` 権限が許可済みでも正規化URLの信頼できる訪問日時を得られなければOPENへupsertし、Bookmarkは `lastVisitedAt=null` のままarchiveしない。後の検証で訪問日時を取得できた場合だけRESOLVEDへ進める。設定画面はBookmarkをjoinしてページ名／URLと `履歴がないためアーカイブできません` を表示する。実行頻度と利用者による再確認controlはISSUE-009で決める。
+
+### 索引
+
+- byBookmarkCode: bookmarkId, code（OPENは一意）
+- byStateUpdatedAt: state, updatedAt
 
 ## importJobs
 
@@ -677,7 +712,9 @@ Bookmarkのfavicon／thumbnail IDはtombstoneに保持する。Blob回収は有�
 
 ### 訪問判定とアーカイブ
 
-履歴照会はDB transaction外で行い、検証済みの `visitCount` / `lastVisitedAt` だけを短いtransactionで更新する。アーカイブ判定時はBookmarkのrevisionを再確認し、設定期間を超えた `ACTIVE` だけを `ArchivedBookmarkRecord` へ置換する。置換前に有効edgeからカテゴリ／タグのID・表示名・親カテゴリIDを固定し、ページ名とURLを加えた最小スナップショットだけを残す。`lastVisitedAt=null`、既にARCHIVED、更新競合の項目は自動変更しない。Bookmark置換、関連edgeの論理削除、BookmarkRevision、archiveOperations、同期Outboxを同じtransactionへ含める。理由・時刻・revision等は利用者payloadではなくarchiveOperationsへ書く。
+履歴照会はDB transaction外で行う。訪問リマインダーでは検証済みvisitTimeを期間とreset時刻でfilterして暦日集合へ縮約し、完全なvisit列を永続化しない。Reminderの作成／回答とURL別resetだけを短いtransactionで更新する。アーカイブ判定は `autoArchiveEnabled=true` と実際の `history` 権限を先に確認し、いずれかを満たさなければBookmark transactionを開始しない。権限取消を検出した場合は設定をfalseへ戻してalarmを止める。許可済みでも対象URLの信頼できる訪問日時がなく `lastVisitedAt=null` なら、Bookmarkを変更せず `archiveEvaluationIssues` の `ARCHIVE_HISTORY_NOT_FOUND` だけをupsertする。
+
+訪問日時を得られた項目ではBookmark revisionを再確認し、検証済み `lastVisitedAt` が設定期間を超えた `ACTIVE` だけを `ArchivedBookmarkRecord` へ置換する。置換前に有効edgeからカテゴリ／タグのID・表示名・親カテゴリIDを固定し、ページ名とURLを加えた最小スナップショットだけを残す。既にARCHIVED、更新競合の項目は自動変更しない。Bookmark置換、関連edgeの論理削除、BookmarkRevision、archiveOperations、対応するOPEN evaluation issueのRESOLVED化、同期Outboxを同じtransactionへ含める。理由・時刻・revision等は利用者payloadではなくarchiveOperationsへ書く。
 
 設定内のアーカイブ一覧から復元する時は、URLを再検証・再正規化し、スナップショットのTag IDが現在も有効なら再利用する。削除済み／競合Labelは利用不可と表示してedgeの再有効化から除外し、別の有効Tagを利用者が選ぶ場合も名称だけで自動接続しない。削除済みLabel自体は復元しない。復元したActive recordではfavicon、thumbnail、訪問統計を `null` から再構築し、有効なTAG edgeだけを再有効化して、そのACTIVE Tag親集合からCATEGORY edgeを導出し、archiveOperationsをRESTOREDへ更新する。
 
@@ -797,15 +834,16 @@ interface BookmarkCursor {
 5. BookmarkLabelは `Label.kind` で再判定し、Bookmarkごとに有効TAG edgeの親集合を求め、ACTIVE CATEGORY edgeをその集合へ完全一致するよう追加・復元・論理削除する。同じ `(bookmarkId, labelId)` が複数あれば最新の有効状態と監査情報を残して1件にまとめ、その後 `byBookmarkAndLabel` unique索引を作る。
 6. 各Labelへ安定した `creationRequestId` を割り当てる。移行値は既存IDから `migration:<labelId>` のように決定的に生成し、再実行で変えない。空の `tagMutationReceipts` Storeを追加し、過去のTag編集requestIdを推測してreceiptを捏造しない。
 7. 旧 `aiGranularity=1..5` は意味対応表を固定して0〜4へ変換する。単純な `value-1` とするかは旧段階の意味を確認してから決め、未確認値は安全に新規AIタグ作成なしへ倒す。
-8. 旧ARCHIVED Bookmarkは `metadata` と `payload { title, url, categories, tags }` を構造上分けた最小スナップショットへ変換し、favicon、thumbnail、訪問統計等をpayloadへ残さない。理由・時刻・revision等はarchiveOperationsへ分離し、復元テストが通るまで旧値を回収しない。
-9. `searchDocuments` を親カテゴリ情報付きでバッチ再構築し、`migrationCursor` に完了位置を保存する。lastKeyはJSON round-trip可能な文字列、有限数、またはそれらだけの一次元配列へ限定し、表現できないkeyには別のversion付きcursor形式を定義する。
-10. 件数、参照整合、カテゴリ作成元、全TAGの親CATEGORY record存在、ACTIVE TAGのACTIVE親、BookmarkのACTIVE CATEGORY edgeとACTIVE Tag親集合の完全一致、edge一意性を確認してから新Readerへ切り替える。旧平坦フィールドは少なくとも1リリースの復旧期間後に別バージョンで削除する。
+8. 旧訪問回数閾値を訪問日数へ変換せず、`frequentVisitDayThreshold=null` とする。`archiveAfterDays` の欠損／不正値は30、`autoArchiveEnabled` の欠損はfalseへ移し、旧「toggleなし」状態や保存済みhistory権限だけから自動的にtrueへしない。
+9. 旧ARCHIVED Bookmarkは `metadata` と `payload { title, url, categories, tags }` を構造上分けた最小スナップショットへ変換し、favicon、thumbnail、訪問統計等をpayloadへ残さない。理由・時刻・revision等はarchiveOperationsへ分離し、復元テストが通るまで旧値を回収しない。
+10. `searchDocuments` を親カテゴリ情報付きでバッチ再構築し、`migrationCursor` に完了位置を保存する。lastKeyはJSON round-trip可能な文字列、有限数、またはそれらだけの一次元配列へ限定し、表現できないkeyには別のversion付きcursor形式を定義する。
+11. 件数、参照整合、カテゴリ作成元、全TAGの親CATEGORY record存在、ACTIVE TAGのACTIVE親、BookmarkのACTIVE CATEGORY edgeとACTIVE Tag親集合の完全一致、edge一意性を確認してから新Readerへ切り替える。旧平坦フィールドは少なくとも1リリースの復旧期間後に別バージョンで削除する。
 
 変換は冪等にし、Object Store・索引変更と大量レコード変換を分ける。失敗時はUIに状態と復旧方法を示し、旧バージョン、空DB、カテゴリ名競合、タグ名競合、親不明タグ、複数カテゴリ／タグ、最大想定件数、途中中断でテストする。
 
 未実装のため、マイグレーション成功を保証するものではない。
 
-## QR共有payload
+## QR／CSV共有payload
 
 設定の共有画面では検索とチェックボックスで、カテゴリ単位、タグ単位、個別Bookmarkを選択する。選択条件そのものではなく、生成操作開始時に固定したBookmark ID集合をpayloadへ展開する。
 
@@ -826,6 +864,19 @@ interface QrSharePayload {
 ~~~
 
 カテゴリ選択はそのカテゴリに関連するBookmark、タグ選択はそのタグに関連するBookmark、個別選択はそのBookmarkを集合へ加え、IDで重複排除する。QRにはローカルID、訪問履歴、サムネイル、AI会話、OAuth情報を含めない。checksumは搬送中の破損・欠落・切詰め検出だけに使い、送信者の真正性、改ざん耐性、認証を保証する値として表示しない。
+
+QRとCSVは、export開始時に固定した同じBookmark ID集合と内容revisionのfingerprintを入力にする。QRはJSON payloadの実encoded bytesを選択済みversion／error-correction／文字modeのencoderで事前検査する。容量内でのみ1つのQRを生成し、容量超過またはencoder overflowでは `QR_CAPACITY_EXCEEDED` を返してQR fragmentを1つも生成しない。切捨てと分割QRは行わず、UIは同じselection fingerprintを保持した `CSVでエクスポート` commandへ誘導する。
+
+CSV export v1はUTF-8、header付き、1 Bookmark 1行で、列順を次へ固定する。
+
+~~~text
+formatVersion,title,url,categoriesJson,tagsJson
+~~~
+
+- `formatVersion` は文字列 `BOOKMATION_CSV_1` とする。
+- `categoriesJson` はCategory名のJSON配列、`tagsJson` は `{ "name": string, "parentCategoryName": string }` のJSON配列を、1つのCSV fieldとしてRFC 4180相当のquote規則でescapeする。
+- titleと各出力fieldが `=`, `+`, `-`, `@`, tab, CR, LFの危険な先頭文字で始まる場合は、表計算ソフトの数式として評価されないようexport表示値をneutralizeする。元のBookmark正本は変更しない。
+- ローカルID、訪問履歴、Blob、AI会話、OAuth情報、論理削除済みBookmarkを含めず、exportはブラウザ内で完結させる。CSV importはこの契約に含めない。
 
 読み取りImportはpayload全体を検証してpreviewを作り、カテゴリ／タグのkind別名称一意性、タグ親、URL重複を利用者が確認した後だけ通常のImport transactionへ渡す。Bookmarkへの分類関連はImportされた有効TAGだけを適用し、CATEGORY edgeはその親集合から導出する。payload内のCategoryはTag親の定義または共有選択情報として扱い、Bookmarkへ単独edgeを作らない。payload内部でv1正規化後に同名となるTAGが複数の `parentCategoryName` を持つ場合はpreview前に構造不正として拒否し、暗黙renameや親選択を行わない。Import Tagと同名の既存Tagが別parentCategoryIdを持つ場合も、既存Tagの自動reuse、rename、parent移動を行わない。利用者はその項目をskip、Import全体をcancel、または競合Tagへ別名を明示入力する。別名入力後はv1正規化と一意性を再検証し、新しいImport plan fingerprintと全件previewを再生成してからcommitする。
 
@@ -1052,11 +1103,11 @@ interface SyncOperationRecord {
 - URL hash衝突でも異なるURLを誤って同一扱いしない。
 - 設定破損でIndexedDBを初期化しない。onboardingStateはinstall時だけ初期化され、途中stepと完了状態をupdate／startup／Service Worker再起動後も保持する。
 - Category template catalogを表示しただけではLabel件数が変わらない。明示適用した候補だけが `origin=USER` Categoryとして作成され、同じ適用request、onboarding再開、update／reloadで重複せず、既存／tombstone同名は通常の一意性エラーになる。
-- `archiveState` が文字列 `ACTIVE` / `ARCHIVED` で保存され、ARCHIVEDはmetadataと `payload { title, url, categories, tags }` が分離され、設定から復元できる。自動アーカイブは最終訪問日時がない項目を変更しない。archive専用toggleを持たず、history拒否時もarchiveAfterDaysを保持して判定を権限待ち停止し、notificationsを要求しない。
-- 同じURLの訪問リマインダーを重複生成せず、利用者が保存を選ぶまでBookmarkを作らない。「次回以降表示しない」にしたURLはグローバル設定を変えず再候補化しない。
+- `archiveState` が文字列 `ACTIVE` / `ARCHIVED` で保存され、ARCHIVEDはmetadataと `payload { title, url, categories, tags }` が分離され、設定から復元できる。`archiveAfterDays` の新規／移行既定は30、`autoArchiveEnabled` の既定はfalseである。history実権限がある時だけtoggleをONへcommitでき、拒否／取消時はfalseのまま、後発取消時もfalseへ戻ってalarmが停止する。履歴なし項目は変更せずOPENな `ARCHIVE_HISTORY_NOT_FOUND` として表示でき、notificationsを要求しない。
+- 訪問日数閾値の既定値はnullであり、訪問期間3種と日数閾値の有効な組だけを受理する。期間変更時は閾値をnullへ戻して判定を停止する。同日複数訪問を1日にまとめ、同じURLのReminderを重複生成せず、利用者が `はい` を選ぶまでBookmarkを作らない。`いいえ` は応答前の訪問日を次回集計から除外し、「次回以降表示しない」はグローバル設定を変えずそのURLを再候補化しない。
 - Bookmark／Tag削除は確認画面なし、Category削除は影響件数を示す警告確認済みrequestだけで対象IDと期待revisionを検証する。1件でも失敗したら全件をrollbackし、Undo tokenや利用者向け復元導線は作らない。削除済みLabelのunique keyは物理GCまで名称を予約し、その間は同名別IDを拒否して別名だけを許可する。Bookmark削除でSearchDocumentを同時に除外し、参照Blobは同期tombstone保持と参照解消が済むまで回収しない。
 - Category連鎖削除requestIdは1つのCategoryだけに結び付ける。同じCategoryの完了済みrequest再送はACTIVE／revision／fingerprint検証より先にno-op成功へ収束し、別Categoryでの再利用を拒否する。新規requestでは警告snapshotの `impactFingerprint` をtransaction内で再計算し、不一致なら再警告して無変更とする。一致時だけCategory、ACTIVE／削除済み全子TAG、関連edgeを冪等にtombstone化し、影響ACTIVE Bookmarkを保持する。残存TagからCategory closureと検索文書を再計算し、Bookmark revisionを進め、旧RUNNING結果を拒否し、削除request起点のPENDING再分類JobをBookmarkごとに1件だけ作る。AI失敗時はNEEDS_REVIEWと手動Tag編集へ移り、子TAG tombstoneを先に、Category tombstoneを最後に物理GCする。
-- QRは検索・チェック選択を固定集合へ展開し、checksumを真正性保証に使わない。読取Importで破損、過大、カテゴリ／タグ名競合、親不明タグを適用前に拒否または確認へ送り、payload内部の同名TAG・複数親はpreview前に拒否する。既存の別親同名TAGは自動reuse／rename／moveせず、skip／cancelまたは明示別名後の全件再previewだけを許す。
+- QRとCSVは検索・チェック選択を同じ固定Bookmark集合へ展開する。QRは実encoderで容量検査し、超過時はfragmentを生成せず `QR_CAPACITY_EXCEEDED` とCSV actionを返し、分割・切捨てを行わない。CSV v1は固定header・1 Bookmark 1行・UTF-8で、構造列をJSON fieldとしてescapeし、数式注入をneutralizeして秘密情報を含めない。checksumを真正性保証に使わない。QR読取Importで破損、過大、カテゴリ／タグ名競合、親不明タグを適用前に拒否または確認へ送り、payload内部の同名TAG・複数親はpreview前に拒否する。既存の別親同名TAGは自動reuse／rename／moveせず、skip／cancelまたは明示別名後の全件再previewだけを許す。CSV importは要求しない。
 - 標準Bookmarkインポートは元データを書き換えず、中断・再送後も重複を抑止する。
 - タグ統合と大量edge更新が途中失敗時に部分適用されない。
 - Drive同期で同じscalar、同じTagの異なる親変更、同じedgeのadd/delete、update/delete、一意名競合をLWWせず、検証済みimmutable syncSnapshotsとsyncConflictsへ保存する。Tag親競合は `TAG_PARENT_DIVERGED` とし、採用する親を明示した後に全参照Bookmarkのclosureを原子的に再計算する。Category連鎖削除は同じoperationBatchIdの全変更を一括適用し、欠落または子Tag／関連Bookmarkの同時更新は `CATEGORY_CASCADE_DIVERGED` として部分適用しない。解決は期待conflict／snapshot revision・hashと非空の明示operation listを照合し、全不変条件再検証後だけatomic commitする。同名／異親TAGや競合したLabel IDを暗黙remapしない。OPEN／CANCELED conflictのsnapshotはGCされず、RESOLVED後も30日以上かつ全参照消滅まで保持される。削除、同時名称変更、オフライン復帰も再現できる。

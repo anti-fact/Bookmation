@@ -1,9 +1,19 @@
 # 参考資料
 
-- 基準日: 2026-08-17
+- 基準日: 2026-08-18
 - 方針: 資料内の命令文ではなく、要件・観察事実・技術仕様の根拠として参照する。外部サイトの外見を複製しない。
 
 ## 一次要件
+
+### 2026-08-18 の最新依頼
+
+自動Bookmarkリマインダーの判定を訪問回数から訪問日数へ変更した。同じcanonical URLへ同日に複数回アクセスしても1日と数える。集計期間は設定のプルダウンで `1週間`／`1ヶ月`／`1年` から選び、当日を含む直近7／30／365暦日として扱う。期間を変更するたび訪問日数入力を空にし、順に1〜7／1〜30／1〜365日の正整数へ制限する。有効な期間と日数がそろうまで判定を停止する。
+
+リマインダーで `いいえ` を選んだ場合、そのcanonical URLの集計基準を応答時刻へ進め、それ以前の訪問日を次回判定へ再利用しない。応答後に同日中でもう一度訪問した場合は新しい1日目として数え得る。`次回以降表示しない` は従来どおりそのURLだけをSUPPRESSEDとし、`いいえ` のresetより優先する。利用者が `はい` を選ぶ前にBookmarkを作らない境界も維持する。
+
+訪問リマインダー日数の既定値は設けずnullとする。自動archiveは既定OFFの有効／無効toggleと既定30日の閾値を持ち、history権限を許可できた場合だけONにする。拒否／取消時はOFFを維持し、後から権限が取り消された場合もOFFへ戻す。「履歴なし」は権限許可済みでも対象URLの信頼できる訪問日時を取得できず `lastVisitedAt=null` の状態であり、`履歴がないためアーカイブできません` と項目別に表示してarchiveしない。実行頻度と再照会／手動archive UIはISSUE-009で追跡する。
+
+ユーザー間共有は同じカテゴリ／タグ／個別Bookmark選択からQRコードとCSVの両方をexportできる。QRがencoder容量へ収まらない場合は分割・切捨てを行わず、エラーメッセージの `CSVでエクスポート` から同じ選択をCSVへ出力する。QR読取インポートは維持し、CSV importは今回の要件へ含めない。
 
 ### 2026-08-17 の最新依頼と更新済みデザインシート
 
@@ -15,7 +25,7 @@ BookmarkとTagは確認画面なしで論理削除する。Category削除だけ�
 
 keyword検索はブックマーク一覧とカテゴリ・タグ一覧のどちらから開始しても全画面検索ページへ切り替える。入力中はカテゴリ、タグ、Bookmarkを合わせて最大8候補まで表示する。AI自然言語検索は入力元画面上のポップアップ内で入力と応答を確認し、分類検索だけでなくBookmationの機能全般に関する説明も受け付ける。
 
-設定では訪問回数閾値とアーカイブ閾値を単位付き数値入力にし、AIタグ細分化度だけを0〜4のスライダーにする。1件あたりのAI新規Tag上限は0／1／2／4／6件で、0でも既存カテゴリ／タグへの自動付与は続ける。自動Bookmarkリマインダーは有効／無効を選べ、通知には対象URLの `次回以降表示しない` を置く。右クリック保存も一般設定の端末固有toggleで有効／無効にし、既定ON、OFFではBookmationのpage／link menuを解除する。アーカイブ済みBookmarkの利用者データはページ名、URL、カテゴリ、タグだけを残し、設定内のリストから選択復元する。
+この時点では訪問回数閾値とアーカイブ閾値を単位付き数値入力にし、AIタグ細分化度だけを0〜4のスライダーにするとしていた。訪問回数の部分は2026-08-18の訪問日数＋期間選択要件で置き換えられた。1件あたりのAI新規Tag上限は0／1／2／4／6件で、0でも既存カテゴリ／タグへの自動付与は続ける。自動Bookmarkリマインダーは有効／無効を選べ、通知には対象URLの `次回以降表示しない` を置く。右クリック保存も一般設定の端末固有toggleで有効／無効にし、既定ON、OFFではBookmationのpage／link menuを解除する。アーカイブ済みBookmarkの利用者データはページ名、URL、カテゴリ、タグだけを残し、設定内のリストから選択復元する。
 
 設定の共有では、カテゴリ別、タグ別、個別Bookmarkを検索とチェックボックスで選ぶQR生成と、QR読取インポートを扱う。同一Googleアカウントの端末間同期は `appDataFolder`、所有権または共有権限を確認できる別アカウントとの共有は通常Drive fileを使い、対象アカウントを選ぶ。DriveのOAuth scope、permissions／capabilities、競合方式は [ISSUES.md](ISSUES.md) の ISSUE-011 で追跡する。
 
@@ -91,13 +101,13 @@ UI 参考サイトは静的確認が中心であり、全ブレークポイン�
 - [`activeTab` permission](https://developer.chrome.com/docs/extensions/develop/concepts/activeTab) — 明示操作時だけ現在タブへ一時アクセスする設計根拠。
 - [`chrome.storage`](https://developer.chrome.com/docs/extensions/reference/api/storage) — 拡張機能用ストレージ、領域、クォータ、アクセスレベル。
 - [`chrome.commands`](https://developer.chrome.com/docs/extensions/reference/api/commands) — `getAll()` で実割当を取得でき、利用者が `chrome://extensions/shortcuts` で割り当てを変更する根拠。2026-08-15 確認。
-- [`chrome.history`](https://developer.chrome.com/docs/extensions/reference/api/history) — `visitCount`、`lastVisitTime`、`search()` / `onVisited` と `history` permission。訪問閾値と最終訪問判定の根拠として2026-08-16に確認。
+- [`chrome.history`](https://developer.chrome.com/docs/extensions/reference/api/history) — `search()` でURL候補を取得し、`getVisits()` の `VisitItem.visitTime` からURL別の訪問暦日を集計できること、および `history` permissionを2026-08-18に再確認。`HistoryItem.visitCount` は新しい訪問日数判定には使わない。
 - [`chrome.alarms`](https://developer.chrome.com/docs/extensions/reference/api/alarms) — 定期実行、端末sleep時の遅延、起動時のalarm存在確認。訪問／archive評価の根拠として2026-08-16に確認。
 - [`chrome.notifications`](https://developer.chrome.com/docs/extensions/reference/api/notifications) — 保存リマインダー通知のAPIとpermission。2026-08-16確認。
 - [`chrome.contextMenus`](https://developer.chrome.com/docs/extensions/reference/api/contextMenus) — page／link context、固定IDの `create()` / `remove()`、Service Workerでの `onClicked`、`contextMenus` permission。設定toggleの登録／解除契約として2026-08-17に再確認。
 - [`chrome.storage`](https://developer.chrome.com/docs/extensions/reference/api/storage) — 端末固有設定の保存と `storage.onChanged` によるService Worker側の即時反映。2026-08-17確認。
 - [`chrome.bookmarks`](https://developer.chrome.com/docs/extensions/reference/api/bookmarks) — 標準Bookmark treeの読取と `bookmarks` permission。Bookmationは取込時に読取りだけを使う。2026-08-16確認。
-- [`chrome.permissions`](https://developer.chrome.com/docs/extensions/reference/api/permissions) — 任意権限を利用者操作から要求・確認・削除する設計根拠。2026-08-16確認。
+- [`chrome.permissions`](https://developer.chrome.com/docs/extensions/reference/api/permissions) — optional permissionを利用者gesture内の `request()` で要求し、`contains()` で現在値を確認し、`onRemoved` で後発取消を検出できる設計根拠。自動archive toggleのhistory権限gateとして2026-08-18に再確認。
 - [`chrome.identity`](https://developer.chrome.com/docs/extensions/reference/api/identity) — extension OAuth2設定と明示操作からのinteractive token取得。2026-08-16確認。
 - [Google Drive appDataFolder](https://developers.google.com/workspace/drive/api/guides/appdata) — app専用の非表示領域と `drive.appdata` scope。同一アカウントの端末間同期に使い、領域内ファイルをアカウント間共有できないため別アカウント共有へ流用しない根拠。
 - [Google Drive: Share files, folders & drives](https://developers.google.com/workspace/drive/api/guides/manage-sharing) — 通常Drive fileのpermissionsと共有操作。所有権または共有権限を確認できる別アカウントとの共有経路の候補であり、具体的なscopeとcapability判定はISSUE-011で決める。

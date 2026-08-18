@@ -156,7 +156,7 @@
 
 - [ ] [TESTING.md](TESTING.md) の通常Webページとして、production React componentとTailwind tokenをfake Adapterで表示する。
 - [ ] popup、ホーム、カテゴリ一覧、主要dialogと、空／通常／大量／エラー／権限拒否等の版管理fixtureを直接開けるようにする。
-- [ ] 初回ホーム、未適用／適用済み／競合／再開のCategory template step、検索候補0／8／9件以上、AI検索／機能質問、Unicode 15.1.0 vendored Normalizer asset＋hash、Tag作成／編集のCategory候補／side view／draft、親変更の0件／1件／多数Bookmark参照・revision競合・同request再送／別payload再利用拒否・rollback・AI再分類なし、Bookmark編集のTag-only入力、Category使用状況、Bookmark／Tagの確認なしdelete、Category警告付きcascade deleteと再分類、削除Undo経路なし、AI snapshot、設定境界値、URL単位SUPPRESSED、archive復元、Drive／QRをfixture化する。
+- [ ] 初回ホーム、未適用／適用済み／競合／再開のCategory template step、検索候補0／8／9件以上、AI検索／機能質問、Unicode 15.1.0 vendored Normalizer asset＋hash、Tag作成／編集のCategory候補／side view／draft、親変更の0件／1件／多数Bookmark参照・revision競合・同request再送／別payload再利用拒否・rollback・AI再分類なし、Bookmark編集のTag-only入力、Category使用状況、Bookmark／Tagの確認なしdelete、Category警告付きcascade deleteと再分類、削除Undo経路なし、AI snapshot、設定境界値、URL単位SUPPRESSED、archive権限gate／履歴なしエラー／復元、Drive／QR／CSVをfixture化する。
 - [ ] `ui:preview`、`ui:build`、`test:e2e`、`test:e2e:ui` scriptを実装し、preview／fixture／debug UIを本番拡張成果物から除外する。
 - [ ] Playwrightの隔離persistent Chromium contextへビルド済み拡張機能を読み込み、popupと `chrome-extension://` ページを操作する。
 - [ ] AIエージェントがHTML report、失敗時screenshot、trace、console error、skipを保存して人間へ渡せるようにする。
@@ -191,18 +191,18 @@
 
 | ID | Task | 状態 | 主な依存 | 完了時の成果 |
 | --- | --- | --- | --- | --- |
-| TASK-101 | 訪問閾値と保存リマインダー | Backlog | TASK-003、004、010 | 数値閾値と有効化設定に従い、確認したURLだけ保存できる |
-| TASK-102 | 最終訪問日時による自動archive | Backlog | TASK-003、101 | 数値日数で最小項目へarchiveし、設定一覧から復元できる |
-| TASK-103 | QR共有／読取取込 | Backlog | TASK-003、010 | 選択したBookmarkをQRで交換できる |
+| TASK-101 | 訪問日数閾値と保存リマインダー | Backlog | TASK-003、004、010 | 期間内の訪問日数とURL別resetに従い、確認したURLだけ保存できる |
+| TASK-102 | 権限gate付き自動archive | Backlog | TASK-003、101 | 既定30日、history許可時だけON、履歴なしエラー、最小archive、設定一覧復元を実装できる |
+| TASK-103 | QR／CSV共有・QR読取取込 | Backlog | TASK-003、010 | 同じ選択集合をQR／CSVでexportし、QR容量超過をCSVへ誘導できる |
 | TASK-104 | Google Drive同期・権限共有 | Backlog | TASK-003、010、011 | 同一アカウント同期と別アカウント共有を混ぜずに扱える |
 | TASK-105 | Chrome標準Bookmarkインポート | Backlog | TASK-003、010 | 元treeを変えずpreview後に専用領域へコピーできる |
 | TASK-106 | context menu保存 | Backlog | TASK-003、004、010 | 一般設定toggleに従ってpage／link menuを登録／解除し、ON時だけ共通use caseで保存できる |
 
 ### P1タスクの確定受け入れ条件
 
-- **TASK-101**: 設定画面の訪問回数閾値を数値入力にし、`frequentVisitReminderEnabled` で全体を有効／無効にできる。通知側の「次回以降表示しない」は対象canonical URLだけをSUPPRESSEDにし、確認前には保存しない。
-- **TASK-102**: アーカイブ化閾値は正整数の日数入力とし、最新UIにない `autoArchiveEnabled` を要求しない。初回開始時にhistory権限の目的を説明し、拒否時は日数を保持して「権限待ち」で停止する。notificationsは要求しない。archive後はカテゴリ・タグ、ページ名、URLだけを保持し、設定のリストから復元する。
-- **TASK-103**: カテゴリ別、タグ別、個別Bookmarkを検索とcheckboxで選び、QRを生成する。checksumは破損／切詰め検出だけで真正性を保証しない。異親同名Tagは既存再利用／親変更せず、別名／skip／cancel後に再previewする。
+- **TASK-101**: 設定画面で訪問集計期間を1週間／1ヶ月／1年から選び、既定値なしの訪問日数閾値を数値入力する。期間変更時は入力を消去し、直近7／30／365日に応じて1〜7／1〜30／1〜365へ制限する。同日の複数訪問は1日とし、`いいえ` は対象canonical URLの集計を応答時刻でリセットする。`frequentVisitReminderEnabled` で全体を有効／無効にでき、「次回以降表示しない」はそのURLだけをSUPPRESSEDにし、確認前には保存しない。
+- **TASK-102**: `autoArchiveEnabled` は既定OFFとし、利用者gestureからhistory権限が許可された場合だけONへcommitする。拒否／取消はOFFを維持し、後発取消ではOFFへ戻してalarmを止める。アーカイブ日数は既定30の正整数入力とする。履歴なしは `ARCHIVE_HISTORY_NOT_FOUND` と `履歴がないためアーカイブできません` を項目別に表示し、Bookmarkをarchiveしない。notificationsは要求しない。archive後はカテゴリ・タグ、ページ名、URLだけを保持し、設定のリストから復元する。
+- **TASK-103**: カテゴリ別、タグ別、個別Bookmarkを検索とcheckboxで選び、同じ固定集合をQRまたはCSVでexportする。QR容量超過では分割・切捨てせず `QR_CAPACITY_EXCEEDED` とCSV actionを返す。CSVは固定header、UTF-8、escaping、数式注入neutralization、秘密情報除外を検証する。checksumは破損／切詰め検出だけで真正性を保証しない。QR読取取込の異親同名Tagは既存再利用／親変更せず、別名／skip／cancel後に再previewする。CSV importは要求しない。
 - **TASK-104**: 設定でGoogleアカウントを明示選択する。同一アカウント端末間同期は `appDataFolder` を使い、`appDataFolder` 自体は別アカウントへ共有しない。別アカウント共有は通常Drive file＋permissions/capabilities検証という別経路にする。同一field更新、update-delete、add-delete、名前競合を自動LWWせず `syncConflicts` へ隔離する。local／remote／baseをimmutableな `syncSnapshots` として保持し、版付きの明示resolution planだけを適用する。open中はGCせず、解決後30日保持し、Label ID／edgeを暗黙にremapしない。
 - **TASK-106**: 一般設定に `contextMenuBookmarkEnabled` switchを置き、旧settingsのfield欠損はONへ移行する。ONではpage／linkの固定IDを各1件だけ表示し、OFFではBookmation所有IDだけを解除する。設定は端末固有でDrive同期せず、Service Worker再起動後も整合し、OFF直前の遅延clickでは保存しない。登録／解除失敗時は以前の実効値へ戻してエラーを表示する。
 

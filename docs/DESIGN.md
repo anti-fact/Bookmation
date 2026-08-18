@@ -25,10 +25,10 @@
 | React + Tailwind | デザインシートを再現する画面、状態、アクセシビリティ |
 | MV3 Service Worker | install、commands、contextMenus、alarms、保存、履歴判定、Repository、job、AI結果再検証 |
 | IndexedDB | Bookmark、Category、Tag、関連、archive、job、reminder suppression、import、sync outboxのJSON文書と画像Blob |
-| `chrome.storage.local` | LIST / GRID、数値閾値、reminder有効、AI細分化0〜4等の小設定 |
+| `chrome.storage.local` | LIST / GRID、訪問期間／日数、archive日数、reminder有効、AI細分化0〜4等の小設定 |
 | Chrome Prompt API | ローカル分類、自然言語検索、製品機能案内。対応時だけ利用 |
 | Google Drive adapter | 同一アカウントのappData同期、通常Drive fileによる権限付きアカウント間共有、競合管理 |
-| QR adapter | 選択Bookmarkの生成、読取、検証、import |
+| Share export / QR adapter | 選択BookmarkのQR／CSV生成、QR容量検査、QR読取、検証、import |
 | Web UI preview | 本番componentと決定的fixtureを通常Webページで表示 |
 | Playwright E2E | ビルド済み拡張を隔離Chromium profileで操作し証拠を保存 |
 
@@ -41,9 +41,9 @@
 - AI agent: 右下ポップアップ内で入力と応答を扱う自然言語検索／機能案内。
 - category/tag list: 全画面、親子表示、新規作成dropdown、通常／管理モード。
 - bookmark editor: 名前、URL、タグcombobox、タグからのカテゴリ自動導出、同一modal内のTag作成side view、削除。
-- settings/general: 訪問回数、reminder toggle、archive日数、AI細分化0〜4。
+- settings/general: 訪問集計期間、既定なしの訪問日数、reminder toggle、history権限gate付きarchive toggle、既定30日のarchive日数、AI細分化0〜4。
 - settings/archive: 最小archive recordの一覧、選択、復元。
-- settings/share: Drive account、QR選択／生成／読取／取込。
+- settings/share: Drive account、QR／CSV選択export、QR読取／取込。
 
 右サイドタグメニュー、弁当表示、列数／表示数設定、自然言語検索専用ページ、Bookmark／Tagの削除確認画面は持たない。Categoryの連鎖削除だけは警告確認を必須とする。
 
@@ -118,9 +118,9 @@ install eventだけで `#/welcome` を開き、短い説明と開始操作を示
 
 ## 訪問リマインダーと自動アーカイブ
 
-一般設定は訪問回数とアーカイブ日数を数値入力、AI細分化だけをsliderにする。reminderと右クリック保存は独立したtoggleとし、右クリック保存は初期値ON、OFFではBookmation所有menuを登録しない。reminder toggleをオンにするときは履歴・通知権限、自動archiveを初めて開始するときは履歴権限の目的をそれぞれ説明して要求する。archive専用toggleは置かず、履歴権限がなければ閾値を保持したまま判定を停止する。
+一般設定は訪問集計期間を `1週間`／`1ヶ月`／`1年` のselect、訪問日数とアーカイブ日数を数値入力、AI細分化だけをsliderにする。訪問日数は既定値なし、アーカイブ日数は既定30日とする。期間変更時は訪問日数入力を空にし、直近7／30／365暦日に対応する上限7／30／365を適用する。有効な組が保存されるまで訪問判定を停止する。reminder、自動archive、右クリック保存は独立したtoggleとし、右クリック保存は初期値ON、OFFではBookmation所有menuを登録しない。自動archiveは初期値OFFで、ONの利用者gesture内に履歴権限の目的説明、実権限確認、必要な権限要求を置き、許可成功後だけ設定をONへcommitする。拒否または後発取消ではOFFへ収束し、archive処理を起動しない。
 
-履歴から未保存URLの訪問回数が閾値へ達したら、reminderが有効な場合だけ候補を表示する。利用者が `はい` を選んだ場合だけ保存する。`次回から表示しない` はcanonical URL単位のsuppressionを保存し、global toggleを変更しない。
+履歴の各 `visitTime` を端末ローカル暦日へ変換し、同じcanonical URLの同日訪問を1日にまとめる。選択した直近7／30／365暦日とURL別 `countingResetAt` の遅い方より後で訪問日数が閾値へ達した場合だけ候補を表示する。利用者が `はい` を選んだ場合だけ保存し、`いいえ` は応答時刻へ集計基準を進める。`次回から表示しない` はcanonical URL単位のsuppressionを保存し、global toggleを変更しない。
 
 archive判定は最終訪問日時と設定日数を使い、取得不能なら自動変更しない。archive user payloadはページ名、URL、カテゴリ、タグだけに縮退し、画像、説明、favicon、訪問履歴、検索派生情報を破棄する。復元に必要なID、schemaVersion、archive日時等は運用metadataとして分離する。
 
@@ -129,8 +129,8 @@ archive判定は最終訪問日時と設定日数を使い、取得不能なら�
 - 同一accountの端末同期は共有できない `appDataFolder` を使う。
 - 所有権または共有権限のある別accountとの共有は、`appDataFolder` ではなく通常Drive fileを使い、`capabilities` とpermissionを確認する。
 - 2経路をUIと保存先で区別し、未接続・offlineでもローカル編集を継続し、競合を黙って上書きしない。
-- QR共有はCategory／Tag／個別Bookmarkの検索・checkbox選択をBookmark ID集合へ展開し、重複を除く。
-- QR生成前と読取後に内容、件数、容量、versionを検証する。camera拒否時は画像file読取を提供する。
+- QR／CSV共有はCategory／Tag／個別Bookmarkの検索・checkbox選択を同じBookmark ID集合へ展開し、重複を除く。
+- QRは生成前と読取後に内容、件数、容量、versionを検証する。容量超過時は分割・切捨てをせず、同じ固定集合のCSV exportへ誘導する。camera拒否時は画像file読取を提供する。
 - Chrome標準Bookmarkは明示操作とpreview後にBookmationへcopyし、元データを変更しない。
 
 ## 一覧取得
@@ -145,7 +145,7 @@ Bookmark／Tagの削除確認は省き、対象を即時に論理削除する。
 
 ## テスト構成
 
-同じcomponent treeへ、本番ではChrome／IndexedDB／AI／Drive／camera Adapter、Webプレビューでは決定的fake Adapterを注入する。Webでwelcome、0／8／9候補、Category／Tagの名称衝突、AI help、細分化0、親子不整合、Tag作成／編集からのCategory side view、Tag親変更とrevision競合、連続作成、管理モード、Bookmark／Tagの即時論理削除、Category連鎖削除警告、影響Bookmark再分類、archive復元、reminder抑止、Drive／QR状態を再現する。
+同じcomponent treeへ、本番ではChrome／IndexedDB／AI／Drive／camera Adapter、Webプレビューでは決定的fake Adapterを注入する。Webでwelcome、0／8／9候補、Category／Tagの名称衝突、AI help、細分化0、親子不整合、Tag作成／編集からのCategory side view、Tag親変更とrevision競合、連続作成、管理モード、Bookmark／Tagの即時論理削除、Category連鎖削除警告、影響Bookmark再分類、archive toggleの権限許可／拒否／取消、履歴なしエラー、archive復元、reminder抑止、Drive／QR／CSV状態を再現する。
 
 lint、typecheck、unit／integration、build後に、AIエージェントがpersistent Chromium contextへビルド済み拡張を読み込み、screenshot、trace、console、skip理由を保存する。その後、人間が同じcommit／buildを実Chromeで受け入れる。詳細は [TESTING.md](./TESTING.md) に従う。
 
@@ -154,7 +154,7 @@ lint、typecheck、unit／integration、build後に、AIエージェントがper
 - 対象ChromeとPrompt APIの配布・モデル準備条件。
 - dashboardがPrompt API対応トップレベル拡張ページか。
 - Driveのaccount picker、所有権、共有権限、app専用領域の使い分け。
-- QR payload容量、camera permission、複数QR分割方式。
+- QR encoder別の実効payload容量、camera permission、CSVの列schema／互換性。
 - 実データ件数でのtypeahead、full search、無限scrollの性能値。
 
 これらは [ISSUES.md](./ISSUES.md) と [TECH-DEBT-TRACKER.md](./TECH-DEBT-TRACKER.md) で追跡する。

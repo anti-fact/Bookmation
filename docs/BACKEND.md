@@ -54,18 +54,19 @@
 | AskAiAssistant | 自然言語、件数上限、Capability Catalog版 | 検索結果またはBookmation機能の説明 |
 | SearchAllByKeyword | キーワード、カーソル | Label候補とBookmark候補。Labelを先に返す |
 | ChangeArchiveState | bookmarkId、利用者が明示した状態 | P0の手動アーカイブまたは復元後のBookmark |
-| EvaluateFrequentVisits | 履歴集約値、訪問閾値 | 未保存URLの重複しないReminder |
+| EvaluateFrequentVisits | URL別の訪問日時、集計期間、訪問日数閾値、URL別reset時刻 | 未保存URLの重複しないReminder |
 | UpdateContextMenuBookmarkSetting | desired boolean、requestId | 永続化済みの実効値とpage／link menuの整合結果 |
-| HandleVisitReminder | reminderId、保存／あとで／閉じる、次回以降表示しない | 保存結果または候補URL単位の再通知状態 |
-| ArchiveInactiveBookmarks | 最終訪問日時、設定日数 | 文字列archiveStateを更新したBookmark集合 |
+| HandleVisitReminder | reminderId、はい／いいえ、次回以降表示しない | 保存結果、URL別の訪問日数resetまたは抑止状態 |
+| SetAutoArchiveEnabled | desired boolean、利用者gesture由来のhistory権限結果 | 永続化済みの実効値、権限状態、schedule整合結果 |
+| ArchiveInactiveBookmarks | 有効化済み設定、最終訪問日時、設定日数 | archive済みBookmark集合と項目別履歴なしエラー |
 | ImportChromeBookmarks | 確認済み選択、Import Job | 元データを変えない取込結果 |
 | SaveFromContextMenu | pageUrlまたはlinkUrl | 共通保存ユースケースの結果 |
-| ExportQr / ImportQr | 検索・チェックで固定したカテゴリ／タグ／Bookmark集合、またはQR読取値 | 版付きpayload、preview、検証済み取込結果 |
+| ExportQr / ExportCsv / ImportQr | 検索・チェックで固定したカテゴリ／タグ／Bookmark集合、またはQR読取値 | QR／CSV export、容量超過fallback、preview、検証済みQR取込結果 |
 | SyncGoogleDrive | 明示選択したアカウント、Outbox、remote revision | 同一アカウントまたは所有権確認済みデータセットの同期状態と競合 |
 | MergeLabels | 同じ親Categoryを持つsourceTagId、targetTagId | Tag関連の付替え件数と結果。Category統合は提供しない |
 | DeleteLocalData | 確認済みスコープ | 削除結果 |
 
-P0はローカル保存・分類・検索を先に完成させる。訪問リマインダー、自動アーカイブ、QR共有、Drive同期、標準Bookmarkインポート、context menu保存はP1の確定ユースケースであり、採否は未決ではない。P1の既定値や競合UIだけを未決事項として扱う。
+P0はローカル保存・分類・検索を先に完成させる。訪問リマインダー、自動アーカイブ、QR／CSV共有、Drive同期、標準Bookmarkインポート、context menu保存はP1の確定ユースケースであり、採否は未決ではない。P1の実行頻度や競合UI等だけを未決事項として扱う。
 
 カテゴリテンプレート機能はP0オンボーディングの確定ユースケースである。ただしcatalog内容と選択導線はISSUE-022の決定待ちであり、未決の候補名をDomainやmigrationへ埋め込まない。
 
@@ -349,13 +350,15 @@ AI Hostがclaimしたときにpendingからrunningへ条件付き更新し、att
 - thumbnailEnabled
 - contextMenuBookmarkEnabled（端末固有。既定true）
 - frequentVisitReminderEnabled
-- frequentVisitThreshold（数値入力から検証した整数）
-- archiveAfterDays（数値入力から検証した日数）
+- frequentVisitWindow（`LAST_7_DAYS` / `LAST_30_DAYS` / `LAST_365_DAYS`。未設定時null）
+- frequentVisitDayThreshold（期間別範囲を検証した日数。既定値なし／未設定時null）
+- autoArchiveEnabled（既定false。history実権限がある場合だけtrue）
+- archiveAfterDays（数値入力から検証した日数。既定30）
 - archiveHistoryAccess（NOT_REQUESTED / GRANTED / DENIED。実権限は毎回再確認）
 - onboardingState（install時だけ初期化し、進捗・途中再開・完了を保持）
 - settingsSchemaVersion
 
-ブックマーク本体をchrome.storage.localへ二重保存しない。訪問回数とアーカイブ化の閾値は有限整数・許容範囲・単位を検証し、空欄、NaN、Infinity、指数表記、範囲外を保存しない。スライダーを使う設定は `aiGranularity` だけであり、`contextMenuBookmarkEnabled` はswitchである。アーカイブ判定は検証済み `archiveAfterDays` に常に従い、別の有効化フラグを持たない。初回開始または閾値確定時に目的を説明して `history` だけを要求し、拒否時も閾値を保持して `archiveHistoryAccess="DENIED"` とし、判定を権限待ちで停止する。保存状態はUI用cacheであり、実行前にChromeの実権限を再確認する。`onboardingState` は `runtime.onInstalled` の `reason="install"` かつ未初期化の場合だけ作り、update、startup、Service Worker再起動で上書きしない。stepごとに進捗を保存して途中再開し、完了状態も保持する。
+ブックマーク本体をchrome.storage.localへ二重保存しない。訪問の集計期間はselect、訪問日数とアーカイブ化の閾値は有限整数として許容範囲・単位を検証する。訪問日数の既定値はnullとし、集計期間変更時もnullへ戻す。7／30／365日に対して1〜7／1〜30／1〜365以外を保存せず、有効な組がそろうまで訪問判定を `REMINDER_CONFIG_REQUIRED` で停止する。空欄、NaN、Infinity、指数表記、範囲外を有効値へ変換しない。スライダーを使う設定は `aiGranularity` だけであり、`contextMenuBookmarkEnabled`、`frequentVisitReminderEnabled`、`autoArchiveEnabled` はswitchである。アーカイブ日数の欠損／不正値は30へ移行し、archive toggleの欠損はfalseへ移行する。history実権限がない状態で `autoArchiveEnabled=true` を保存せず、保存状態はUI用cacheとして実行前にもChromeの実権限を再確認する。`onboardingState` は `runtime.onInstalled` の `reason="install"` かつ未初期化の場合だけ作り、update、startup、Service Worker再起動で上書きしない。stepごとに進捗を保存して途中再開し、完了状態も保持する。
 
 カテゴリテンプレートcatalogはアプリへ同梱した版付き参照データとして読み、`chrome.storage.local` やIndexedDBへcatalog全体を複製しない。適用済みcatalog versionとstep進捗だけをonboarding stateへ保持できる。catalog閲覧では書き込まず、利用者が明示した候補だけを既存の `CreateCategory` 境界へ渡し、Normalizer、一意名、`origin=USER`、creationRequestIdを再検証する。同じ適用requestの再送は同じ結果へ収束させ、update／reloadでは再適用しない。
 
@@ -364,7 +367,7 @@ AI Hostがclaimしたときにpendingからrunningへ条件付き更新し、att
 P0の初期候補は storage と activeTab である。commandsはManifest宣言として「現在タブを保存」「ホームを開く」の2ショートカットを定義する。IndexedDB自体に拡張権限は不要である。
 
 - P1の右クリック保存では `contextMenus`、定期判定では `alarms` を宣言する。
-- `history` は訪問リマインダー有効化時、または自動アーカイブの初回開始／閾値確定時に、目的説明後に任意要求する。アーカイブ用の別toggleは置かず、拒否時は `archiveAfterDays` を保持したまま判定だけを権限待ち停止にする。
+- `history` は訪問リマインダー有効化時、または自動アーカイブtoggleのON操作時に、目的説明後に任意要求する。自動アーカイブは利用者gesture内で `permissions.contains()` と必要な `permissions.request()` を行い、許可成功後だけONへcommitする。拒否／取消時はOFFのままにし、`permissions.onRemoved` または実行前検査で取消を検出した時もOFFへ戻してscheduleを止める。
 - `notifications` は訪問リマインダーを有効化する時だけ要求し、アーカイブを理由に要求しない。
 - `bookmarks` は標準Bookmarkインポート開始時だけ要求し、読取専用のアダプターから作成・更新・削除メソッドを公開しない。
 - Google Drive接続では `identity` とOAuth設定を追加する。同一アカウント同期は `drive.appdata`、所有権のある別アカウントとの共有は通常Drive file用の `drive.file` を初期候補とし、実装する経路に必要なscopeだけを接続時に要求する。
@@ -375,13 +378,13 @@ P0の初期候補は storage と activeTab である。commandsはManifest宣言
 
 ## P1確定機能の境界
 
-### 訪問回数と保存リマインダー
+### 訪問日数と保存リマインダー
 
-設定の `frequentVisitReminderEnabled` を有効にした時だけ `history` / `notifications` を要求し、`HistoryItem.visitCount` と `lastVisitTime` を検証する。数値入力で保存した閾値以上の未保存URLから、保存済み／非HTTP(S)／候補単位で抑止済みのURLを落とし、永続Reminderを1件へ収束させる。通知の `保存` だけが `SaveBookmark` を呼ぶ。「次回以降表示しない」にチェックして閉じた候補はURL単位で `SUPPRESSED` とし、グローバル有効設定や他サイトの候補には影響させない。
+設定の `frequentVisitReminderEnabled` を有効にした時だけ `history` / `notifications` を要求する。`chrome.history.search()` で候補URLを絞り、`chrome.history.getVisits()` の検証済み `visitTime` を現在の端末ローカル暦日へ変換する。canonical URLごとに同じ日を重複排除し、当日を含む直近7／30／365暦日の開始と、そのURLの最新 `countingResetAt` の遅い方より後だけを数える。日数閾値以上の未保存URLから、保存済み／非HTTP(S)／候補単位で抑止済みのURLを落とし、永続Reminderを1件へ収束させる。通知の `はい` だけが `SaveBookmark` を呼ぶ。`いいえ` は応答時刻を `countingResetAt` として保存し、その時刻以前の訪問を次回集計から除外する。同日中でも応答後の新しい訪問は1日目になり得る。「次回以降表示しない」はresetより優先してURL単位で `SUPPRESSED` とし、グローバル有効設定や他サイトの候補には影響させない。
 
 ### 休眠ブックマークのアーカイブ
 
-初回開始または閾値確定時に目的説明後 `history` だけを要求し、許可済みの場合に名前付き `chrome.alarms` から検証済み `archiveAfterDays` に従って評価する。拒否・取消時は閾値を保持し、判定を権限待ち停止にする。履歴の最終訪問日時が設定日数より古いACTIVE項目だけを、`metadata` と `payload { title, url, categories, tags }` を構造上分けた最小スナップショットへ置換し、文字列 `archiveState="ARCHIVED"` を付ける。favicon、thumbnail、サイト名、訪問統計、AI状態等はpayloadへ複製せず、理由・時刻・revision・同期状態等のoperation metadataは別recordへ分離する。履歴なし、revision競合はskipする。物理削除と分離し、設定のアーカイブ管理リストから選択したBookmarkを復元できるようにする。復元時はURLとLabel階層を再検証し、削除済みLabelへ名称だけで自動再接続しない。
+`autoArchiveEnabled=false` ではalarmを登録せず、既存alarmが発火してもno-opにする。ON操作は利用者gesture内で目的説明と `history` 権限確認／要求を行い、許可と設定保存が成功した場合だけ名前付き `chrome.alarms` を整合させる。既定の `archiveAfterDays=30` を検証し、実行直前にも実権限とtoggleを確認する。拒否・取消・権限の後発削除ではtoggleをfalseへ戻し、alarmを解除してBookmarkを変更しない。履歴の最終訪問日時が設定日数より古いACTIVE項目だけを、`metadata` と `payload { title, url, categories, tags }` を構造上分けた最小スナップショットへ置換し、文字列 `archiveState="ARCHIVED"` を付ける。favicon、thumbnail、サイト名、訪問統計、AI状態等はpayloadへ複製せず、理由・時刻・revision・同期状態等のoperation metadataは別recordへ分離する。履歴なしは `ARCHIVE_HISTORY_NOT_FOUND` を項目別に永続化して `lastVisitedAt=null` のままarchive不可とし、設定画面にエラーメッセージを表示する。revision競合も変更せず理由を返す。物理削除と分離し、設定のアーカイブ管理リストから選択したBookmarkを復元できるようにする。復元時はURLとLabel階層を再検証し、削除済みLabelへ名称だけで自動再接続しない。実行頻度と履歴再確認UIはISSUE-009で決める。
 
 ### Google Drive同期
 
@@ -391,9 +394,11 @@ SyncPortを実装し、設定で利用者が選択したGoogleアカウントへ
 
 利用者の解決後も全期待値、Normalizer v1、Label一意性、TAG親の存在・状態、edge、delete markerを再検証し、正本、Outbox、競合状態を1 transactionでcommitする。同名／異親TAGや競合に負けたLabel IDへedgeを暗黙remapしない。OPEN／CANCELED conflictが参照するsnapshotはGCせず、RESOLVED後も最低30日かつ他参照がなくなるまで保持する。アカウント切替時は対象と未送信Outboxを確認し、同期障害でもローカル編集を止めず、OAuth tokenはJSONやIndexedDBへ書かない。
 
-### QR共有
+### QR／CSV共有
 
-ShareEncoder Portを通じ、設定の共有画面で検索・チェックされたカテゴリ、タグ、個別Bookmarkを生成開始時の固定Bookmark集合へ展開し、重複排除してバージョン付きJSON payloadへ変換する。カテゴリ選択はそのカテゴリに関連するBookmark、タグ選択はそのタグに関連するBookmarkを対象にする。QRコード読み取りImportでは、スキーマ、容量、checksum、URL、カテゴリ／タグのkind別名称一意性、タグ親、重複を検証し、内容preview後にだけ通常のImport transactionへ渡す。checksumは破損・欠落・切詰めの検出用であり、送信者の真正性や改ざん耐性を保証しない。payload内部で正規化後同名のTAGが複数のparentCategoryNameを持つ場合はpreview前に構造不正として拒否し、暗黙renameや親選択をしない。同名Tagが既存の異なるparentCategoryを持つ場合も、自動reuse／rename／parent移動をせず、項目skip、Import全体cancel、または利用者が別名を明示する選択だけを許す。別名入力後は正規化・一意性を再検証し、全件previewを作り直してからcommitする。Drive appDataFolder内のファイルを他ユーザー共有へ流用しない。
+ShareEncoder Portを通じ、設定の共有画面で検索・チェックされたカテゴリ、タグ、個別Bookmarkをexport開始時の固定Bookmark集合へ展開してIDで重複排除する。同じ集合から `ExportQr` と `ExportCsv` を選べる。QRはversion付きJSON payloadの正確なencoded bytesを選択済みencoder設定で事前検査し、容量超過またはencoder overflowなら `QR_CAPACITY_EXCEEDED` を返す。部分QR、無言の切捨て、分割QRは作らず、resultには同じselection snapshot IDを受ける `ExportCsv` actionを含める。CSVはUTF-8、header付き、1 Bookmark 1行の版付き形式とし、title／URL／Category名配列／Tag名と親Category名の配列だけをRFC 4180相当でescapeする。表計算ソフトの数式として解釈され得る先頭文字をneutralizeし、ローカルID、履歴、Blob、AI会話、OAuth情報を含めない。CSV importは提供しない。
+
+QRコード読み取りImportでは、スキーマ、容量、checksum、URL、カテゴリ／タグのkind別名称一意性、タグ親、重複を検証し、内容preview後にだけ通常のImport transactionへ渡す。checksumは破損・欠落・切詰めの検出用であり、送信者の真正性や改ざん耐性を保証しない。payload内部で正規化後同名のTAGが複数のparentCategoryNameを持つ場合はpreview前に構造不正として拒否し、暗黙renameや親選択をしない。同名Tagが既存の異なるparentCategoryを持つ場合も、自動reuse／rename／parent移動をせず、項目skip、Import全体cancel、または利用者が別名を明示する選択だけを許す。別名入力後は正規化・一意性を再検証し、全件previewを作り直してからcommitする。Drive appDataFolder内のファイルを他ユーザー共有へ流用しない。
 
 ### Chrome標準Bookmarkインポート
 
@@ -427,8 +432,13 @@ click handlerは固定menu IDと送信元を検証した後、保存直前に `c
 | TAG_UPDATE_CONFLICT | Tag、新旧親Category、参照Bookmarkまたはedgeが更新中に競合した | no、Tag編集detailとCategory候補を再取得 |
 | AUTOCOMPLETE_INVALID_QUERY | 入力中キーワードが空、長すぎる、または不正 | no、入力修正 |
 | HISTORY_PERMISSION_REQUIRED | 訪問判定に必要な権限がない | 利用者の再操作後 |
+| REMINDER_CONFIG_REQUIRED | 訪問期間または期間別日数閾値が未設定／不正 | no、設定画面で再入力 |
+| ARCHIVE_HISTORY_PERMISSION_REQUIRED | history権限がなく自動archiveをONにできない、または実行前に取消を検出 | no、toggle操作から再許可 |
+| ARCHIVE_HISTORY_NOT_FOUND | 権限許可済みだが対象URLの信頼できる訪問日時がない | 利用者が再確認するまでno、項目別エラー表示 |
 | IMPORT_PARTIAL | 標準Bookmark取込の一部が失敗 | yes、失敗分だけ |
 | QR_INVALID_PAYLOAD | QRの形式、版、容量、checksumが不正 | no |
+| QR_CAPACITY_EXCEEDED | 選択集合が現在のQR encoder設定へ収まらない | no、同じ選択でCSV export |
+| CSV_EXPORT_FAILED | CSV生成またはdownload開始に失敗 | yes、選択を保持して再試行 |
 | DRIVE_REAUTH_REQUIRED | Drive認証が失効した | 利用者の再接続後 |
 | SYNC_CONFLICT | 自動解決禁止の同時編集、edge、削除、一意名競合 | no、syncConflictsの解決後 |
 | INVALID_URL | URL指定保存の構文またはスキームが不正 | no、入力修正 |
@@ -443,13 +453,13 @@ UI向けメッセージと診断情報を分ける。URL、ページタイトル
 ## テスト方針
 
 - Domain単体: project-vendored Unicode 15.1.0 Normalizer v1 fixture、runtime ICU差異無視、実asset hash照合、カテゴリ名のkind内一意、タグ名の親横断・kind内一意、tombstoneの名前予約、カテゴリのAI作成拒否、全TAGの親record存在、ACTIVE TAGのACTIVE親、Tag親変更後もTAG名一意性が親に依存しないこと、複数Tag、BookmarkのCategory edgeがACTIVE Tag親集合と完全一致、最後の同親Tag解除で親edgeも外れること、edge一意性、policyVersion 1の細分化 `0→0 / 1→1 / 2→2 / 3→4 / 4→6` と任意組合せ拒否
-- Application単体: 現在タブ保存、URL指定保存、install時だけ初期化するオンボーディングの完了・途中再開、Category template catalog閲覧時の書込みなし・明示適用・同名競合・同request再送・update／reload非再適用、ホーム表示、AI失敗、再試行、重複要求、Tagの名称・親同時更新、Category候補最大8件、nested Category作成後のdraft保持、旧親に別Tagが残る場合／最後のTagの場合のclosure、全参照Bookmark revision・監査・検索・Outbox更新、UpdateTag再送の同一結果とrequestId別payload拒否、途中競合時の全件rollback、親変更でAI再分類Jobを作らないこと、Bookmark／Tagの確認なし論理削除、Categoryの警告確認済み連鎖削除、削除後にUndo tokenを返さないこと、削除済みLabelとの同名作成拒否と別名案内、ACTIVE／削除済み子Tagの冪等tombstone化、影響Bookmark保持・親closure再計算・Bookmark別再分類Jobの冪等作成、旧RUNNING結果拒否、AI失敗時NEEDS_REVIEWと手動Tag編集、子TAG tombstone消滅前のCategory物理GC拒否、Bookmark削除時の検索派生文書除外と参照Blob保持
+- Application単体: 現在タブ保存、URL指定保存、install時だけ初期化するオンボーディングの完了・途中再開、Category template catalog閲覧時の書込みなし・明示適用・同名競合・同request再送・update／reload非再適用、ホーム表示、AI失敗、再試行、重複要求、訪問期間7／30／365日と期間別日数上限、同日重複排除、期間変更時の閾値clear、`いいえ` 後のURL別reset、Tagの名称・親同時更新、Category候補最大8件、nested Category作成後のdraft保持、旧親に別Tagが残る場合／最後のTagの場合のclosure、全参照Bookmark revision・監査・検索・Outbox更新、UpdateTag再送の同一結果とrequestId別payload拒否、途中競合時の全件rollback、親変更でAI再分類Jobを作らないこと、Bookmark／Tagの確認なし論理削除、Categoryの警告確認済み連鎖削除、削除後にUndo tokenを返さないこと、削除済みLabelとの同名作成拒否と別名案内、ACTIVE／削除済み子Tagの冪等tombstone化、影響Bookmark保持・親closure再計算・Bookmark別再分類Jobの冪等作成、旧RUNNING結果拒否、AI失敗時NEEDS_REVIEWと手動Tag編集、子TAG tombstone消滅前のCategory物理GC拒否、Bookmark削除時の検索派生文書除外と参照Blob保持
 - Repository契約: IndexedDB各実装で同じテストを実行
 - Service Worker結合: popupと2つのcommands、イベント途中の停止・再起動・メッセージ再送。Service WorkerからLanguageModelを呼ばないこと
 - AI Host結合: 分類・AI検索・機能案内の可用性、Capability Catalog grounding、ユーザー操作、モデル取得、ページ終了、lease回収、結果再送
 - AIアダプター契約: canonical intent `SEARCH_LIBRARY / PRODUCT_HELP / OUT_OF_SCOPE`、不正JSON、候補外ID、重複ID、古いrevision、長すぎる名称・検索語、プロンプト注入文字列
 - 検索: 両一覧からLabel／Bookmarkを返す、Labelが先、autocomplete最大8件と種別絞込み、TAG候補に親を付ける、AI候補は無順位、候補外ID拒否、AI利用不可時の字句フォールバック
 - マイグレーション: 旧平坦Labelへの親割当、親不明TAGの隔離、Unicode 15.1.0 vendored assetと実hash、正規化v1とカテゴリ／タグ名競合、JSON-safe cursor、細分化1〜5から0〜4、archiveのmetadata／payload分離、edge重複、失敗時のロールバック
-- P1: 数値閾値検証、archiveのhistory権限拒否時の閾値保持・判定停止、Reminder無効化と候補単位SUPPRESSED、利用者確認前の保存禁止、最終訪問日時なしのskip、最小archiveと設定内復元、標準Bookmark非変更、context menu設定の欠損移行／ON／OFF／登録失敗rollback／worker再起動／遅延click拒否、QR選択集合・checksum破損検出・別親同名Tagのskip/cancel/別名再preview、Driveアカウント選択・同時編集・オフライン復帰、syncSnapshotsのhash／immutable／OPEN pin／解決後30日保持、期待revision付き明示operations、syncConflicts再検証、Label ID暗黙付替え禁止
+- P1: 訪問日数の既定値なし、訪問期間／日数の組と期間変更時clear、同日重複排除、URL別reset、旧回数設定migration、archive既定30日、archive toggleのhistory許可時だけON／拒否・取消時OFF、Reminder無効化と候補単位SUPPRESSED、利用者確認前の保存禁止、履歴なしの項目別エラーとarchive不可、最小archiveと設定内復元、標準Bookmark非変更、context menu設定の欠損移行／ON／OFF／登録失敗rollback／worker再起動／遅延click拒否、QR／CSVの同一選択集合、QR容量超過時のCSV誘導、CSV escaping／formula neutralization、checksum破損検出・別親同名Tagのskip/cancel/別名再preview、Driveアカウント選択・同時編集・オフライン復帰、syncSnapshotsのhash／immutable／OPEN pin／解決後30日保持、期待revision付き明示operations、syncConflicts再検証、Label ID暗黙付替え禁止
 
 現時点ではテストコードも実行結果も存在しない。

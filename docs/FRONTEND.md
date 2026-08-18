@@ -67,7 +67,7 @@
 | 状態 | 置き場所 |
 | --- | --- |
 | Bookmark / Category / Tag正本 | IndexedDB repository |
-| onboarding状態／Category template step、LIST / GRID、数値閾値、reminder有効、AI細分化0〜4 | `chrome.storage.local`。catalog versionの永続形式はISSUE-022で決める |
+| onboarding状態／Category template step、LIST / GRID、訪問期間／日数、archive日数、reminder有効、AI細分化0〜4 | `chrome.storage.local`。catalog versionの永続形式はISSUE-022で決める |
 | categoryId、tagId、検索query、設定section | hash route |
 | AI conversation、dialog、side view、管理モード | React画面内state |
 | cursor、requestId、hasNext | query state |
@@ -158,25 +158,27 @@ BookmarkとTagの削除は確認なしで即時に論理削除し、削除後の
 
 ### 一般設定
 
-- 訪問回数: `input type=number`、整数、`min=1`、単位 `回`。
+- 訪問の集計期間: `select`。`1週間`／`1ヶ月`／`1年` を `LAST_7_DAYS`／`LAST_30_DAYS`／`LAST_365_DAYS` として扱う。
+- 訪問日数: `input type=number`、整数、`min=1`、単位 `日`。既定値を設けず初回は空欄にする。期間未選択時はdisabledにし、期間変更時もdraft値を必ず空にして `max` を7／30／365へ切り替える。有効な期間と値の組を保存するまで判定状態を `REMINDER_CONFIG_REQUIRED` とする。
 - リマインダー: switch。オン操作で権限説明とrequestを行い、拒否時はoffへ戻す。
 - 右クリックメニューから保存: switch。`contextMenuBookmarkEnabled` の実効値を表示し、既定ONとする。変更中は再操作を抑止し、Application use caseの成功後だけ確定表示にする。登録／解除に失敗した場合は以前の実効値へ戻し、inline errorとlive regionで通知する。
-- アーカイブ日数: `input type=number`、整数、`min=1`、単位 `日`。
+- 自動アーカイブ: switch、既定OFF。ONのpointer／keyboard gesture内で説明後に `chrome.permissions.contains()`、必要なら `chrome.permissions.request({ permissions: ["history"] })` を呼ぶ。許可結果と設定保存が両方成功した時だけONにし、拒否／取消／例外ではOFFとinline errorを保つ。`permissions.onRemoved` と画面復帰時の再検査で権限取消を検出した場合もOFFへ戻す。
+- アーカイブ日数: `input type=number`、整数、`min=1`、単位 `日`、既定値30。toggleがOFFでもdraftと保存値を保持する。
 - AI細分化: `input type=range`、`min=0`、`max=4`、`step=1`。目盛、現在値、効果説明を表示する。
 
 値0は `maxNewAiTags=0` であり、分類job自体を止めない。既存カテゴリ／既存タグ候補の自動付与は実行する。
 
 ### アーカイブ管理
 
-`ArchiveManager` は最小archive recordをlist表示し、checkboxの個別／全選択、選択件数、復元、部分失敗を扱う。復元後は一覧から成功項目だけ除き、失敗項目と理由を残す。
+`ArchiveManager` は最小archive recordをlist表示し、checkboxの個別／全選択、選択件数、復元、部分失敗を扱う。復元後は一覧から成功項目だけ除き、失敗項目と理由を残す。background評価で `ARCHIVE_HISTORY_NOT_FOUND` になったBookmarkは別のエラー一覧にページ名／URLと `履歴がないためアーカイブできません` を表示し、アーカイブ済み一覧へ混ぜない。再確認controlはISSUE-009で決まるまで実装しない。
 
 ### 共有
 
-`DriveAccountPanel` はGoogle account選択、接続状態、同期状態、競合を表示する。同一account同期は `appDataFolder`、別account共有は通常Drive fileとし、後者では対象fileのownership、permission、`capabilities` を確認する。QR共有はカテゴリ／タグ／Bookmarkのfilterと検索、checkboxを同じ選択setへ展開してID dedupeする。QR読取はcamera permissionを利用時に要求し、画像file fallback、preview、重複解決、import結果を持つ。
+`DriveAccountPanel` はGoogle account選択、接続状態、同期状態、競合を表示する。同一account同期は `appDataFolder`、別account共有は通常Drive fileとし、後者では対象fileのownership、permission、`capabilities` を確認する。`ShareExportPanel` はカテゴリ／タグ／Bookmarkのfilterと検索、checkboxを同じ選択setへ展開してID dedupeし、固定snapshotに対するQRとCSVの2つのexport actionを常時表示する。QR事前検査またはencoderが `QR_CAPACITY_EXCEEDED` を返した場合は部分QRを表示せず、選択を保持したerror panelのprimary actionを `CSVでエクスポート` にする。CSVはローカルでBlob化し、成功時だけobject URLをdownloadして直後にrevokeする。QR読取はcamera permissionを利用時に要求し、画像file fallback、preview、重複解決、import結果を持つ。CSV importは提供しない。
 
 ## 訪問リマインダー
 
-`VisitReminder` は候補URL、はい、いいえ、`次回から表示しない` checkboxを表示する。checked時はcanonical URL用suppression commandを送るだけで、global reminder settingを変更しない。保存を選んだ場合も共通保存commandへ渡し、成功前に保存済み表示へしない。
+`VisitReminder` は候補URL、期間内の訪問日数、はい、いいえ、`次回から表示しない` checkboxを表示する。`いいえ` はcanonical URL用の `countingResetAt` を応答時刻へ更新し、それ以前の訪問を次回判定から除外する。checked時はリセットではなくURL用suppression commandを送り、global reminder settingを変更しない。保存を選んだ場合も共通保存commandへ渡し、成功前に保存済み表示へしない。
 
 ## AI Host とメッセージ
 
@@ -195,6 +197,6 @@ Prompt APIは対応を実証したトップレベル拡張ページのadapterで
 - bookmark edit: Tag-only combobox、カテゴリ自動導出、Tag side view、draft復元、確認なしの即時論理削除。
 - labels: 通常／管理、hover／focus鉛筆、連続作成、カテゴリ／タグの同名拒否、Tag作成／編集のCategory候補と作成side view、Tag親変更transaction、Category編集の使用中Tag実名／件数。
 - category delete: 警告内容、明示確認、全子Tag／関連edgeの原子的論理削除、影響Bookmark再分類、失敗時保持、Undo非表示。
-- settings: 数値validation、reminder権限、細分化0〜4、0で既存付与、`contextMenuBookmarkEnabled` のON／OFF即時反映と失敗時rollback、archive複数復元。
-- share: account権限、Drive競合、QR選択dedupe、camera拒否、画像fallback、破損payload。
+- settings: 訪問日数の既定値なし、archive日数の既定30、reminder権限、archive toggleのhistory許可時だけON／拒否時OFF／後発取消、細分化0〜4、0で既存付与、`contextMenuBookmarkEnabled` のON／OFF即時反映と失敗時rollback、履歴なしエラー、archive複数復元。
+- share: account権限、Drive競合、QR／CSVの選択dedupe、QR容量内／超過CSV誘導、CSV download、camera拒否、画像fallback、破損payload。
 - paging/accessibility: 多重observer、終端、再試行、200% zoom、focus、reduced motion。

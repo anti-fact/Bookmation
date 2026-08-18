@@ -534,6 +534,65 @@ Bookmark、Category、Tagの削除後にUndoを提供しないという最新の
 - `gh issue view 22 38 43 44` 相当の個別照合: #43／#44はopen、`p0` と既存種別／領域label、`P0-3 一覧とカテゴリ` milestoneを持つ。#22のclosed、#38のopen、および両Issueの既存label／milestoneを維持した。
 - Category templateのUI、catalog、Repository、E2Eは未実装であり、具体仕様はISSUE-022をDecidedにしてからTASK-014／BE-19で実装する。
 
+## 2026-08-18 — 訪問リマインダーを訪問日数判定へ変更
+
+### 目的
+
+訪問回数ベースの保存リマインダーを、選択期間内で訪問した暦日数による判定へ置き換える。集計期間変更時の入力制約と、`いいえ` 後の再集計基準を実装可能な契約へ固定する。
+
+### 変更
+
+- 集計期間を `1週間`／`1ヶ月`／`1年` のプルダウンとし、当日を含む直近7／30／365暦日へ対応させた。同一canonical URLへの同日複数訪問は1日と数える。
+- 期間変更時に訪問日数入力をnullへ戻し、1〜7／1〜30／1〜365へ制限する。有効な組がそろうまで `REMINDER_CONFIG_REQUIRED` として判定を停止する。
+- `いいえ` は対象canonical URLの `countingResetAt` を応答時刻へ更新し、それ以前の訪問日を次回集計へ使わない。`次回以降表示しない` はresetより優先するURL単位のSUPPRESSEDとして維持した。
+- `frequentVisitThreshold` を廃止し、`frequentVisitWindow` とnullableな `frequentVisitDayThreshold` へ置き換えた。旧回数値は日数へ暗黙移行せず、リマインダーを無効・設定未完了へ戻して再入力を求める。
+- Bookmarkから `visitCount` を外し、訪問日数は `chrome.history.getVisits()` の `visitTime` を評価時だけ暦日集合へ縮約する契約にした。完全なvisit列や日別一覧は永続化しない。
+- 自動archiveの「権限未許可」を判定全体の権限待ち、「履歴なし」を権限許可済みでも対象URLの信頼できる訪問日時がなく `lastVisitedAt=null` の個別skipとして区別した。再照会／手動archive UIはISSUE-009の未決事項として維持した。
+- 過去のWORKLOGにある訪問回数入力と集計期間未定の記録は当時の履歴として残し、本節と現行要件で置き換えた。デザインシートは編集していない。
+
+### 検証
+
+- Chrome公式 `chrome.history` APIを2026-08-18に再確認し、`getVisits()` がURL別の `VisitItem.visitTime` を返すことを確認した。
+- `git diff --check`: 成功。
+- Markdown 25ファイル、相対リンク264件、code fence、table列数: 異常0件。
+- FR 41件、ISSUE 51件、TASK見出し14件、BE見出し20件のID重複: 0件。
+- `docs/AI_GUIDE.md`: 0バイトを維持し、編集していない。
+- `npx --yes pnpm@10.15.1 lint`: 成功。
+- `npx --yes pnpm@10.15.1 typecheck`: 成功。
+- `npx --yes pnpm@10.15.1 test`: 成功、Vitest 1ファイル／2件。
+- `npx --yes pnpm@10.15.1 build`: 成功、Chrome MV3向けPlasmo production build。
+- 訪問リマインダーと自動archiveは未実装である。今回の成功は文書・既存scaffoldの静的検証であり、実履歴、通知、日付境界、timezone変更、Playwright、実Chromeの動作を証明しない。
+
+## 2026-08-18 — QR／CSV共有と権限gate付き自動archiveを確定
+
+### 目的
+
+QR容量を超える共有でも選択内容を失わずにexportできる導線と、自動archiveを利用者が安全に有効化できる権限境界を確定する。あわせて、訪問リマインダーとarchiveの既定値を実装可能な状態へ固定する。
+
+### 変更
+
+- 同じ固定Bookmark集合に対してQRとCSVの2つのexport操作を提供する契約へ更新した。QRが実encoder容量を超える場合は分割・切捨て・部分生成を行わず、`QR_CAPACITY_EXCEEDED` と `CSVでエクスポート` を表示し、選択を維持してCSVへ移る。
+- CSV v1をUTF-8、header付き、1 Bookmark 1行の `BOOKMATION_CSV_1` とし、`formatVersion,title,url,categoriesJson,tagsJson` の固定列、CSV escape、数式注入対策、秘密情報除外を要件・設計・task・testへ反映した。CSV importは今回の対象外とした。
+- `autoArchiveEnabled` を既定OFFのtoggleとして追加した。ON操作は利用者gesture内でhistory権限を確認・必要時に要求し、許可と設定保存が成功した場合だけONへcommitする。拒否、取消、例外、後発の権限削除ではOFFを維持またはOFFへ戻し、alarmを止める。
+- `archiveAfterDays` の新規install／欠損migration既定を30日とした。訪問リマインダーの `frequentVisitDayThreshold` は既定値を持たないnullとし、有効な日数を入力するまで判定しない。
+- history権限があっても対象URLの信頼できる訪問日時を取得できない状態を「履歴なし」とし、`lastVisitedAt=null` のまま `ARCHIVE_HISTORY_NOT_FOUND` と `履歴がないためアーカイブできません` を項目別表示してarchive不可にした。
+- 過去のWORKLOGにある「自動archive toggleを設けない」と「履歴なしを個別skipするだけ」という記録は当時の履歴として残し、本節と現行要件で置き換えた。実行頻度、履歴再確認／手動archive UI、評価結果の保持期間はISSUE-009で引き続き未決とした。
+- GitHub Issue [#23](https://github.com/anti-fact/Bookmation/issues/23)〜[#29](https://github.com/anti-fact/Bookmation/issues/29)を現行仕様へ同期した。ISSUE-010の[#27](https://github.com/anti-fact/Bookmation/issues/27)とISSUE-017の[#28](https://github.com/anti-fact/Bookmation/issues/28)はCSV fallback採用でDecided／completedとし、残る判断Issueと実装Taskは既存label／milestoneを維持してopenとした。
+
+### 検証
+
+- Chrome公式のPermissions APIとHistory APIを2026-08-18に再確認し、optional permissionの利用時要求、利用者gesture内の `permissions.request()`、実権限確認／取消通知、およびURL別訪問日時取得を設計境界に反映した。
+- `git diff --check`: 成功。
+- Markdown 25ファイル、相対リンク264件、code fence、table列数: 異常0件。
+- FR 41件、ISSUE 51件、TASK見出し14件、BE見出し20件のID重複: 0件。
+- `docs/AI_GUIDE.md`: 0バイトを維持し、編集していない。
+- `npx --yes pnpm@10.15.1 lint`: 成功。
+- `npx --yes pnpm@10.15.1 typecheck`: 成功。
+- `npx --yes pnpm@10.15.1 test`: 成功、Vitest 1ファイル／2件。
+- `npx --yes pnpm@10.15.1 build`: 成功、Chrome MV3向けPlasmo production build。
+- `gh issue view 23 24 25 26 27 28 29` 相当の個別照合: #23〜#26／#29はopen、#27／#28はcompletedでclosed、全Issueが従来のlabel／`P1 確定機能` milestoneを維持した。
+- QR／CSV共有、自動archive、訪問リマインダーは未実装である。今回の成功は文書・既存scaffoldの静的検証であり、実QR容量、CSV download、history権限prompt、履歴照会、alarm、Playwright、実Chromeの動作を証明しない。
+
 ## 追記テンプレート
 
 ```markdown

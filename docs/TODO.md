@@ -43,8 +43,8 @@
   - 完了条件: 色、余白、文字、角丸、sticky header、dialogの再利用tokenを記録し、SVGを直接改変しない。
 - [ ] **TODO-016: JSON document schema fixtureを作る**
   - 完了条件: 各Storeの正常／未知版／過大／非JSON値fixtureとround-trip test方針を [DB-SCHEMA.md](DB-SCHEMA.md) に反映する。
-- [ ] **TODO-017: 訪問・archive設定の既定値を評価する**
-  - 完了条件: 訪問回数とarchive日数の正整数入力範囲、集計期間、通知cooldown、`frequentVisitReminderEnabled`、「次回以降表示しない」のcanonical URL単位SUPPRESSEDをfixtureで比較し、確認前保存禁止と履歴なしskipを維持した値を [ISSUES.md](ISSUES.md) で決める。`autoArchiveEnabled` は追加しない。
+- [ ] **TODO-017: 訪問・archive設定の残る運用値を評価する**
+  - 完了条件: 訪問日数の既定null、期間3種と1〜7／1〜30／1〜365日の境界、期間変更時clear、同日重複排除、`いいえ` のURL別reset、旧回数設定migration、`DISMISSED` の再表示、`frequentVisitReminderEnabled`、canonical URL単位SUPPRESSED、archive toggle既定OFF／history許可時だけON／取消時OFF、archive日数既定30と範囲、履歴なしエラーをfixtureで比較する。初期期間、SUPPRESSED再許可、archive実行頻度／履歴再確認UIを [ISSUES.md](ISSUES.md) で決め、確認前保存禁止と履歴なしarchive不可を維持する。
 - [ ] **TODO-018: 標準Bookmark取込fixtureを作る**
   - 完了条件: 深いfolder、空folder、重複URL、危険URL、Unicode名、途中失敗を含め、Chrome側tree不変を検証できる。
 - [ ] **TODO-019: フルページ検索の入力候補fixtureを作る**

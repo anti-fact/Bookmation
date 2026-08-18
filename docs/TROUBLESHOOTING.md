@@ -404,35 +404,41 @@ Chromeは拡張service workerを非活動時に終了するため、グローバ
 - 閾値を超えても通知されない。
 - 「次回以降表示しない」を選んだのに再び通知される。
 - あるURLで「次回以降表示しない」を選ぶと、別URLの通知まで止まる。
-- 訪問回数またはarchive日数を入力しても保存されない。
+- 集計期間を変更しても訪問日数が消えない、または期間上限を超えて保存できる。
+- `いいえ` を押した直後に、応答前の訪問日を使って再通知される。
+- 訪問日数またはarchive日数を入力しても保存されない。
 - 最近使ったBookmarkがアーカイブされた、または休眠Bookmarkが残る。
 - archive後にもfavicon、訪問履歴等が残る、または設定の一覧から復元できない。
-- archive日数は保存されたが「権限待ち」から進まない。
+- 自動archiveをONにできない、またはONだったのにOFFへ戻る。
+- 履歴なしとして `履歴がないためアーカイブできません` が表示される。
 
 **確認**
 
-1. `frequentVisitReminderEnabled`、訪問回数の正整数入力、archive日数の正整数入力、`history` 権限を確認する。`notifications` はリマインダーだけに必要で、archive判定では要求しない。
-2. `chrome.alarms.getAll()` で名前付きalarmが1件だけ存在するか確認する。
-3. 対象URLの履歴 `visitCount` / `lastVisitTime` と、Bookmarkの `lastVisitedAt` / `archiveState` を比較する。
-4. Reminder state、canonical URL単位の `SUPPRESSED`、`nextEligibleAt` を確認し、完全な履歴やURLを通常ログへ出さない。
+1. `frequentVisitReminderEnabled`、`frequentVisitWindow`、既定nullの訪問日数入力、`autoArchiveEnabled`、既定30のarchive日数、`history` 実権限を確認する。期間変更後の訪問日数がnullなら `REMINDER_CONFIG_REQUIRED` が正しい。`notifications` はリマインダーだけに必要で、archive判定では要求しない。
+2. 自動archiveがONの場合だけ `chrome.alarms.getAll()` で名前付きalarmが1件存在するか確認する。OFFなら0件またはhandler no-opが正しい。
+3. 対象URLの `getVisits()` から期間開始後かつ最新 `countingResetAt` 後の `visitTime` だけを取り、端末ローカル暦日で重複排除した件数と、Bookmarkの `lastVisitedAt` / `archiveState` を比較する。
+4. Reminder state、`visitDaysAtReminder`、`countingResetAt`、canonical URL単位の `SUPPRESSED` を確認し、完全な履歴やURLを通常ログへ出さない。
 5. archive documentがカテゴリ・タグ、ページ名、URLだけを保持し、設定のarchive一覧が同じIDを返すか確認する。
-6. archive初回開始時にhistory権限の目的を説明したか、拒否時にarchive日数を保持したまま判定状態が `権限待ち` か確認する。
+6. archive toggleのON gestureでhistory権限の目的を説明し、許可成功後だけtrueを保存したか確認する。拒否／取消なら `ARCHIVE_HISTORY_PERMISSION_REQUIRED` でOFF、後発取消ならOFFへ戻ってalarmが解除される必要がある。
+7. `lastVisitedAt=null` の項目にOPENな `ARCHIVE_HISTORY_NOT_FOUND` が1件だけあり、BookmarkがACTIVEのままか確認する。
 
 **対処**
 
 - reminder権限拒否時は `frequentVisitReminderEnabled` を有効扱いにせず、権限を無断で再要求しない。
-- archiveのhistory権限拒否時は入力済み日数を消さず、専用toggleを追加せず、判定を `権限待ち` で停止する。
-- 数値入力の空、NaN、0以下、小数、範囲外は保存せず、利用者が直せるfield errorを表示する。
+- archiveのhistory権限拒否時は入力済み日数を消さず、toggleをOFFのままエラー表示する。権限を設定画面以外から取り消した場合もOFFへ戻し、遅延alarmで処理しない。
+- 期間を変更したら訪問日数をnullへ戻して判定を止め、1〜7／1〜30／1〜365以外は保存せず、利用者が直せるfield errorを表示する。旧回数閾値を日数へ変換しない。
 - alarmは起動時に冪等再登録する。sleep中に実行される正確な時刻を仮定しない。
 - 通知の `保存` 前にBookmarkが作られていれば不具合として停止する。
+- `いいえ` は対象canonical URLの `countingResetAt` を応答時刻へ更新し、それ以前のvisitTimeを再利用しない。同日中の応答後アクセスは新しい1日目として扱える。
 - 「次回以降表示しない」は対象canonical URLだけを永続 `SUPPRESSED` にし、`frequentVisitReminderEnabled` や別URLを無効化しない。
-- `lastVisitedAt=null` は自動archiveしない。ARCHIVEDは設定の一覧から選択して復元し、履歴削除やデータ初期化で直そうとしない。
+- `lastVisitedAt=null` は、権限許可済みでも対象URLの信頼できる訪問日時が得られない「履歴なし」を含むため自動archiveしない。`ARCHIVE_HISTORY_NOT_FOUND` と `履歴がないためアーカイブできません` を項目別に表示する。権限未許可ならtoggleをONにせず、履歴なしならそのBookmarkだけをACTIVEのままにする。ARCHIVEDは設定の一覧から選択して復元し、履歴削除やデータ初期化で直そうとしない。
 
-## QR、Drive、標準Bookmark取込、右クリック保存が失敗する
+## QR／CSV、Drive、標準Bookmark取込、右クリック保存が失敗する
 
 **確認**
 
-- QR生成はカテゴリ別／タグ別／個別Bookmarkの検索・checkbox選択をID集合へ正しく解決したか確認する。schemaVersion、byte数、checksum、preview結果も確認する。checksumは破損／切詰め検出だけで、真正性確認には使わない。
+- QR／CSV生成はカテゴリ別／タグ別／個別Bookmarkの検索・checkbox選択を同じID集合とselection fingerprintへ正しく解決したか確認する。QRはschemaVersion、実encoded byte数、encoder設定、checksum、preview結果を確認する。checksumは破損／切詰め検出だけで、真正性確認には使わない。
+- CSVは固定header、UTF-8、quote、改行、formula先頭文字のneutralization、秘密情報除外、download後のobject URL回収を確認する。CSV import経路はないことを確認する。
 - QR読取はカメラ権限、decode結果、previewを確認し、不明版を無理に取り込まない。
 - Driveは設定で選択した接続アカウントと利用経路を確認する。同一アカウント同期なら `appDataFolder`、別アカウント共有なら通常Drive fileのowner、permissions、capabilities、必要scopeを確認する。tokenをログへ貼らない。
 - Driveの同一field更新、update対delete、add対delete、カテゴリ／タグ名前競合が自動LWWされず `syncConflicts` に残るか確認する。
@@ -442,7 +448,7 @@ Chromeは拡張service workerを非活動時に終了するため、グローバ
 
 **対処**
 
-- QR破損、不明版、容量超過は書き込まず再生成を依頼する。checksum一致を送信者本人または未改ざんの証明として案内しない。
+- QR破損、不明版は書き込まず再生成を依頼する。容量超過はQRを分割・切捨て・部分生成せず、同じ選択を保持した `CSVでエクスポート` へ誘導する。checksum一致を送信者本人または未改ざんの証明として案内しない。
 - 同名Tagが異なるparentCategoryで競合したら既存再利用や親変更を行わず、別名／skip／cancelを選択してpreviewを再生成する。
 - カテゴリ／タグ選択が重なっても同じBookmark IDを重複出力せず、読取後の確認前には保存しない。
 - `appDataFolder` を別アカウントへ共有しようとせず、通常Drive file共有へ戻す。owner／permissions／capabilities不一致、認証失効は明示的な選択／再接続で直し、ローカル編集とOutboxを消さない。

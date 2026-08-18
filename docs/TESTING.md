@@ -75,12 +75,13 @@ flowchart LR
 - フルページ検索の両入口、入力候補0／1／8／9件以上、選択、結果0件／複数件。カテゴリ・タグが上、Bookmarkが下。
 - AI入力ポップアップのBookmark検索／機能説明、AI利用可／利用不可／準備中／失敗／古い応答。
 - 読込中、追加読込、終端、再試行、遅延。
-- 訪問回数／archive日数の正整数入力（空、0、小数、境界外）とAI Jobのdiscriminated `{ granularity, maxNewTags }` snapshot全5組／不一致。`0` で新規AIタグなし／既存タグ自動付与あり。
-- `frequentVisitReminderEnabled`、canonical URL単位SUPPRESSED、別URL継続、通知前未保存、history／notifications権限未要求／拒否。
+- 訪問期間の未選択／7／30／365日、訪問日数の新規既定null、期間変更時のclear、各期間の入力0／1／上限／上限超過／小数／空、archive日数の新規／欠損migration既定30と正整数入力境界、AI Jobのdiscriminated `{ granularity, maxNewTags }` snapshot全5組／不一致。`0` で新規AIタグなし／既存タグ自動付与あり。
+- 同一URLの同日0／1／複数訪問、期間境界の直前／一致／直後、canonical化前の複数URL、`いいえ` の直前／直後／同日再訪／翌日再訪、応答消失後retryをfixture化する。応答前の訪問日を再利用せず、別URLの集計をresetしない。
+- `frequentVisitReminderEnabled`、canonical URL単位SUPPRESSED、resetよりSUPPRESSED優先、別URL継続、通知前未保存、history／notifications権限未要求／拒否、旧回数閾値からの日数暗黙移行なし。
 - `contextMenuBookmarkEnabled` のfield欠損→ON移行、破損値→OFF縮退、ON／OFF表示、登録失敗時rollback、Service Worker再起動、page／link固定IDの重複なし、OFF直前の遅延click拒否。
-- archive初回開始時のhistory権限説明、拒否後も日数保持＋`権限待ち`、notifications未要求、`autoArchiveEnabled` UIなし。
-- カテゴリ・タグ／ページ名／URLだけのarchive、設定のarchive一覧、単数／複数選択復元。
-- カテゴリ別／タグ別／個別BookmarkのQR選択・生成、QR読取preview、破損／切詰め、checksum真正性非保証、異親同名Tagの別名／skip／cancel後再preview。
+- `autoArchiveEnabled` の既定OFF、ON gestureでhistory既許可／request許可／拒否／取消／例外、設定保存失敗、後発 `permissions.onRemoved`、実行直前取消、OFF中の遅延alarm、notifications未要求。historyなしでtrueが永続化されずBookmarkも変化しない。
+- カテゴリ・タグ／ページ名／URLだけのarchive、設定のarchive一覧、単数／複数選択復元。権限許可済みでも履歴なしのBookmarkは `ARCHIVE_HISTORY_NOT_FOUND` と日本語エラーを表示し、`lastVisitedAt=null`／ACTIVEのままarchiveされない。
+- カテゴリ別／タグ別／個別BookmarkのQR／CSV共通選択、QR容量内生成、境界＋1 byteの `QR_CAPACITY_EXCEEDED`、部分／分割QRなし、選択を保持したCSV action、CSVのcomma／quote／改行／formula先頭文字／UTF-8／download失敗、秘密情報除外。QR読取preview、破損／切詰め、checksum真正性非保証、異親同名Tagの別名／skip／cancel後再preview。
 - Driveアカウント未選択／選択、同一accountの `appDataFolder` 同期、別accountの通常Drive file owner／permissions／capabilities、同一field／update-delete／add-delete／名前競合のsyncConflicts、immutable syncSnapshots、版付き明示resolution plan、open中GC拒否、解決後29日／30日境界の保持、暗黙Label ID／edge remap拒否、標準Bookmark Import。
 - キーボードフォーカス、200%拡大、reduced motion。
 
@@ -137,7 +138,7 @@ AIエージェントがPlaywrightを起動できない環境では、Webプレ�
 - Message再送やService Worker再起動で重複作成または部分保存が起きない。
 - Webプレビューで確認した主要画面と実拡張機能のスクリーンショットに意図しない構造差がない。
 
-P1機能を実装した後は、訪問／archive正整数入力、`frequentVisitReminderEnabled` とcanonical URL単位SUPPRESSED、archiveのhistory権限待ち、最小archive復元、QR checksum境界と異親同名Tag再preview、同一accountの `appDataFolder` 同期、別accountの通常Drive file権限共有、Drive競合4種のimmutable syncSnapshots／明示resolution plan／open中GC拒否／解決後30日保持／暗黙Label・edge remap拒否、標準Bookmark非破壊取込を追加する。context menuは設定欠損時の既定ON、ON／OFF反復、page／link各1件、worker再起動、登録失敗rollback、危険URL拒否、OFF直前の遅延clickでBookmarkが増えないことを実拡張E2Eで確認する。
+P1機能を実装した後は、訪問日数既定null、訪問期間3種、期間別境界、期間変更時clear、同日重複排除、`いいえ` のURL別reset、旧回数設定migration、`frequentVisitReminderEnabled` とcanonical URL単位SUPPRESSED、archive既定OFF／30日、history許可時だけON、拒否／後発取消、履歴なし項目別エラー／archive不可、最小archive復元、QR／CSV共通選択、QR容量境界＋CSV誘導、CSV escaping／formula neutralization／秘密情報除外、QR checksum境界と異親同名Tag再preview、同一accountの `appDataFolder` 同期、別accountの通常Drive file権限共有、Drive競合4種のimmutable syncSnapshots／明示resolution plan／open中GC拒否／解決後30日保持／暗黙Label・edge remap拒否、標準Bookmark非破壊取込を追加する。context menuは設定欠損時の既定ON、ON／OFF反復、page／link各1件、worker再起動、登録失敗rollback、危険URL拒否、OFF直前の遅延clickでBookmarkが増えないことを実拡張E2Eで確認する。
 
 ### Playwrightで守る境界
 
@@ -156,7 +157,7 @@ P1機能を実装した後は、訪問／archive正整数入力、`frequentVisit
 - Webプレビューで主要fixtureとresponsive状態を目視する。
 - PlaywrightのHTML report、失敗／skip、screenshot差分、traceを確認する。
 - 対象Chromeへ拡張機能を読み込み、初回ホーム、Category templateの明示適用、popup、dashboard、フルページ検索、AI入力ポップアップ、保存、Tag-only Bookmark編集、Tag／Category side view作成、Tag親変更fan-out、Category使用状況、Category削除警告と再分類、設定の主要導線を操作する。templateを表示しただけではCategoryが増えず、適用後のCategoryが通常の管理画面で編集・削除できることを確認する。P1実装後は一般設定から右クリック保存をON／OFFし、実際のpage／link menuの出現／消失と再起動後の維持を人間も確認する。
-- Prompt APIの検索／機能説明、実ショートカット競合、OS通知、canonical URL単位の「次回以降表示しない」、archiveのhistory権限待ち、QR checksum説明／カメラ読取、Driveアカウント選択／OAuth／明示resolution planと暗黙remapがないconflict解決等、自動環境で実証できない項目を確認する。
+- Prompt APIの検索／機能説明、実ショートカット競合、OS通知、訪問期間変更時の入力clear、同日重複排除、`いいえ` 後のURL別reset、canonical URL単位の「次回以降表示しない」、archive toggleのhistory権限prompt／拒否／取消と履歴なしエラー、QR容量超過時のCSV誘導、CSV download、QR checksum説明／カメラ読取、Driveアカウント選択／OAuth／明示resolution planと暗黙remapがないconflict解決等、自動環境で実証できない項目を確認する。
 - デザインシートとの視覚差、Tag編集のCategory候補／新規作成／draft復帰と親変更結果を理解できるか、Category cascade削除警告で対象・影響件数・Bookmark保持／再分類を理解できるか、文言、フォーカス、スクリーンリーダー等の人間判断を記録する。
 
 ### 最終承認の条件
