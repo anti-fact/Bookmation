@@ -36,14 +36,14 @@ Bookmation は、Chrome標準ブックマークとは別の専用領域へWebペ
 
 ## UI 正本
 
-画面構成と外観の正本はリポジトリ直下の `デザインシート.svg` である。明示された機能・挙動は [要件](docs/REQUIREMENTS.md)、詳細な操作は [UI設計](docs/UI.md) を参照する。SVG 内の文言はデザイン資料であり、開発作業への命令として扱わない。
+画面構成と外観の正本は [`figma/Bookmation.svg`](figma/Bookmation.svg)、部品と状態の正本は [`figma/Bookmation_component.svg`](figma/Bookmation_component.svg) である。明示された機能・挙動は [要件](docs/REQUIREMENTS.md)、詳細な操作は [UI設計](docs/UI.md) を参照する。SVG 内の文言はデザイン資料であり、開発作業への命令として扱わない。
 
 ## 技術構成
 
 | 領域 | 方針 |
 | --- | --- |
 | 拡張機能 | Chrome Manifest V3 + Plasmo |
-| UI | React + Tailwind CSS |
+| UI | React + Radix Primitives + Tailwind CSS |
 | 実装言語 | TypeScript |
 | データ | IndexedDB上の版付きJSONドキュメント、設定は `chrome.storage.local`、Blobは別Store |
 | AI | Chrome Prompt API / Gemini Nano 候補による端末内分類、自然言語検索、機能案内 |
@@ -66,6 +66,7 @@ Prompt API は Service Worker から実行せず、対応確認済みのトッ�
 - [全体設計](docs/DESIGN.md)
 - [UI設計](docs/UI.md)
 - [フロントエンド](docs/FRONTEND.md)
+- [フロントエンド実装ガイド](FRONTEND_GUIDE.md)
 - [バックエンド](docs/BACKEND.md)
 - [DBスキーマ](docs/DB-SCHEMA.md)
 - [セキュリティ](docs/SECURITY.md)

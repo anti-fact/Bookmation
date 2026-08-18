@@ -1,6 +1,6 @@
 # Bookmation ドキュメント索引
 
-Bookmation は、閲覧中のページまたは指定URLを専用ストアへ保存し、カテゴリ／タグと検索で見つけ直す Chrome 拡張機能である。UIスタックは Plasmo（React）+ Tailwind CSS とする。開発コマンドは [QUICKSTART.md](QUICKSTART.md)、テスト受入順序は [TESTING.md](TESTING.md)、最初の縦切りは [2026-08-16 の Execution Plan](plans/2026-08-16-dev-scaffold.md) を参照する。
+Bookmation は、閲覧中のページまたは指定URLを専用ストアへ保存し、カテゴリ／タグと検索で見つけ直す Chrome 拡張機能である。UIスタックは Plasmo（React）+ Radix Primitives + Tailwind CSS とする。実装手順は [FRONTEND_GUIDE.md](../FRONTEND_GUIDE.md)、開発コマンドは [QUICKSTART.md](QUICKSTART.md)、テスト受入順序は [TESTING.md](TESTING.md)、最初の縦切りは [2026-08-16 の Execution Plan](plans/2026-08-16-dev-scaffold.md) を参照する。
 
 ## 最初に読む文書
 
@@ -15,6 +15,7 @@ Bookmation は、閲覧中のページまたは指定URLを専用ストアへ保
 | 文書 | 役割 |
 | --- | --- |
 | [FRONTEND.md](FRONTEND.md) | Chrome 拡張機能、画面、状態管理、アクセシビリティ |
+| [FRONTEND_GUIDE.md](../FRONTEND_GUIDE.md) | 更新済みFigma SVGからRadix／Plasmo／Tailwind UIを実装する具体的な順序 |
 | [BACKEND.md](BACKEND.md) | P0ローカル処理と、確定済みP1の履歴・共有・同期・取込境界 |
 | [DB-SCHEMA.md](DB-SCHEMA.md) | IndexedDB上の版付きJSON document、索引、移行、同期 |
 | [UI.md](UI.md) | 初回ホーム、popup、LIST / GRID、親カテゴリ／子タグ一覧、フルページ検索、編集・作成・設定・AI入力ポップアップ、共有、無限スクロール |
@@ -40,7 +41,7 @@ Bookmation は、閲覧中のページまたは指定URLを専用ストアへ保
 
 ## 文書の状態表現
 
-- **確定要件**: 利用者の明示依頼に由来し、画面構成・外観は `デザインシート.svg` を正本とする。
+- **確定要件**: 利用者の明示依頼に由来し、画面構成・外観は `figma/Bookmation.svg`、部品と状態は `figma/Bookmation_component.svg` を正本とする。
 - **設計決定**: チームが実装基準として採用する案。コードが存在することを意味しない。
 - **候補**: スパイクまたは合意が必要である。
 - **実装済み**: コードと検証結果が存在する場合にだけ使う。

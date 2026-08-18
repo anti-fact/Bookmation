@@ -620,6 +620,35 @@ Chrome標準BookmarkのFolder treeをBookmation分類へ過剰に持ち込まず
 - GitHub connectorのwriteはintegration権限不足で403となったため、認証済み `gh` fallbackで更新した。更新後の再取得で#32はclosed／completed、#33はopen、両Issueの従来label／milestone維持を確認した。
 - 標準Bookmark取込は未実装である。今回の成功は文書・既存scaffoldの静的検証であり、実Bookmark tree、optional permission prompt、中断再開、Playwright、実Chromeの取込動作を証明しない。
 
+## 2026-08-19 — Figmaデザイン正本の移動とフロントエンド実装ガイド
+
+### 目的
+
+利用者が `figma/` フォルダへ更新した画面／componentデザインシートを新しいUI正本として記録し、Radix Primitives、Plasmo、Tailwind CSS v3で実装する再現可能な手順を用意する。
+
+### 変更
+
+- 画面正本を `figma/Bookmation.svg`、部品・状態の正本を `figma/Bookmation_component.svg` として、要件、制約、設計、UI、Frontend、Memory、Reference、README、索引へ同期した。
+- 旧repository直下の `デザインシート.svg` は利用者による削除を保持し、復元・変換・編集していない。新しい2つのSVGも参照・一時renderだけに使い、編集していない。
+- ルートへ [FRONTEND_GUIDE.md](../FRONTEND_GUIDE.md) を追加した。正本の優先順位、visual inventory、Radix導入、Tailwind token、Plasmo entry／Port境界、各画面の実装順、状態管理、アクセシビリティ、Webプレビュー、Playwright／人間受入、PR分割と完了条件を記載した。
+- Radix PrimitivesをUI behavior基盤として採用した。Radix依存自体はまだ追加せず、実装PRで互換性を確認してexact versionをlockfileへ固定する境界を明記した。
+- [AGENTS.md](../AGENTS.md) は見出しとMarkdownリンクだけの目次を維持したまま、実装ガイドへのリンクを1件追加した。[AI_GUIDE.md](AI_GUIDE.md) は空のまま保持した。
+- Radix、Plasmo、Tailwind CSS v3の公式資料を2026-08-19に再確認し、[REFERENCES.md](REFERENCES.md) へ確認範囲を記録した。
+
+### 検証
+
+- `sha256sum figma/Bookmation.svg`: `d05997589696ff346f59f3850bfc3296bd5b6acbd3e518980421ff6e0533ea8b`。
+- `sha256sum figma/Bookmation_component.svg`: `f6c44b21deea9893c01f1f08c8b8556d1479b05f336dfb6cd70bd1ba0cce8f89`。
+- 更新済みSVGを一時PNGへrenderして全体を目視し、画面sheetとcomponent sheetの役割を分けてガイドへ反映した。font familyはpath化されたSVGから確定できないため、Figma Text Style確認を実装前gateとして残した。
+- `git diff --check`: 成功。
+- Markdown相対リンク、code fence、AGENTS目次形式: 異常0件。テンプレートcode block内の例示リンクは実リンク検査から除外した。
+- `docs/AI_GUIDE.md`: 0バイトを維持した。
+- `npx --yes pnpm@10.15.1 lint`: 成功。
+- `npx --yes pnpm@10.15.1 typecheck`: 成功。
+- `npx --yes pnpm@10.15.1 test`: 成功、Vitest 1ファイル／2件。
+- `npx --yes pnpm@10.15.1 build`: 成功、Plasmo 0.90.5でChrome MV3 production build。
+- UI本体、Radix依存、Webプレビュー、Playwright、実Chromeは未実装／未実施である。今回の成功は文書、既存scaffold、静的SVG観察の範囲であり、完成画面のvisual一致やruntime動作を証明しない。
+
 ## 追記テンプレート
 
 ```markdown

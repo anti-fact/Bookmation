@@ -10,7 +10,7 @@ export default tseslint.config(
       "build/**",
       "coverage/**",
       ".plasmo/**",
-      "デザインシート.svg"
+      "figma/**"
     ]
   },
   js.configs.recommended,

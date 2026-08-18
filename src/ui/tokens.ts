@@ -1,5 +1,5 @@
 /**
- * デザインシート.svg から抽出した再利用 token。
+ * figma/Bookmation.svg と figma/Bookmation_component.svg から抽出した再利用 token。
  * SVG 自体は改変しない。値の変更はデザイン正本の更新と同時に行う。
  */
 export const designTokens = {

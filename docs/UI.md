@@ -1,10 +1,10 @@
 # UI 設計
 
 - 状態: 実装前の設計基準
-- 更新日: 2026-08-17
-- UI 技術: Plasmo（React）+ Tailwind CSS
-- UI 正本: リポジトリ直下の `デザインシート.svg`
-- 関連: [要件](./REQUIREMENTS.md) / [設計](./DESIGN.md) / [フロントエンド](./FRONTEND.md)
+- 更新日: 2026-08-19
+- UI 技術: Plasmo（React）+ Radix Primitives + Tailwind CSS
+- UI 正本: `figma/Bookmation.svg`（画面）/ `figma/Bookmation_component.svg`（部品・状態）
+- 関連: [要件](./REQUIREMENTS.md) / [設計](./DESIGN.md) / [フロントエンド](./FRONTEND.md) / [実装ガイド](../FRONTEND_GUIDE.md)
 
 ## 正本の読み方
 
@@ -205,4 +205,4 @@ fake Adapterと版管理fixtureで、Category templateの未適用／明示適�
 
 ## 参考 UI
 
-SANKOU!、me ki ki ki、Pinterestは探索性の着想に限る。現在の画面配置は更新済み `デザインシート.svg` が正本である。出典は [REFERENCES.md](./REFERENCES.md) を参照する。
+SANKOU!、me ki ki ki、Pinterestは探索性の着想に限る。現在の画面配置は `figma/Bookmation.svg`、部品と状態は `figma/Bookmation_component.svg` が正本である。出典は [REFERENCES.md](./REFERENCES.md) を参照する。

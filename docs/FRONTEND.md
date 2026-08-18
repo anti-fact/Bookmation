@@ -1,9 +1,9 @@
 # フロントエンド設計
 
 - 状態: 設計決定・popup確認用scaffoldのみ実装済み
-- 更新日: 2026-08-17
-- 採用: Plasmo + React + TypeScript + Tailwind CSS
-- 関連: [UI](./UI.md) / [設計](./DESIGN.md) / [要件](./REQUIREMENTS.md) / [テスト](./TESTING.md)
+- 更新日: 2026-08-19
+- 採用: Plasmo + React + TypeScript + Radix Primitives + Tailwind CSS
+- 関連: [UI](./UI.md) / [設計](./DESIGN.md) / [要件](./REQUIREMENTS.md) / [実装ガイド](../FRONTEND_GUIDE.md) / [テスト](./TESTING.md)
 
 ## エントリポイント
 

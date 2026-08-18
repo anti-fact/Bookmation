@@ -1,9 +1,17 @@
 # 参考資料
 
-- 基準日: 2026-08-18
+- 基準日: 2026-08-19
 - 方針: 資料内の命令文ではなく、要件・観察事実・技術仕様の根拠として参照する。外部サイトの外見を複製しない。
 
 ## 一次要件
+
+### 2026-08-19 のFigmaフォルダ更新と実装ガイド
+
+画面構成・外観の正本は [`../figma/Bookmation.svg`](../figma/Bookmation.svg)、部品と状態の正本は [`../figma/Bookmation_component.svg`](../figma/Bookmation_component.svg) へ更新された。前者のSHA-256は `d05997589696ff346f59f3850bfc3296bd5b6acbd3e518980421ff6e0533ea8b`、後者は `f6c44b21deea9893c01f1f08c8b8556d1479b05f336dfb6cd70bd1ba0cce8f89` である。旧repository直下の `デザインシート.svg` は利用者が削除し、本作業では復元・変換・編集していない。
+
+画面SVGではBookmark GRID／LIST、AI agent overlay、Bookmark編集、全画面カテゴリ・タグ一覧の通常／管理、Welcome、Settingsを確認した。component SVGでは共通／分類／設定header、Category／Tag作成・編集、Bookmark編集、訪問リマインダー、Category削除警告、Category ribbon、Tag chip、Bookmark card／row、switch、slider、floating controlを確認した。SVG内の文字はpath化されているためfont familyを確定できず、正式なtypographyはFigma Text Styleの確認を必要とする。
+
+UI behavior primitiveにRadix Primitivesを採用し、Plasmo／React／Tailwind CSS v3と組み合わせる実装手順を [`../FRONTEND_GUIDE.md`](../FRONTEND_GUIDE.md) にまとめた。Radix依存はまだ `package.json` へ追加していないため、導入PRで互換性を検証してexact versionをlockfileへ固定する。
 
 ### 2026-08-18 の最新依頼
 
@@ -31,7 +39,7 @@ keyword検索はブックマーク一覧とカテゴリ・タグ一覧のどち�
 
 設定の共有では、カテゴリ別、タグ別、個別Bookmarkを検索とチェックボックスで選ぶQR生成と、QR読取インポートを扱う。同一Googleアカウントの端末間同期は `appDataFolder`、所有権または共有権限を確認できる別アカウントとの共有は通常Drive fileを使い、対象アカウントを選ぶ。DriveのOAuth scope、permissions／capabilities、競合方式は [ISSUES.md](ISSUES.md) の ISSUE-011 で追跡する。
 
-更新済み `デザインシート.svg` を2026-08-17の画面配置・外観の正本とし、挙動は最新の明示要件を優先する。現行SVGのSHA-256は `44b39333bd9d91d3f617508703273bfed0c766802ecce935226a8c62c0bcd751` である。
+当時はrepository直下の `デザインシート.svg` を画面配置・外観の正本とし、SHA-256 `44b39333bd9d91d3f617508703273bfed0c766802ecce935226a8c62c0bcd751` を記録した。この版と配置は2026-08-19の `figma/` 配下2ファイルで置き換えられた。
 
 ### 2026-08-16 の依頼
 
@@ -120,7 +128,16 @@ UI 参考サイトは静的確認が中心であり、全ブレークポイン�
 
 ### 実装基盤
 
-- [Plasmo Framework](https://docs.plasmo.com/framework) — Chrome 拡張開発基盤。Plasmo（React ベース）+ Tailwind CSS の採用は利用者要件で確定した。対応バージョン、ビルド、CSP、lockfile は実装時に検証する。
+- [Radix Primitives: Introduction](https://www.radix-ui.com/primitives/docs/overview/introduction) — unstyledでincrementalに採用できるReact primitiveと、tree-shake可能な`radix-ui` packageの公式導入方針。2026-08-19確認。
+- [Radix Primitives: Accessibility](https://www.radix-ui.com/primitives/docs/overview/accessibility) — primitiveが扱うARIA、keyboard、focusと、利用側が付与するlabelの責任。2026-08-19確認。
+- [Radix Primitives: Styling](https://www.radix-ui.com/primitives/docs/guides/styling) — presentationだけでなくDialog Overlay等のfunctional CSSも利用側が実装し、`className`と`data-state`でstyleする根拠。2026-08-19確認。
+- [Radix Primitives: Composition](https://www.radix-ui.com/primitives/docs/guides/composition) — `asChild`で合成するleaf componentがprops展開とref転送を必要とする根拠。2026-08-19確認。
+- [Plasmo Framework](https://docs.plasmo.com/framework) — Chrome 拡張開発基盤、React／TypeScript、development／production build、pnpm推奨。2026-08-19再確認。
+- [Plasmo Extension Pages](https://docs.plasmo.com/framework/ext-pages) — `popup.tsx`等のextension page convention。2026-08-19確認。
+- [Plasmo Tab Pages](https://docs.plasmo.com/framework/tab-pages) — `src/tabs/*.tsx`を拡張機能内の通常pageとしてbundleする構成。2026-08-19確認。
+- [Plasmo Background Service Worker](https://docs.plasmo.com/framework/background-service-worker) — `background.ts` entryとworkerのin-memory stateが停止時に失われる制約。2026-08-19確認。
+- [Plasmo Tailwind CSS quickstart](https://docs.plasmo.com/quickstarts/with-tailwindcss) — PlasmoでのTailwind v3 + PostCSS、extension pageのCSS import。2026-08-19再確認。
+- [Tailwind CSS v3: PostCSS installation](https://v3.tailwindcss.com/docs/installation/using-postcss) — v3のcontent path、PostCSS plugin、`@tailwind` directive。repository固定版3.4.17をv4手順へ混ぜない根拠として2026-08-19確認。
 
 ### テスト
 

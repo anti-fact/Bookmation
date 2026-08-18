@@ -1,8 +1,8 @@
 # 設計方針
 
 - 状態: 設計決定・開発基盤のみ実装済み
-- 更新日: 2026-08-17
-- 関連: [要件](./REQUIREMENTS.md) / [UI](./UI.md) / [フロントエンド](./FRONTEND.md) / [バックエンド](./BACKEND.md) / [テスト](./TESTING.md)
+- 更新日: 2026-08-19
+- 関連: [要件](./REQUIREMENTS.md) / [UI](./UI.md) / [フロントエンド](./FRONTEND.md) / [実装ガイド](../FRONTEND_GUIDE.md) / [バックエンド](./BACKEND.md) / [テスト](./TESTING.md)
 
 ## 設計原則
 
@@ -12,7 +12,7 @@
 4. AIは既存のユーザー定義タグを優先し、細分化度0〜4の上限内でタグだけを新規作成する。
 5. 細分化度0でも既存カテゴリ／タグの自動選択・付与は継続する。
 6. Bookmarkを先に永続化し、AI失敗で保存を巻き戻さない。
-7. UIの配置と外観は更新済み `デザインシート.svg`、機能と挙動は [REQUIREMENTS.md](./REQUIREMENTS.md) を正本にする。
+7. UIの配置と外観は `figma/Bookmation.svg`、部品と状態は `figma/Bookmation_component.svg`、機能と挙動は [REQUIREMENTS.md](./REQUIREMENTS.md) を正本にする。
 8. Prompt APIはService Workerで実行せず、対応を実証したトップレベル拡張ページでだけ実行する。
 9. 同じReact componentをfake AdapterでWeb表示し、AIエージェントの実拡張Playwright確認後に人間が受け入れる。
 
@@ -22,7 +22,7 @@
 | --- | --- |
 | Plasmo popup | 現在ページ保存、ホーム表示、ショートカット表示、変更案内 |
 | Plasmo dashboard | welcome、Bookmark一覧、検索、カテゴリ・タグ、設定、overlay、AI Host |
-| React + Tailwind | デザインシートを再現する画面、状態、アクセシビリティ |
+| React + Radix Primitives + Tailwind | デザインシートを再現する画面、behavior、状態、アクセシビリティ |
 | MV3 Service Worker | install、commands、contextMenus、alarms、保存、履歴判定、Repository、job、AI結果再検証 |
 | IndexedDB | Bookmark、Category、Tag、関連、archive、job、reminder suppression、import、sync outboxのJSON文書と画像Blob |
 | `chrome.storage.local` | LIST / GRID、訪問期間／日数、archive日数、reminder有効、AI細分化0〜4等の小設定 |
