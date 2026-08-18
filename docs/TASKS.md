@@ -10,22 +10,22 @@
 
 ## クリティカルパス
 
-| ID | Task | 状態 | 依存 | 完了時の成果 |
-| --- | --- | --- | --- | --- |
-| TASK-001 | 開発基盤と初期 Plan | Done | ISSUE-006 | 同じ環境・コマンドで開発開始できる |
-| TASK-002 | Plasmo 拡張 bootstrap | Backlog | TASK-001 | popup、dashboard、worker を開ける |
-| TASK-003 | JSONドキュメントデータ層 | Backlog | TASK-002 | Bookmark / Label / Job が再読込後も残る |
-| TASK-004 | popup・commands・保存・初回ホーム | Backlog | TASK-003 | 現在ページ／URLを保存し、初回と通常のホームを開ける |
-| TASK-014 | 初回カテゴリテンプレート | Backlog | ISSUE-022、TASK-003、004、006 | 初回にテンプレート候補を提示し、利用者が適用したCategoryだけを安全に作成できる |
-| TASK-005 | Bookmark list UI | Backlog | TASK-002、003 | 最近追加を LIST / GRID で探索・編集できる |
-| TASK-006 | Full-screen Category / Tag UI | Backlog | TASK-003、005 | 親カテゴリ／子タグを作成・管理・選択できる |
-| TASK-007 | Prompt API host spike | Backlog | TASK-002、ISSUE-001 | 対応条件と fallback が実証される |
-| TASK-008 | AI classification / settings | Backlog | TASK-003、006、007 | 規則どおりタグを分類できる |
-| TASK-009 | Full-page search / AI assistant | Backlog | TASK-003、006、007 | 最大8件の候補検索とAIへの検索・機能質問ができる |
-| TASK-010 | Security / media / permissions | Backlog | TASK-002〜004 | 最小権限と入力検証が成立する |
-| TASK-013 | UI Web preview / Playwright harness | Backlog | TASK-002 | 同じUIをWebで確認し、実拡張をAIエージェントが自動確認できる |
-| TASK-011 | Recovery / quality | Backlog | TASK-004〜010、013、014 | 中断・再送・大量件数に耐える |
-| TASK-012 | P0 integrated demo / human acceptance | Backlog | TASK-004〜011、013、014 | AIエージェント確認後、人間が初回設定から保存・検索・編集まで受入できる |
+| ID       | Task                                  | 状態    | 依存                          | 完了時の成果                                                                   |
+| -------- | ------------------------------------- | ------- | ----------------------------- | ------------------------------------------------------------------------------ |
+| TASK-001 | 開発基盤と初期 Plan                   | Done    | ISSUE-006                     | 同じ環境・コマンドで開発開始できる                                             |
+| TASK-002 | Plasmo 拡張 bootstrap                 | Backlog | TASK-001                      | popup、dashboard、worker を開ける                                              |
+| TASK-003 | JSONドキュメントデータ層              | Backlog | TASK-002                      | Bookmark / Label / Job が再読込後も残る                                        |
+| TASK-004 | popup・commands・保存・初回ホーム     | Backlog | TASK-003                      | 現在ページ／URLを保存し、初回と通常のホームを開ける                            |
+| TASK-014 | 初回カテゴリテンプレート              | Backlog | ISSUE-022、TASK-003、004、006 | 初回にテンプレート候補を提示し、利用者が適用したCategoryだけを安全に作成できる |
+| TASK-005 | Bookmark list UI                      | Backlog | TASK-002、003                 | 最近追加を LIST / GRID で探索・編集できる                                      |
+| TASK-006 | Full-screen Category / Tag UI         | Backlog | TASK-003、005                 | 親カテゴリ／子タグを作成・管理・選択できる                                     |
+| TASK-007 | Prompt API host spike                 | Backlog | TASK-002、ISSUE-001           | 対応条件と fallback が実証される                                               |
+| TASK-008 | AI classification / settings          | Backlog | TASK-003、006、007            | 規則どおりタグを分類できる                                                     |
+| TASK-009 | Full-page search / AI assistant       | Backlog | TASK-003、006、007            | 最大8件の候補検索とAIへの検索・機能質問ができる                                |
+| TASK-010 | Security / media / permissions        | Backlog | TASK-002〜004                 | 最小権限と入力検証が成立する                                                   |
+| TASK-013 | UI Web preview / Playwright harness   | Backlog | TASK-002                      | 同じUIをWebで確認し、実拡張をAIエージェントが自動確認できる                    |
+| TASK-011 | Recovery / quality                    | Backlog | TASK-004〜010、013、014       | 中断・再送・大量件数に耐える                                                   |
+| TASK-012 | P0 integrated demo / human acceptance | Backlog | TASK-004〜011、013、014       | AIエージェント確認後、人間が初回設定から保存・検索・編集まで受入できる         |
 
 ## Task 詳細
 
@@ -155,9 +155,10 @@
 ### TASK-013: UI Web preview / Playwright harness
 
 - [ ] [TESTING.md](TESTING.md) の通常Webページとして、production React componentとTailwind tokenをfake Adapterで表示する。
+- [x] UI-01のproduction tokenとButton／Dialog／Switch／Slider／SelectをVite component sheetで表示し、`ui:preview`／`ui:build`を実装する。
 - [ ] popup、ホーム、カテゴリ一覧、主要dialogと、空／通常／大量／エラー／権限拒否等の版管理fixtureを直接開けるようにする。
 - [ ] 初回ホーム、未適用／適用済み／競合／再開のCategory template step、検索候補0／8／9件以上、AI検索／機能質問、Unicode 15.1.0 vendored Normalizer asset＋hash、Tag作成／編集のCategory候補／side view／draft、親変更の0件／1件／多数Bookmark参照・revision競合・同request再送／別payload再利用拒否・rollback・AI再分類なし、Bookmark編集のTag-only入力、Category使用状況、Bookmark／Tagの確認なしdelete、Category警告付きcascade deleteと再分類、削除Undo経路なし、AI snapshot、設定境界値、URL単位SUPPRESSED、archive権限gate／履歴なしエラー／復元、Drive／QR／CSVをfixture化する。
-- [ ] `ui:preview`、`ui:build`、`test:e2e`、`test:e2e:ui` scriptを実装し、preview／fixture／debug UIを本番拡張成果物から除外する。
+- [ ] `test:e2e`、`test:e2e:ui` scriptを実装する。実装済みの`ui:preview`／`ui:build`を含め、preview／fixture／debug UIを本番拡張成果物から除外する。
 - [ ] Playwrightの隔離persistent Chromium contextへビルド済み拡張機能を読み込み、popupと `chrome-extension://` ページを操作する。
 - [ ] AIエージェントがHTML report、失敗時screenshot、trace、console error、skipを保存して人間へ渡せるようにする。
 - [ ] screenshot基準の更新と最終受入を人間の明示操作に限定する。
@@ -189,14 +190,14 @@
 
 機能の採用は確定済みである。P0完了後に着手し、各権限／同期変更は個別Execution Planを先に作る。
 
-| ID | Task | 状態 | 主な依存 | 完了時の成果 |
-| --- | --- | --- | --- | --- |
-| TASK-101 | 訪問日数閾値と保存リマインダー | Backlog | TASK-003、004、010 | 期間内の訪問日数とURL別resetに従い、確認したURLだけ保存できる |
-| TASK-102 | 権限gate付き自動archive | Backlog | TASK-003、101 | 既定30日、history許可時だけON、履歴なしエラー、最小archive、設定一覧復元を実装できる |
-| TASK-103 | QR／CSV共有・QR読取取込 | Backlog | TASK-003、010 | 同じ選択集合をQR／CSVでexportし、QR容量超過をCSVへ誘導できる |
-| TASK-104 | Google Drive同期・権限共有 | Backlog | TASK-003、010、011 | 同一アカウント同期と別アカウント共有を混ぜずに扱える |
-| TASK-105 | Chrome標準Bookmarkインポート | Backlog | TASK-003、010 | 元treeを変えずpreview後に専用領域へコピーできる |
-| TASK-106 | context menu保存 | Backlog | TASK-003、004、010 | 一般設定toggleに従ってpage／link menuを登録／解除し、ON時だけ共通use caseで保存できる |
+| ID       | Task                           | 状態    | 主な依存           | 完了時の成果                                                                          |
+| -------- | ------------------------------ | ------- | ------------------ | ------------------------------------------------------------------------------------- |
+| TASK-101 | 訪問日数閾値と保存リマインダー | Backlog | TASK-003、004、010 | 期間内の訪問日数とURL別resetに従い、確認したURLだけ保存できる                         |
+| TASK-102 | 権限gate付き自動archive        | Backlog | TASK-003、101      | 既定30日、history許可時だけON、履歴なしエラー、最小archive、設定一覧復元を実装できる  |
+| TASK-103 | QR／CSV共有・QR読取取込        | Backlog | TASK-003、010      | 同じ選択集合をQR／CSVでexportし、QR容量超過をCSVへ誘導できる                          |
+| TASK-104 | Google Drive同期・権限共有     | Backlog | TASK-003、010、011 | 同一アカウント同期と別アカウント共有を混ぜずに扱える                                  |
+| TASK-105 | Chrome標準Bookmarkインポート   | Backlog | TASK-003、010      | 元treeを変えずpreview後に専用領域へコピーできる                                       |
+| TASK-106 | context menu保存               | Backlog | TASK-003、004、010 | 一般設定toggleに従ってpage／link menuを登録／解除し、ON時だけ共通use caseで保存できる |
 
 ### P1タスクの確定受け入れ条件
 

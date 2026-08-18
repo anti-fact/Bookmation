@@ -1,7 +1,7 @@
 # テスト仕様
 
-- 状態: **確定要件・テストハーネス未実装**
-- 更新日: 2026-08-17
+- 状態: **確定要件・UI-01 Web component sheet実装済み・全画面fixture／拡張E2E未実装**
+- 更新日: 2026-08-19
 - 関連: [要件](REQUIREMENTS.md) / [制約](CONSTRAINTS.md) / [設計](DESIGN.md) / [フロントエンド](FRONTEND.md) / [セキュリティ](SECURITY.md) / [実装タスク](TASKS.md)
 
 ## 目的
@@ -31,14 +31,16 @@ flowchart LR
 
 ## テスト面の分離
 
-| テスト面 | 実行環境 | 主な目的 | 検証できないこと |
-| --- | --- | --- | --- |
-| Webプレビュー | 通常のローカルWebページ | UI状態、レスポンシブ、操作、アクセシビリティ、デザインレビュー | Chrome権限、Service Worker、拡張機能origin、commands等 |
-| 自動単体／統合 | Vitest等のテスト環境 | Domain不変条件、JSON、Repository、Message、エラー処理 | 実Chrome固有のライフサイクルと権限UI |
-| 拡張機能E2E | Playwrightが読み込むビルド済みManifest V3拡張 | popup、dashboard、永続化、メッセージ、再読込、ユーザー導線 | 対応端末限定AI、OS固有shortcut、実アカウント判断の全て |
-| 人間受入 | 対象版Chromeと隔離テストprofile | 見た目、理解しやすさ、実権限、実ショートカット、実機限定機能 | 自動回帰の再現性 |
+| テスト面       | 実行環境                                      | 主な目的                                                       | 検証できないこと                                       |
+| -------------- | --------------------------------------------- | -------------------------------------------------------------- | ------------------------------------------------------ |
+| Webプレビュー  | 通常のローカルWebページ                       | UI状態、レスポンシブ、操作、アクセシビリティ、デザインレビュー | Chrome権限、Service Worker、拡張機能origin、commands等 |
+| 自動単体／統合 | Vitest等のテスト環境                          | Domain不変条件、JSON、Repository、Message、エラー処理          | 実Chrome固有のライフサイクルと権限UI                   |
+| 拡張機能E2E    | Playwrightが読み込むビルド済みManifest V3拡張 | popup、dashboard、永続化、メッセージ、再読込、ユーザー導線     | 対応端末限定AI、OS固有shortcut、実アカウント判断の全て |
+| 人間受入       | 対象版Chromeと隔離テストprofile               | 見た目、理解しやすさ、実権限、実ショートカット、実機限定機能   | 自動回帰の再現性                                       |
 
 ## Webプレビューの確定仕様
+
+UI-01ではVite 7.3.6をrunnerとして採用し、semantic tokenとButton／Dialog／Switch／Slider／Selectをproduction codeから直接読み込むcomponent sheetを実装した。これは通常Webページの最小入口であり、以下の全画面fixture catalogやPlaywright拡張E2Eの完了を意味しない。
 
 ### 同じUIを使う
 
@@ -50,7 +52,7 @@ flowchart LR
 ### 通常Webページとして開く
 
 - `http://localhost:<port>/...` の通常Webページとしてブラウザから開けることを必須にする。
-- Storybookまたは同等の専用preview appを利用できる。具体的なrunnerは [ISSUES.md](ISSUES.md) で決めるが、通常Webページで確認できるという受入条件は変更しない。
+- Viteの独立preview appを利用し、preview entryとfixture codeをPlasmo production entryから参照しない。通常Webページで確認できるという受入条件は変更しない。
 - 対象画面とfixtureをURL、toolbar、または両方で明示的に切り替えられるようにし、同じURLで同じ初期状態を再現する。
 - popup相当は本番幅のframe内、dashboard相当はデスクトップ／狭幅／200%相当を確認できるviewportで表示する。
 - 画面上に `TEST PREVIEW` とfixture名を表示し、本番画面や実データと誤認させない。
@@ -173,28 +175,28 @@ P1機能を実装した後は、訪問日数既定null、訪問期間3種、期�
 
 各引き渡しで次を残す。
 
-| 項目 | 必須内容 |
-| --- | --- |
-| 対象 | commit SHA、dirty差分の有無、build成果物hashまたは識別子 |
-| 環境 | OS、Node、pnpm、Plasmo、Playwright、Chromium／Chrome版 |
-| コマンド | 実際に実行したlint、typecheck、test、build、E2E |
-| 結果 | pass、fail、flaky、skip、未実施を区別した件数 |
+| 項目     | 必須内容                                                      |
+| -------- | ------------------------------------------------------------- |
+| 対象     | commit SHA、dirty差分の有無、build成果物hashまたは識別子      |
+| 環境     | OS、Node、pnpm、Plasmo、Playwright、Chromium／Chrome版        |
+| コマンド | 実際に実行したlint、typecheck、test、build、E2E               |
+| 結果     | pass、fail、flaky、skip、未実施を区別した件数                 |
 | 画面証拠 | WebプレビューURL／fixture、screenshot差分、HTML report、trace |
-| 人間確認 | 確認者、日時、操作範囲、承認／差戻し、残課題 |
+| 人間確認 | 確認者、日時、操作範囲、承認／差戻し、残課題                  |
 
 URL、タイトル、検索文、履歴、token等の利用者データは証拠へ含めない。テストartifactの保存期間と公開範囲はCI実装時に決める。
 
 ## コマンド契約
 
-現在実装済みなのは `pnpm test` のVitestだけである。次のscriptはテストハーネス実装時に追加する目標契約であり、存在確認前に成功したと記録しない。
+UI-01でVitest component testと最小Web component sheetを実装した。Playwright関連scriptはまだ目標契約であり、存在確認前に成功したと記録しない。
 
-| command | 目的 | 現在 |
-| --- | --- | --- |
-| `pnpm test` | unit／integration | 実装済み |
-| `pnpm ui:preview` | 通常WebページのUIプレビューを起動 | 未実装 |
-| `pnpm ui:build` | レビュー可能な静的UIプレビューを生成 | 未実装 |
-| `pnpm test:e2e` | ビルド済み拡張機能のPlaywright E2E | 未実装 |
-| `pnpm test:e2e:ui` | AIエージェント／人間が画面付きでデバッグ | 未実装 |
+| command            | 目的                                     | 現在                                        |
+| ------------------ | ---------------------------------------- | ------------------------------------------- |
+| `pnpm test`        | unit／component                          | 実装済み（UI-01はjsdom、全featureは未実装） |
+| `pnpm ui:preview`  | 通常WebページのUIプレビューを起動        | 実装済み（UI-01 component sheetのみ）       |
+| `pnpm ui:build`    | レビュー可能な静的UIプレビューを生成     | 実装済み（`build/ui-preview`）              |
+| `pnpm test:e2e`    | ビルド済み拡張機能のPlaywright E2E       | 未実装                                      |
+| `pnpm test:e2e:ui` | AIエージェント／人間が画面付きでデバッグ | 未実装                                      |
 
 script名を変更する場合は、同じ変更で本書、`package.json`、[QUICKSTART.md](QUICKSTART.md)、CI、[WORKLOG.md](WORKLOG.md)を更新する。
 

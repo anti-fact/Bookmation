@@ -649,6 +649,38 @@ Chrome標準BookmarkのFolder treeをBookmation分類へ過剰に持ち込まず
 - `npx --yes pnpm@10.15.1 build`: 成功、Plasmo 0.90.5でChrome MV3 production build。
 - UI本体、Radix依存、Webプレビュー、Playwright、実Chromeは未実装／未実施である。今回の成功は文書、既存scaffold、静的SVG観察の範囲であり、完成画面のvisual一致やruntime動作を証明しない。
 
+## 2026-08-19 — UI-01 token／Radix wrapper／Web component sheet
+
+### 目的
+
+Figmaを見た目の正本、現行docsを挙動・データ・権限の正本として、UI-01だけを実装する。Figmaは読み取り専用とし、feature画面、Chrome API接続、永続化、Playwright E2Eへ範囲を広げない。
+
+### 変更
+
+- Figma URLの対象node `28:343`を`get_design_context`で読み取り専用取得し、`figma/Bookmation.svg`と`figma/Bookmation_component.svg`も変更せず参照した。paper／ink／accent／panel／muted／danger／error、control寸法、radius、shadow、layerをsemantic tokenへ反映した。小さい補助文字は、Figmaの`#7A7A7A`を装飾用に保持しつつ、WCAG AAを下回らない`#505050`の`muted-text`を使う。
+- `radix-ui` 1.6.7と`@radix-ui/react-icons` 1.3.2をexact固定した。Button、Dialog、Switch、Slider、Selectのproduction wrapperを追加し、disabled／loading、Portal、focus trap／return、keyboard操作、label／description、`asChild`、reduced motionを共通化した。Dialog内Selectがscrimの背面へ入らないよう、layerをDialog 50、popover 55、Toast 60とした。
+- Vite 7.3.6の`preview/ComponentSheet.tsx`を追加し、production token／wrapperを通常Webページで操作できるようにした。`ui:preview`は`127.0.0.1:4173`、`ui:build`は`build/ui-preview`を使う。production用Tailwind scanは`src`だけ、preview用configだけが`preview`もscanし、Plasmo成果物へfixture文字列・preview専用CSSを含めない。
+- Vitestをjsdom component testへ拡張し、Button props／ref／`asChild`、Dialog open／Tab cycle／Escape／close／focus return、Switch／Slider／Select keyboard、disabled／pending、reduced motion、component sheetのproduction primitive利用を固定した。
+- README、Frontend Guide、Frontend／Testing／Quickstart／Issues／Tasks／References／Troubleshooting／Tech DebtをUI-01の実装状態へ更新した。`AI_GUIDE.md`は0バイトを維持した。
+
+### 検証
+
+- 対象: base commit `d281b524c90a`上の未commit UI-01差分。commit／pushは利用者確認待ちで未実施。
+- 環境: Node.js `v22.23.2`、pnpm `10.15.1`、Plasmo `0.90.5`、Vite `7.3.6`。
+- `npx --yes pnpm@10.15.1 lint`: 成功。
+- `npx --yes pnpm@10.15.1 typecheck`: 成功。
+- `npx --yes pnpm@10.15.1 test`: 成功、Vitest 8ファイル／18件。
+- `npx --yes pnpm@10.15.1 ui:preview`: 起動成功。`http://127.0.0.1:4173/`と`main.tsx`のHTTP応答、ComponentSheet entryを確認して終了。
+- `npx --yes pnpm@10.15.1 ui:build`: 成功。`build/ui-preview/index.html`のSHA-256は`00beec8c01fbf7c2cc00c77ee4cda511e4f443693bd16ec28997e05925796e88`。
+- `npx --yes pnpm@10.15.1 build`: 成功、Chrome MV3向けPlasmo production build。`manifest.json`のSHA-256は`4c5d2fdc5af03816bab23496ebd8bade90457702edd112869b289e625a7a2801`。
+- production成果物に`TEST PREVIEW`等のfixture文字列および`min-h-dvh`等のpreview専用CSSがないこと、`git diff --check`、Radix exact解決、Figma 2ファイルの差分なし、`docs/AI_GUIDE.md` 0バイトを確認した。
+
+### 残課題
+
+- Playwright 1.62.1のChromiumで、1440×900 viewportの全ページcomponent sheetを撮影し、日本語fontを含む全sectionの描画を目視確認した。git管理外の`build/screenshots/ui-01-component-sheet.png`は1440×1846 px、SHA-256 `8cc07354ea31b6451097092a3a225e8c99491e5ec323e6c1fcb85c5ad6165be9`である。Figmaとのpixel比較、320 CSS px、200% zoom、screen reader、人間による最終受入は未実施であり、この撮影だけでは見た目の一致を証明しない。
+- Figma対象nodeからNoto Sans JP Mediumの参照は得たが、path化された全sheetのText Style数値は確定できない。現行の日本語system sans stackは暫定である。
+- App Shell、保存／一覧／検索等のfeature fixture、fake Port、Playwright実拡張E2E、人間の実Chrome受入はTASK-013以降の範囲であり、UI-01では未実装／未実施である。
+
 ## 追記テンプレート
 
 ```markdown
