@@ -600,6 +600,32 @@ interface ArchiveEvaluationIssueRecord {
 ## importJobs
 
 ~~~ts
+type ImportFolderTagResolution =
+  | {
+      mode: "REUSE"
+      sourceFolderId: string
+      sourceFolderName: string
+      normalizedTagName: string
+      tagId: Id
+      expectedTagRevision: number
+      parentCategoryId: Id
+    }
+  | {
+      mode: "CREATE"
+      sourceFolderId: string
+      sourceFolderName: string
+      normalizedTagName: string
+      parentCategoryId: Id
+      expectedParentCategoryRevision: number
+      tagCreationRequestId: string
+    }
+  | {
+      mode: "SKIP"
+      sourceFolderId: string
+      sourceFolderName: string
+      reason: "FOLDER_NAME_INVALID" | "TAG_NAME_RESERVED"
+    }
+
 interface ImportJobRecord {
   schemaVersion: number
   id: Id
@@ -610,13 +636,17 @@ interface ImportJobRecord {
   skippedCount: number
   failedCount: number
   cursor: string | null
+  selectionFingerprint: string
+  folderTagResolutions: ImportFolderTagResolution[]
   createdAt: EpochMs
   updatedAt: EpochMs
   finishedAt: EpochMs | null
 }
 ~~~
 
-標準BookmarkのURL、title、folder pathはプレビュー時の未信頼入力として検証する。元のChrome Bookmark IDを正本IDにせず、取り込んだBookmarkには `source="CHROME_IMPORT"` を記録する。元データを変更・削除しない。
+標準BookmarkのURL、title、Folder nodeはプレビュー時の未信頼入力として検証する。各URL nodeの `parentId` が指す直上Folderだけを `sourceFolderId`／`sourceFolderName` として解決し、祖先ID、full path、兄弟FolderをLabel作成入力へ含めない。`sourceFolderId` はImport Jobの再開とpreview照合にだけ使い、Bookmark／Labelの正本IDへ転用しない。同じ正規化名のactive Tagがあれば `REUSE` とし、Tag revisionと親Categoryをcommit時に再検証する。Tagが存在しない場合だけ、利用者が選んだactive Category revisionと安定したrequestIdを持つ `CREATE` を許す。CategoryをFolder名から自動作成しない。
+
+commitは選択fingerprint、全Folder解決、URL、重複、Label revisionを再検証し、各Bookmarkへ解決済みTag edgeをちょうど1件 `assignedBy="IMPORT"` で作る。Category edgeはTag親集合から導出し、AI classification Jobは作らない。複数branchに同名の直上Folderがある場合はglobal uniqueな同じTag解決へ収束させる。Folder名が空／Normalizerで不正なら `FOLDER_NAME_INVALID`、同名tombstoneが名前を予約中なら `TAG_NAME_RESERVED` とし、自動rename、tombstone復元、placeholder Tagを行わない。元のChrome Bookmark IDを正本IDにせず、取り込んだBookmarkには `source="CHROME_IMPORT"` を記録する。元データを変更・削除しない。
 
 ## トランザクション
 
@@ -1108,7 +1138,7 @@ interface SyncOperationRecord {
 - Bookmark／Tag削除は確認画面なし、Category削除は影響件数を示す警告確認済みrequestだけで対象IDと期待revisionを検証する。1件でも失敗したら全件をrollbackし、Undo tokenや利用者向け復元導線は作らない。削除済みLabelのunique keyは物理GCまで名称を予約し、その間は同名別IDを拒否して別名だけを許可する。Bookmark削除でSearchDocumentを同時に除外し、参照Blobは同期tombstone保持と参照解消が済むまで回収しない。
 - Category連鎖削除requestIdは1つのCategoryだけに結び付ける。同じCategoryの完了済みrequest再送はACTIVE／revision／fingerprint検証より先にno-op成功へ収束し、別Categoryでの再利用を拒否する。新規requestでは警告snapshotの `impactFingerprint` をtransaction内で再計算し、不一致なら再警告して無変更とする。一致時だけCategory、ACTIVE／削除済み全子TAG、関連edgeを冪等にtombstone化し、影響ACTIVE Bookmarkを保持する。残存TagからCategory closureと検索文書を再計算し、Bookmark revisionを進め、旧RUNNING結果を拒否し、削除request起点のPENDING再分類JobをBookmarkごとに1件だけ作る。AI失敗時はNEEDS_REVIEWと手動Tag編集へ移り、子TAG tombstoneを先に、Category tombstoneを最後に物理GCする。
 - QRとCSVは検索・チェック選択を同じ固定Bookmark集合へ展開する。QRは実encoderで容量検査し、超過時はfragmentを生成せず `QR_CAPACITY_EXCEEDED` とCSV actionを返し、分割・切捨てを行わない。CSV v1は固定header・1 Bookmark 1行・UTF-8で、構造列をJSON fieldとしてescapeし、数式注入をneutralizeして秘密情報を含めない。checksumを真正性保証に使わない。QR読取Importで破損、過大、カテゴリ／タグ名競合、親不明タグを適用前に拒否または確認へ送り、payload内部の同名TAG・複数親はpreview前に拒否する。既存の別親同名TAGは自動reuse／rename／moveせず、skip／cancelまたは明示別名後の全件再previewだけを許す。CSV importは要求しない。
-- 標準Bookmarkインポートは元データを書き換えず、中断・再送後も重複を抑止する。
+- 標準Bookmarkインポートは、`A/B/ページ` から直上Folder `B` だけを1件のTagへ解決し、祖先／full path／AI Tagを付与しない。同名active Tagは再利用し、新規Tagは利用者が選択／作成したactive親Categoryでだけ作る。空／不正Folder名とtombstone同名はskip／cancelへ送り、元データを書き換えず、中断・再送後もBookmark／Tag／edgeの重複を抑止する。
 - タグ統合と大量edge更新が途中失敗時に部分適用されない。
 - Drive同期で同じscalar、同じTagの異なる親変更、同じedgeのadd/delete、update/delete、一意名競合をLWWせず、検証済みimmutable syncSnapshotsとsyncConflictsへ保存する。Tag親競合は `TAG_PARENT_DIVERGED` とし、採用する親を明示した後に全参照Bookmarkのclosureを原子的に再計算する。Category連鎖削除は同じoperationBatchIdの全変更を一括適用し、欠落または子Tag／関連Bookmarkの同時更新は `CATEGORY_CASCADE_DIVERGED` として部分適用しない。解決は期待conflict／snapshot revision・hashと非空の明示operation listを照合し、全不変条件再検証後だけatomic commitする。同名／異親TAGや競合したLabel IDを暗黙remapしない。OPEN／CANCELED conflictのsnapshotはGCされず、RESOLVED後も30日以上かつ全参照消滅まで保持される。削除、同時名称変更、オフライン復帰も再現できる。
 

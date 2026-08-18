@@ -114,7 +114,7 @@ Prompt API の初回モデル取得には利用者の操作、対応環境、空
 - 自動archiveは既定OFFで、switchをONにする操作からhistory権限の目的を説明する。許可できた場合だけONになり、拒否／取消時はOFFのまま、後から権限がなくなった場合もOFFへ戻る。履歴なしは `履歴がないためアーカイブできません` と表示して対象をarchiveしない。notificationsは要求しない。archive後はカテゴリ・タグ、ページ名、URLだけを保持して設定のリストから復元する。
 - ユーザー間共有は同じ選択をQRまたはCSVでexportできる。QR容量超過ではQRを分割・切捨てず、エラーの `CSVでエクスポート` へ進む。QR checksumは破損／切詰めだけを検出し、真正性を保証しない。QR取込時の異親同名Tagは既存再利用／親変更せず、別名／skip／cancel後に再previewする。
 - Driveは設定で対象アカウントを選び、同一アカウントの `appDataFolder` 同期と、別アカウントの通常Drive file＋permissions/capabilities共有を分ける。同一field、update-delete、add-delete、名前競合を自動LWWせず `syncConflicts` として表示する。
-- 標準Bookmark取込が権限・確認境界を守る。右クリック保存は設定ONでpage／linkが各1件だけ表示され、OFFで両方が消え、再度ONにしても重複しない。
+- 標準Bookmark取込は、各Bookmarkの直上Folderだけを1件のTagとしてpreviewし、祖先／full pathを分類へ入れない。同名active Tagは再利用し、新規Tagは親Categoryを選択／作成してから確定する。取込時にAI Tagを追加せず、元の標準Bookmark treeを変更しない。右クリック保存は設定ONでpage／linkが各1件だけ表示され、OFFで両方が消え、再度ONにしても重複しない。
 - エクスポートまたはバックアップが実装されるまでは、実データを唯一の保存先として使わない。
 
 ## 次に進む場所

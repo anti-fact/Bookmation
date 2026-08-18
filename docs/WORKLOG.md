@@ -593,6 +593,33 @@ QR容量を超える共有でも選択内容を失わずにexportできる導線
 - `gh issue view 23 24 25 26 27 28 29` 相当の個別照合: #23〜#26／#29はopen、#27／#28はcompletedでclosed、全Issueが従来のlabel／`P1 確定機能` milestoneを維持した。
 - QR／CSV共有、自動archive、訪問リマインダーは未実装である。今回の成功は文書・既存scaffoldの静的検証であり、実QR容量、CSV download、history権限prompt、履歴照会、alarm、Playwright、実Chromeの動作を証明しない。
 
+## 2026-08-18 — 標準Bookmark取込を直上FolderのTagだけに限定
+
+### 目的
+
+Chrome標準BookmarkのFolder treeをBookmation分類へ過剰に持ち込まず、各Bookmarkが実際に入っている直上FolderだけをTagとして再利用／作成する取込契約へ固定する。
+
+### 変更
+
+- `A / B / ページ` の取込では、Folder由来Tagを `B` の1件だけとした。祖先 `A`、full path、兄弟FolderをCategory／Tagへ変換せず、取込と同時にAI分類Jobも作らない。
+- 同名のactive Tagが存在する場合は、そのTag IDと既存の親Categoryを再検証して再利用する。新規Tagの場合は、previewで利用者がactiveな親Categoryを選択するか同一導線のside viewでCategoryを作成してから `origin=IMPORT` で作る。Folder名からCategoryを暗黙作成しない。
+- 直上Folder名が空／Normalizerで不正、または同名tombstoneが名前を予約中の場合は、placeholder、自動rename、削除済みLabel復元を行わず、項目skipまたはImport全体cancelへ送る。
+- Import Jobへ選択fingerprintとFolder→Tag解決snapshotを持たせ、commit時にTag／親Category revisionを再検証する。選択BookmarkごとにFolder由来Tag edgeを1件だけ作り、Category edgeはTag親集合から導出する。
+- ISSUE-016をOpenからDecidedへ移し、FR-109、TASK-105、BE-15、UI、Frontend、Backend、DB、Security、Test、Troubleshooting等を同じ契約へ更新した。過去のWORKLOGにあるFolder対応未定の記録は当時の履歴として残し、本節と現行要件で置き換えた。
+- GitHub [#32](https://github.com/anti-fact/Bookmation/issues/32)を同じ決定本文へ更新してcompletedでcloseし、実装Task [#33](https://github.com/anti-fact/Bookmation/issues/33)を直上FolderだけのTag化、親Category解決、AI分類なし、元tree不変の完了条件へ更新してopenを維持した。既存labelと `P1 確定機能` milestoneは変更していない。
+
+### 検証
+
+- `git diff --check`: 成功。
+- Markdown 25ファイル、相対リンク264件、code fence、table列数: 異常0件。FR 41件、ISSUE 51件、TASK見出し14件、BE見出し20件のID重複: 0件。
+- `docs/AI_GUIDE.md`: 0バイトを維持し、編集していない。
+- `npx --yes pnpm@10.15.1 lint`: 成功。
+- `npx --yes pnpm@10.15.1 typecheck`: 成功。
+- `npx --yes pnpm@10.15.1 test`: 成功、Vitest 1ファイル／2件。
+- `npx --yes pnpm@10.15.1 build`: 成功、Chrome MV3向けPlasmo production build。
+- GitHub connectorのwriteはintegration権限不足で403となったため、認証済み `gh` fallbackで更新した。更新後の再取得で#32はclosed／completed、#33はopen、両Issueの従来label／milestone維持を確認した。
+- 標準Bookmark取込は未実装である。今回の成功は文書・既存scaffoldの静的検証であり、実Bookmark tree、optional permission prompt、中断再開、Playwright、実Chromeの取込動作を証明しない。
+
 ## 追記テンプレート
 
 ```markdown

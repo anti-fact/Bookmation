@@ -442,7 +442,7 @@ Chromeは拡張service workerを非活動時に終了するため、グローバ
 - QR読取はカメラ権限、decode結果、previewを確認し、不明版を無理に取り込まない。
 - Driveは設定で選択した接続アカウントと利用経路を確認する。同一アカウント同期なら `appDataFolder`、別アカウント共有なら通常Drive fileのowner、permissions、capabilities、必要scopeを確認する。tokenをログへ貼らない。
 - Driveの同一field更新、update対delete、add対delete、カテゴリ／タグ名前競合が自動LWWされず `syncConflicts` に残るか確認する。
-- 標準Bookmark取込は `bookmarks` 権限、Import Jobのcursor、skip／failed理由を確認し、Chrome側treeの不変性を確認する。
+- 標準Bookmark取込は `bookmarks` 権限、Import Jobのcursor／selection fingerprint／Folder→Tag解決、skip／failed理由を確認する。各URL nodeの `parentId` が示す直上Folder名だけがTagになり、祖先／full path／AI Tagが付いていないことと、Chrome側treeの不変性を確認する。
 - context menuは一般設定の `contextMenuBookmarkEnabled` 実効値、固定ID `bookmation-save-page` / `bookmation-save-link`、`page` / `link` context、対象URL scheme、`chrome.storage.onChanged` とworker errorを確認する。旧settingsのfield欠損はON、boolean以外の破損値はOFFへ移行される。
 - toggleがONなのに項目がない、OFFなのに残る、同名項目が重複する場合は、Service Worker再起動後のreconcile結果と `CONTEXT_MENU_RECONCILE_FAILED` を確認する。OFF直前のclickでBookmarkが増えていないことも確認する。
 
@@ -453,7 +453,7 @@ Chromeは拡張service workerを非活動時に終了するため、グローバ
 - カテゴリ／タグ選択が重なっても同じBookmark IDを重複出力せず、読取後の確認前には保存しない。
 - `appDataFolder` を別アカウントへ共有しようとせず、通常Drive file共有へ戻す。owner／permissions／capabilities不一致、認証失効は明示的な選択／再接続で直し、ローカル編集とOutboxを消さない。
 - Drive競合をtimestampだけでLWWせず、`syncConflicts` の利用者解決へ回す。
-- 取込は失敗分だけ再実行し、元の標準Bookmarkを削除・更新しない。
+- 祖先Folderやfull pathがTagになった場合は自動修復でLabelを増減させず取込を停止し、直上Folder解決からpreviewを作り直す。同名active Tagは再利用し、新規Tagは親Categoryを選択／作成する。空／不正Folder名とtombstone同名はskip／cancelとする。失敗分だけ再実行し、元の標準Bookmarkを削除・更新しない。
 - 設定を一度OFF、再度ONにして所有IDをreconcileする。それでも失敗する場合はworkerを再読込してChrome API errorを確認し、BookmarkデータやBookmationの全menuを削除しない。
 - 実装側はBookmation所有の2 IDだけを登録／解除し、`removeAll()` で解消しない。右クリック経路も現在設定、通常のURL検証、重複判定を通し、権限やschemeを緩めて回避しない。
 

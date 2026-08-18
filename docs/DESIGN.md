@@ -131,7 +131,7 @@ archive判定は最終訪問日時と設定日数を使い、取得不能なら�
 - 2経路をUIと保存先で区別し、未接続・offlineでもローカル編集を継続し、競合を黙って上書きしない。
 - QR／CSV共有はCategory／Tag／個別Bookmarkの検索・checkbox選択を同じBookmark ID集合へ展開し、重複を除く。
 - QRは生成前と読取後に内容、件数、容量、versionを検証する。容量超過時は分割・切捨てをせず、同じ固定集合のCSV exportへ誘導する。camera拒否時は画像file読取を提供する。
-- Chrome標準Bookmarkは明示操作とpreview後にBookmationへcopyし、元データを変更しない。
+- Chrome標準Bookmarkは明示操作とpreview後にBookmationへcopyし、元データを変更しない。分類は各Bookmarkの直上Folderだけを1件のTagへ対応させ、祖先／full pathをLabel化せず、Categoryは既存Tagの親を使うか新規Tag作成前に利用者が選択／作成する。
 
 ## 一覧取得
 

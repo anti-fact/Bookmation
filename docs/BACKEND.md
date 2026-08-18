@@ -402,7 +402,9 @@ QRコード読み取りImportでは、スキーマ、容量、checksum、URL、�
 
 ### Chrome標準Bookmarkインポート
 
-`chrome.bookmarks.getTree()` で読んだtreeを未信頼入力として走査し、preview後にImport Jobへ固定する。folder対応、URL検証、重複判定、部分失敗を記録し、Bookmation JSON documentだけを作る。標準Bookmarkのcreate/update/removeは呼ばない。
+`chrome.bookmarks.getTree()` で読んだtreeを未信頼入力として走査し、各URL nodeの `parentId` から直上Folderを1件だけ解決してpreview後にImport Jobへ固定する。`A / B / ページ` ならFolder由来Tag候補は `B` だけであり、祖先 `A`、full path、兄弟FolderをCategory／Tagへ変換しない。同じ正規化名のactive Tagがあればoriginを問わずそのIDと既存親Categoryを再利用する。Tagがなければ、利用者がpreviewでactiveな親Categoryを選ぶか同一導線でCategoryを作成した後に `origin="IMPORT"` Tagを作る。Folder名からCategoryを暗黙作成しない。
+
+選択済みBookmarkには解決済みTagを1件だけ付与し、Category edgeはそのTagの親から通常どおり導出する。取込commitと同時にAI分類Jobを作らず、追加Tagを付けない。直上Folder名が空／Normalizerで不正、または同名Tagがtombstoneで名前を予約中なら、placeholder、自動rename、tombstone復元を行わず項目skipまたはImport全体cancelを選ばせる。preview、Folder→Tag解決、URL検証、重複判定、部分失敗を記録し、Bookmation JSON documentだけを作る。標準Bookmarkのcreate/update/removeは呼ばない。
 
 ### 右クリック保存
 
@@ -460,6 +462,6 @@ UI向けメッセージと診断情報を分ける。URL、ページタイトル
 - AIアダプター契約: canonical intent `SEARCH_LIBRARY / PRODUCT_HELP / OUT_OF_SCOPE`、不正JSON、候補外ID、重複ID、古いrevision、長すぎる名称・検索語、プロンプト注入文字列
 - 検索: 両一覧からLabel／Bookmarkを返す、Labelが先、autocomplete最大8件と種別絞込み、TAG候補に親を付ける、AI候補は無順位、候補外ID拒否、AI利用不可時の字句フォールバック
 - マイグレーション: 旧平坦Labelへの親割当、親不明TAGの隔離、Unicode 15.1.0 vendored assetと実hash、正規化v1とカテゴリ／タグ名競合、JSON-safe cursor、細分化1〜5から0〜4、archiveのmetadata／payload分離、edge重複、失敗時のロールバック
-- P1: 訪問日数の既定値なし、訪問期間／日数の組と期間変更時clear、同日重複排除、URL別reset、旧回数設定migration、archive既定30日、archive toggleのhistory許可時だけON／拒否・取消時OFF、Reminder無効化と候補単位SUPPRESSED、利用者確認前の保存禁止、履歴なしの項目別エラーとarchive不可、最小archiveと設定内復元、標準Bookmark非変更、context menu設定の欠損移行／ON／OFF／登録失敗rollback／worker再起動／遅延click拒否、QR／CSVの同一選択集合、QR容量超過時のCSV誘導、CSV escaping／formula neutralization、checksum破損検出・別親同名Tagのskip/cancel/別名再preview、Driveアカウント選択・同時編集・オフライン復帰、syncSnapshotsのhash／immutable／OPEN pin／解決後30日保持、期待revision付き明示operations、syncConflicts再検証、Label ID暗黙付替え禁止
+- P1: 訪問日数の既定値なし、訪問期間／日数の組と期間変更時clear、同日重複排除、URL別reset、旧回数設定migration、archive既定30日、archive toggleのhistory許可時だけON／拒否・取消時OFF、Reminder無効化と候補単位SUPPRESSED、利用者確認前の保存禁止、履歴なしの項目別エラーとarchive不可、最小archiveと設定内復元、標準Bookmarkの直上Folderだけを1件のTag化／親Category明示解決／AI分類なし／元tree非変更、context menu設定の欠損移行／ON／OFF／登録失敗rollback／worker再起動／遅延click拒否、QR／CSVの同一選択集合、QR容量超過時のCSV誘導、CSV escaping／formula neutralization、checksum破損検出・別親同名Tagのskip/cancel/別名再preview、Driveアカウント選択・同時編集・オフライン復帰、syncSnapshotsのhash／immutable／OPEN pin／解決後30日保持、期待revision付き明示operations、syncConflicts再検証、Label ID暗黙付替え禁止
 
 現時点ではテストコードも実行結果も存在しない。

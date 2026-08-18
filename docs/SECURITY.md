@@ -239,6 +239,8 @@ Chromeプロファイルへアクセスできる同一端末の攻撃者から�
 - `bookmarks` 権限要求前に、読み取る対象、Bookmationへコピーすること、元データを変更しないことを説明する。
 - Import adapterは `getTree` 等の読取操作だけを公開し、標準Bookmarkのcreate/update/removeをApplicationから呼べないようにする。
 - title、URL、folder名、件数を未信頼入力として検証し、previewのHTMLへ直接挿入しない。
+- 各URL nodeの直接の `parentId` が指すFolderだけをTag候補にし、祖先、full path、兄弟FolderをLabel作成へ渡さない。同名active TagはID／revision／親Categoryを再検証して再利用し、新規Tagは利用者がactive Categoryを選択または明示作成した場合だけ `origin="IMPORT"` で作る。Folder名からCategoryを自動生成しない。
+- 取込commitでは選択BookmarkごとにFolder由来Tagを1件だけ付与し、AI分類を同時実行しない。空／不正Folder名と同名tombstoneはskip／cancelへ送り、自動rename、placeholder、削除済みLabel復元で不変条件を迂回しない。
 - context menuは端末固有の検証済みboolean `contextMenuBookmarkEnabled` が `true` の場合だけ、Bookmation所有の固定ID `bookmation-save-page` / `bookmation-save-link` と `page` / `link` contextを登録する。旧settingsの欠損は `true` へ移行し、boolean以外は `false` として扱う。
 - OFF時は上記2 IDだけを解除し、Bookmation内の将来の別menuまで対象にする `removeAll()` を使わない。Service Worker再起動と設定再送でも登録を重複させない。
 - click handlerは固定IDと送信元に加えて現在の設定値を保存直前に再確認し、OFF切替前に配送済みだった遅延clickも拒否する。クリックされた `pageUrl` / `linkUrl` は通常のURL allowlistへ通す。
@@ -271,7 +273,7 @@ Chromeプロファイルへアクセスできる同一端末の攻撃者から�
 - QR exportは容量超過で1 fragmentも生成せずCSVへ誘導し、CSVはquote／数式注入／秘密情報除外を検証する。QRインポートで破損、過大、不明バージョン、親不明タグ、payload内同名TAG・複数親を拒否する。checksumを真正性保証に使わず、既存の別親同名TAGを自動reuse／rename／moveしない。カメラ読取終了後にtrackとフレームを保持しない。
 - Drive同期で選択アカウント、同じscalar、同じTagの異なる親変更、同じedge add/delete、update/delete、一意名競合を再現し、自動LWWせずimmutable syncSnapshotsとsyncConflictsへ送る。Tag親更新batchの欠落・差替えは部分適用せず、異なる親は `TAG_PARENT_DIVERGED` として人の選択後に全参照Bookmark closureを再計算する。Category連鎖削除batchの欠落・同時更新は `CATEGORY_CASCADE_DIVERGED` として部分適用しない。期待revision／hash付きの非空な明示operationsだけを全不変条件再検証後にatomic commitし、同名／異親TAGやLabel IDを暗黙remapしない。OPEN／CANCELED snapshotはGCせず、RESOLVED後も30日以上保持する。appDataFolderを別アカウント共有に使わない。
 - Bookmark／Tag削除は追加確認なし、Category削除は子Tag実名・件数と参照Bookmark unique件数を示す警告確認後に、対象IDと期待revisionを検証する。Category連鎖削除はCategory、全子Tag、関連edge、影響BookmarkのCategory closure・revision・検索派生文書、Bookmark別PENDING再分類Jobを原子的に更新し、Undo tokenや削除済み対象の復元導線を生成しない。旧RUNNING AI結果を拒否し、AI失敗時もBookmarkを保持してNEEDS_REVIEW／手動Tag編集へ移す。削除済みLabelのunique keyによるGCまでの名称予約、子Tag先行・Category後行のGC、削除Bookmarkの検索除外、参照Blob保持も維持する。
-- 標準Bookmarkのインポート前後でChrome側のtreeが不変である。context menuはON／OFFと固定IDの登録状態が一致し、OFF中の遅延clickと危険URLを拒否する。
+- 標準Bookmarkのインポート前後でChrome側のtreeが不変であり、深いtreeでも直上Folderだけが1件のTagになり、祖先／full path／AI Tagが混入しない。context menuはON／OFFと固定IDの登録状態が一致し、OFF中の遅延clickと危険URLを拒否する。
 - 依存監査とビルド成果物の秘密情報検査がCIで実行される。
 - WebプレビューとPlaywright artifactに実データやtokenがなく、AIエージェント確認後に人間が同じbuildを受入確認している。
 

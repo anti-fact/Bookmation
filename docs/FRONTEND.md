@@ -60,6 +60,7 @@
 | `ArchiveManager` | checkbox選択と一括復元 |
 | `DriveAccountPanel` | account選択、同期、権限、競合 |
 | `QrSharePanel` / `QrImportPanel` | 対象選択、生成、読取、取込 |
+| `ChromeBookmarkImportPanel` | 権限説明、直上Folder別preview、Tag再利用／新規Tagの親Category解決、進捗、結果 |
 | `BackToTopButton` | 閾値後のscroll／focus |
 
 ## 状態管理
@@ -175,6 +176,10 @@ BookmarkとTagの削除は確認なしで即時に論理削除し、削除後の
 ### 共有
 
 `DriveAccountPanel` はGoogle account選択、接続状態、同期状態、競合を表示する。同一account同期は `appDataFolder`、別account共有は通常Drive fileとし、後者では対象fileのownership、permission、`capabilities` を確認する。`ShareExportPanel` はカテゴリ／タグ／Bookmarkのfilterと検索、checkboxを同じ選択setへ展開してID dedupeし、固定snapshotに対するQRとCSVの2つのexport actionを常時表示する。QR事前検査またはencoderが `QR_CAPACITY_EXCEEDED` を返した場合は部分QRを表示せず、選択を保持したerror panelのprimary actionを `CSVでエクスポート` にする。CSVはローカルでBlob化し、成功時だけobject URLをdownloadして直後にrevokeする。QR読取はcamera permissionを利用時に要求し、画像file fallback、preview、重複解決、import結果を持つ。CSV importは提供しない。
+
+### Chrome標準Bookmark取込
+
+`ChromeBookmarkImportPanel` はBookmarkを直上Folder単位でgroup化し、各行へページ名／URL、直上Folder名、付与予定Tag、親Category、解決状態を表示する。Folder tree全体を階層選択UIとして再現せず、祖先とfull pathは出所確認用に表示する場合も保存対象へ含めない。同名active Tagは既存の親Categoryとともに再利用表示にする。新規Tag groupでは `ParentCategoryCombobox` と `LabelCreateSideView` を再利用し、active Categoryの選択またはCategory作成後の自動選択を必須にする。空／不正Folder名、tombstone同名、親Category revision競合は項目skipまたは全体cancelとして表示し、暗黙renameやplaceholderを作らない。確定後はTagを1件だけ表示し、AI分類のpending表示を追加しない。
 
 ## 訪問リマインダー
 

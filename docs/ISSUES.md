@@ -24,7 +24,6 @@
 | ISSUE-013 | Open | 運用 | タスク管理を Linear にする希望はあるが確定していない | チームのアカウントと運用責任を確認し、正本を一つに決める |
 | ISSUE-014 | Open | P0 | AIポップアップの検索候補上限、製品機能説明の正本、応答時間、AI非対応時の縮退が未確定である | 同じDialog内の入力／応答、種類別の無順位集合、最大件数、説明の参照データ、応答時間、lexical fallbackをprototypeで決める |
 | ISSUE-015 | Open | P0 | URL 指定保存で取得できるメタデータと通信権限の境界が未確定である | URL 検証、タイトル入力の代替、ファビコン・サムネイル取得、host permission 不要の縮退動作を決める |
-| ISSUE-016 | Open | P1 | Chrome標準BookmarkのFolderを親カテゴリ／子タグへどう対応するか未定である | tagなし取込、folder path保持、利用者確認付き階層化を比較し、元tree非変更と重複規則を固定する |
 | ISSUE-018 | Open | P0 | UI Webプレビューのrunner、Playwright／Chromium版、CI artifact保持条件が未確定である | Storybookまたは同等preview appを比較し、`ui:preview` / `ui:build` / `test:e2e` / `test:e2e:ui`、visual baseline、report／trace保持期間をTASK-013で固定する。通常Webページ、AIエージェント先行、人間最終受入という要件は変更しない |
 | ISSUE-020 | Open | P0 | keyword autocompleteは最大8件で確定したが、一致度と種類混在時の配分が未定である | 正規化、前方一致／部分一致、カテゴリ・タグ・Bookmarkの配分、同点規則、IME中の挙動を固定し、キーボード操作を試験する |
 | ISSUE-022 | Open | P0 | 初回カテゴリテンプレート機能は採用確定だが、具体的なcatalogと導線が未確定である | 候補名と件数、1組／複数set、選択方式、初期選択、skip可否、名前編集、初回後の再表示場所、言語・地域、catalog version、再適用、既存／tombstone同名競合時の表示を決める。利用者の明示適用前にCategory recordを作らず、適用時は通常のUSER Category作成規則を通す境界は維持する |
@@ -68,6 +67,7 @@
 | ISSUE-D33 | Decided | 初回オンボーディングにカテゴリテンプレート機能を設ける。具体的な候補と操作方式はISSUE-022で決める | 2026-08-17の利用者による機能採用。Categoryは利用者の明示操作で作成する既存不変条件を維持する |
 | ISSUE-D34 | Decided | 訪問リマインダーは同日複数アクセスを1日とし、当日を含む直近7／30／365暦日から選んだ期間内の訪問日数で判定する。日数の既定値は設けず、期間変更時も入力をclearして期間別上限を適用し、`いいえ` はcanonical URL別の集計基準を応答時刻へresetする | 2026-08-18の利用者依頼。`次回以降表示しない` のURL別SUPPRESSEDと、確認前保存禁止は維持する |
 | ISSUE-010 | Decided | QRは選択済みencoder設定で事前容量検査し、収まらなければ分割・切捨て・部分生成を行わず `QR_CAPACITY_EXCEEDED` と `CSVでエクスポート` を表示する。checksumは破損／切詰め検出だけに使う | 2026-08-18の利用者依頼。encoder別実効容量のfixtureはTASK-103で固定し、送信者真正性が必要なら別途署名方式を決める |
+| ISSUE-016 | Decided | Chrome標準Bookmarkの取込では、各Bookmarkの直上Folder名だけを1件のTagとして付与する。祖先Folderとfull pathはCategory／Tagへ変換せず、取込時のAI分類も行わない。同名active Tagは再利用し、新規Tagはpreviewで利用者がactiveな親Categoryを選択または新規作成してから作る。直上Folder名が空／不正、またはtombstone同名の場合は自動代替せずskip／cancelへ送る | 2026-08-18の利用者依頼。Categoryを暗黙作成せず、Tagのglobal uniqueと元tree非変更を維持する |
 | ISSUE-017 | Decided | QR容量超過時の明示exportはCSVとする。同じ固定Bookmark集合からローカル生成し、CSV exportへ遷移しても選択を失わない。分割QRとCSV importは要求しない | 2026-08-18の利用者依頼。無言の切捨てを禁止する |
 | ISSUE-019 | Decided | 管理モードのTag編集から親Categoryを変更できる。activeな既存Categoryを最大8候補から選ぶか同一モーダルのサイドビューで作成し、Tag／親expected revisionとsubmit開始時に1回発行する `tag-update:` requestIdを検証して全参照BookmarkのCategory closure・revision・検索派生データを原子的に更新する。同request再送は同じ `UpdateTagResult` へ収束する | 更新済みデザインシートと2026-08-17の最新利用者指示。親変更ではAI再分類を行わず、Tag名のglobal uniqueを維持する。Category削除は別の `category-delete:` namespaceとする |
 | ISSUE-006 | Decided | pnpm 10.15.1、Plasmo 0.90.5、React 18.3.1、Tailwind 3.4.17、TypeScript 5.9.2。推奨 Node 22。品質コマンドは `dev` / `build` / `lint` / `typecheck` / `test` | TASK-001 の scaffold と lockfile。`engines` は Plasmo/Parcel の解決バグを避けるため置かない |

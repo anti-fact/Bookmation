@@ -70,7 +70,7 @@ UI の画面構成・外観は、リポジトリ直下の `デザインシート
 | FR-106 | アーカイブを最小情報で保存する | アーカイブ済み項目の利用者データはページ名、URL、カテゴリのID／表示名、タグのID／表示名／親カテゴリIDだけを保持する。復元に不可欠なBookmark ID、文字列 `archiveState`、schema version等のシステム情報は別の最小メタデータとして保持する |
 | FR-107 | BookmarkをQR／CSVでユーザー間共有する | 設定画面の共有欄で、カテゴリ別、タグ別、個別Bookmarkの各単位から検索とチェックボックスで対象を選び、同じ固定Bookmark集合をQRコードまたはCSVとしてexportできる。QRが選択済みencoder設定の容量を超える場合は生成・分割・切捨てをせず、エラーメッセージに `CSVでエクスポート` 操作を表示する。QR読取によるインポートは提供するが、CSV importは本要件に含めない |
 | FR-108 | Google Driveで所有アカウント間共有・同期する | 同一Googleアカウントの端末間同期は `appDataFolder`、所有権または共有権限を確認できる別アカウントとの共有は通常Drive fileを使う。設定画面で対象アカウントを選び、通常fileはpermissions／capabilitiesを確認する。競合はimmutableな `syncSnapshots` と明示的なresolution planで扱い、open中はsnapshotを物理回収せず、解決後30日保持する。Label IDやedgeを暗黙にremapしない |
-| FR-109 | Chrome標準ブックマークをインポートする | 明示操作と権限許可後に標準ブックマークを読み、件数と内容をプレビューしてBookmationへコピーする。元のBookmark／Folderは変更・削除しない |
+| FR-109 | Chrome標準ブックマークをインポートする | 明示操作と権限許可後に標準ブックマークを読み、件数と内容をプレビューしてBookmationへコピーする。各Bookmarkへ取り込み時に付与するTagはそのBookmarkの直上Folder名から作る1件だけとし、祖先Folder、full path、同階層の別FolderをCategory／Tagへ変換せず、AI分類も同時実行しない。同名のactive Tagは再利用し、新規Tagは利用者がpreviewでactiveな親Categoryを選択するか同一導線でCategoryを作成してから確定する。元のBookmark／Folderは変更・削除しない |
 | FR-110 | 右クリックから保存する | 一般設定の `右クリックメニューから保存` トグルを初期値ONで提供する。ONではページおよびリンクのコンテキストメニューにBookmation保存操作を重複なく登録し、許可URLを既存の保存ユースケースへ渡す。OFFではBookmation所有のmenu IDを解除し、切替直前の古いclick eventも保存へ進めない。設定変更は即時反映し、端末固有設定としてDrive同期しない |
 
 ## 非機能要件
@@ -106,4 +106,4 @@ UI の画面構成・外観は、リポジトリ直下の `デザインシート
 - 拡張機能内でのショートカットキー直接変更
 - バックエンドサーバー、外部 LLM、常時ログイン、クラウド DB（要件で明示したGoogle Driveの `appDataFolder`／通常file連携は除く）
 
-訪問期間の初期選択、アーカイブの実行頻度、QRのencoder別実効容量、Google Driveの残るアカウント間運用、インポート時のFolder対応は [ISSUES.md](ISSUES.md) で実装前に閉じる。リマインダー日数は既定値なし、アーカイブ日数は30日で確定している。Tagの親Category変更はTag編集画面からだけ実行する。
+訪問期間の初期選択、アーカイブの実行頻度、QRのencoder別実効容量、Google Driveの残るアカウント間運用は [ISSUES.md](ISSUES.md) で実装前に閉じる。リマインダー日数は既定値なし、アーカイブ日数は30日で確定している。標準Bookmark取込は直上FolderだけをTag化する。Tagの親Category変更はTag編集画面からだけ実行する。

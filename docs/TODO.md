@@ -46,7 +46,7 @@
 - [ ] **TODO-017: 訪問・archive設定の残る運用値を評価する**
   - 完了条件: 訪問日数の既定null、期間3種と1〜7／1〜30／1〜365日の境界、期間変更時clear、同日重複排除、`いいえ` のURL別reset、旧回数設定migration、`DISMISSED` の再表示、`frequentVisitReminderEnabled`、canonical URL単位SUPPRESSED、archive toggle既定OFF／history許可時だけON／取消時OFF、archive日数既定30と範囲、履歴なしエラーをfixtureで比較する。初期期間、SUPPRESSED再許可、archive実行頻度／履歴再確認UIを [ISSUES.md](ISSUES.md) で決め、確認前保存禁止と履歴なしarchive不可を維持する。
 - [ ] **TODO-018: 標準Bookmark取込fixtureを作る**
-  - 完了条件: 深いfolder、空folder、重複URL、危険URL、Unicode名、途中失敗を含め、Chrome側tree不変を検証できる。
+  - 完了条件: `A/B/ページ` からTag `B` だけ、同名leaf Folderの同一Tag収束、既存Tag再利用、新規Tagの親Category選択／side view作成、空／不正Folder名、tombstone同名、重複URL、危険URL、Unicode名、AI Jobなし、途中失敗／再開を含め、1 Bookmark＝Folder由来Tag 1件とChrome側tree不変を検証できる。
 - [ ] **TODO-019: フルページ検索の入力候補fixtureを作る**
   - 完了条件: ブックマーク一覧／カテゴリ・タグ一覧の両入口、IME、0件、1件、8件、9件以上、カテゴリ名とタグ名の相互一致、古い応答を用意し、候補が最大8件で選択後に正しい対象へ移動する。
 - [ ] **TODO-020: カテゴリ・タグ作成／管理fixtureを作る**

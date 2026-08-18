@@ -31,7 +31,7 @@
 - keyword検索は両一覧から開くフルページ検索へ最大8件の入力候補を返す。AI入力ポップアップはLabel／Bookmark検索とBookmationの機能説明を扱い、検索結果はLabelを先にし、順位・スコアを契約に含めない。
 - 訪問判定は回数ではなく、選択した直近7／30／365暦日内の訪問日数を使う。日数の既定値は設けず、期間変更時も入力を消去して上限を7／30／365へ切り替える。`いいえ` はそのcanonical URLの集計基準を応答時刻へ進め、「次回以降表示しない」だけを `SUPPRESSED` とする。AI細分化だけをslider値にする。
 - 自動archiveは既定OFFのtoggleと既定30日の正整数設定を持ち、history権限の許可後だけONにできる。履歴なしは項目別エラーとしてarchive不可にする。archive後はカテゴリ・タグ、ページ名、URLだけを保持し、設定の一覧から選択して復元する。
-- ユーザー間共有はカテゴリ／タグ／個別Bookmarkを選んだQR／CSV exportとQR読取取込を使う。QR容量超過時は分割・切捨てせずCSVへ誘導する。Driveは同一Googleアカウントの端末間同期を `appDataFolder`、別アカウントへの権限共有を通常Drive file＋permissions/capabilities検証として分離し、設定で対象アカウントを選ぶ。標準Bookmarkは明示取込とする。右クリック保存は端末固有toggleがONの時だけpage／link menuを表示し、共通保存use caseを使う。
+- ユーザー間共有はカテゴリ／タグ／個別Bookmarkを選んだQR／CSV exportとQR読取取込を使う。QR容量超過時は分割・切捨てせずCSVへ誘導する。Driveは同一Googleアカウントの端末間同期を `appDataFolder`、別アカウントへの権限共有を通常Drive file＋permissions/capabilities検証として分離し、設定で対象アカウントを選ぶ。標準Bookmarkは明示取込とし、各Bookmarkの直上Folderだけを1件のTagへ対応させる。右クリック保存は端末固有toggleがONの時だけpage／link menuを表示し、共通保存use caseを使う。
 - 一覧のページサイズは内部設定とし、利用者が変更するプルダウンや永続設定を作らない。
 - 初回カテゴリテンプレート機能はP0確定とする。具体的catalogと導線はISSUE-022で決め、利用者の明示適用前にCategoryをseedせず、適用時は通常のUSER Category作成へ合流させる。
 
@@ -99,7 +99,7 @@ flowchart TD
 | BE-12 | 統合テストとフロント引き渡し | 未着手 | 未定 | BE-04、BE-05、BE-08〜BE-11 | P0の一連操作を再現し、UIから利用できる |
 | BE-13 | 訪問日数閾値と保存リマインダー | 未着手 | 未定 | BE-03、BE-04、BE-10、BE-12 | 期間内の訪問日数とURL別resetに従い、確認したURLだけを保存できる |
 | BE-14 | 権限gate付き自動アーカイブ | 未着手 | 未定 | BE-05、BE-13 | 既定30日、history許可時だけON、履歴なしエラー、最小archive、復元を扱える |
-| BE-15 | Chrome標準Bookmarkインポート | 未着手 | 未定 | BE-02、BE-10、BE-12 | 元treeを変えずJSON documentへ取込できる |
+| BE-15 | Chrome標準Bookmarkインポート | 未着手 | 未定 | BE-02、BE-10、BE-12 | 元treeを変えず、直上Folderだけを1件のTagにしてJSON documentへ取込できる |
 | BE-16 | context menu保存 | 未着手 | 未定 | BE-01、BE-03、BE-04、BE-10 | 設定toggleに従ってpage／link menuを重複なく登録／解除し、ON時だけ共通保存use caseへ渡せる |
 | BE-17 | QR／CSV共有・QR読取取込 | 未着手 | 未定 | BE-02、BE-10、BE-12 | 同じ選択集合をQR／CSVでexportし、QR容量超過をCSVへ誘導できる |
 | BE-18 | Google Drive同期・権限共有 | 未着手 | 未定 | BE-02、BE-10、BE-11、BE-12 | 同一アカウント同期と別アカウント共有を混ぜずに扱える |
@@ -428,15 +428,16 @@ sequenceDiagram
 目的: Chrome標準Bookmarkを変更せず、BookmationのJSON documentへコピーする。
 
 - [ ] 取込開始画面から `bookmarks` 権限を要求し、拒否時に既存データを変更しない。
-- [ ] 読取専用adapterでtreeを取得し、URL、title、folder名、件数、深さを検証する。
-- [ ] previewと利用者の選択をImport Jobへ固定し、cursorで中断再開する。
+- [ ] 読取専用adapterでtreeを取得し、URL、title、直上folder名、件数、深さを検証する。各Bookmarkの `parentId` が指す直上FolderだけをTag候補とし、祖先、full path、同階層の別FolderをLabel候補へ入れない。
+- [ ] previewを直上Folder単位にgroup化する。同名active TagはそのIDと親Categoryを再利用し、新規Tagはactiveな既存Categoryの選択または同一導線のCategory作成を必須にする。CategoryをFolder名から暗黙作成しない。
+- [ ] previewと利用者の選択、Folder→Tag解決をImport Jobへ固定し、cursorで中断再開する。直上Folder名が空／不正、または同名Tagがtombstoneなら自動renameやplaceholderを作らずskip／cancelとする。
 - [ ] normalized URLの重複を検出し、import／skip／failedの件数と理由を返す。
-- [ ] folderからカテゴリ／タグへの対応はISSUE-016の決定を適用し、暗黙に同名カテゴリを作らない。
+- [ ] commitでは各Bookmarkへ解決済みTagを1件だけ `assignedBy="IMPORT"` で付与し、その親Category edgeを通常のclosure規則で導出する。取込と同時にAI分類を起動せず、祖先Folder由来Tagや追加Tagを付けない。
 - [ ] Chrome標準Bookmarkのcreate/update/removeを呼べない契約テストを作る。
 
 成果物: ChromeBookmarksReadPort、Import Job、preview/result型、fixture。
 
-完了条件: 深いfolder、危険URL、重複、中断、部分失敗の後も元treeが不変で、再送による重複登録がない。
+完了条件: `A/B/ページ` からTag `B` だけが付くこと、同名直上FolderのTag再利用、新規Tagの親Category選択、空／不正Folder名、tombstone競合、危険URL、重複、中断、部分失敗、AI分類未起動の後も元treeが不変で、再送による重複登録がない。
 
 ### BE-16 context menu保存
 
@@ -517,7 +518,7 @@ sequenceDiagram
 | ショートカット表示 | `ListCommands` | command名、実キーまたは未割当 |
 | 訪問リマインダー設定／応答 | `UpdateReminderSettings` / `HandleVisitReminder` | 7／30／365日の期間、期間別訪問日数閾値、frequentVisitReminderEnabled、保存／URL別reset／SUPPRESSED |
 | Archive設定／復元 | `SetAutoArchiveEnabled` / `ArchiveInactiveBookmarks` / `List/RestoreArchivedBookmarks` | 権限gate、既定30日、履歴なしエラー、最小項目一覧、復元結果 |
-| 標準Bookmark取込 | `Preview/ImportChromeBookmarks` | preview、progress、imported/skipped/failed |
+| 標準Bookmark取込 | `Preview/ImportChromeBookmarks` | 直上Folder→Tag解決、親Category選択、preview、progress、imported/skipped/failed |
 | QR／CSV共有・QR読取取込 | `ResolveShareSelection` / `ExportQr` / `ExportCsv` / `Preview/ImportQr` | 選択件数、QR／CSV payload、容量超過fallback、preview、取込結果 |
 | Drive設定 | `Connect/SyncAppDataFolder` / `Create/ManageSharedDriveFile` | 選択account、経路、owner、permissions、capabilities、state、conflicts |
 

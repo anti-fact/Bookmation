@@ -204,6 +204,7 @@
 - **TASK-102**: `autoArchiveEnabled` は既定OFFとし、利用者gestureからhistory権限が許可された場合だけONへcommitする。拒否／取消はOFFを維持し、後発取消ではOFFへ戻してalarmを止める。アーカイブ日数は既定30の正整数入力とする。履歴なしは `ARCHIVE_HISTORY_NOT_FOUND` と `履歴がないためアーカイブできません` を項目別に表示し、Bookmarkをarchiveしない。notificationsは要求しない。archive後はカテゴリ・タグ、ページ名、URLだけを保持し、設定のリストから復元する。
 - **TASK-103**: カテゴリ別、タグ別、個別Bookmarkを検索とcheckboxで選び、同じ固定集合をQRまたはCSVでexportする。QR容量超過では分割・切捨てせず `QR_CAPACITY_EXCEEDED` とCSV actionを返す。CSVは固定header、UTF-8、escaping、数式注入neutralization、秘密情報除外を検証する。checksumは破損／切詰め検出だけで真正性を保証しない。QR読取取込の異親同名Tagは既存再利用／親変更せず、別名／skip／cancel後に再previewする。CSV importは要求しない。
 - **TASK-104**: 設定でGoogleアカウントを明示選択する。同一アカウント端末間同期は `appDataFolder` を使い、`appDataFolder` 自体は別アカウントへ共有しない。別アカウント共有は通常Drive file＋permissions/capabilities検証という別経路にする。同一field更新、update-delete、add-delete、名前競合を自動LWWせず `syncConflicts` へ隔離する。local／remote／baseをimmutableな `syncSnapshots` として保持し、版付きの明示resolution planだけを適用する。open中はGCせず、解決後30日保持し、Label ID／edgeを暗黙にremapしない。
+- **TASK-105**: `chrome.bookmarks` treeの各URL nodeから直上Folderを1件だけ解決し、そのFolder名だけをTagとして付与する。祖先／full pathをLabel化せず、AI分類を同時実行しない。同名active Tagは再利用し、新規Tagはpreviewでactive Categoryを選択または同一導線で作成してから `origin=IMPORT` で作る。空／不正Folder名とtombstone同名はskip／cancelにし、深いtree、同名leaf Folder、重複URL、中断再開、再送でも元tree不変と1 Bookmark＝Folder由来Tag 1件を保証する。
 - **TASK-106**: 一般設定に `contextMenuBookmarkEnabled` switchを置き、旧settingsのfield欠損はONへ移行する。ONではpage／linkの固定IDを各1件だけ表示し、OFFではBookmation所有IDだけを解除する。設定は端末固有でDrive同期せず、Service Worker再起動後も整合し、OFF直前の遅延clickでは保存しない。登録／解除失敗時は以前の実効値へ戻してエラーを表示する。
 
 ## 更新規則

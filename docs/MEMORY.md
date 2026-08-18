@@ -65,7 +65,7 @@ Bookmationを長期間開発しても変わりにくいプロダクト知識と�
 - 訪問集計期間は1週間／1ヶ月／1年のプルダウン、訪問日数閾値とアーカイブ閾値は数値入力にする。訪問日数は既定値なし、アーカイブ日数は既定30日である。期間変更時は訪問日数を空にし、1〜7／1〜30／1〜365へ制限する。AI細分化度だけをスライダーにする。
 - 自動archiveは既定OFFのtoggleを持ち、history権限の許可成功後だけONにできる。権限拒否／取消はOFF、履歴なしは項目別エラーでarchive不可とする。ON時の休眠判定は最終訪問日時と設定期間を使い、文字列 `archiveState` を更新する。アーカイブ後はページ名、URL、カテゴリのID／表示名、タグのID／表示名／親カテゴリIDだけに利用者データを縮小し、設定画面のリストから選択して復元できる。
 - ユーザー間共有は、検索とチェックボックスでカテゴリ別、タグ別、個別Bookmarkを選び、同じ固定集合をQR／CSVでexportする。QR容量超過時は分割・切捨てせずCSVへ誘導し、QR読取インポートは維持する。同一Googleアカウントの端末間同期は `appDataFolder`、所有権または共有権限を確認できる別アカウントとの共有は通常Drive fileを使い、設定画面で対象アカウントを選ぶ。
-- Chrome標準Bookmarkは明示操作で専用領域へコピーし、元データを変更しない。page／linkのcontext menu保存は端末固有の一般設定toggle（既定ON）で有効化し、OFFではBookmation所有menuを解除してクリックからも保存しない。
+- Chrome標準Bookmarkは明示操作で専用領域へコピーし、各Bookmarkの直上Folderだけを1件のTagとして付与する。祖先／full pathはLabel化せず、取込時にAI Tagを追加しない。同名active Tagは再利用し、新規Tagは利用者が親Categoryを選択／作成してから作る。元データは変更しない。page／linkのcontext menu保存は端末固有の一般設定toggle（既定ON）で有効化し、OFFではBookmation所有menuを解除してクリックからも保存しない。
 
 詳細な脅威と権限方針は [SECURITY.md](SECURITY.md)、保存形式は [DB-SCHEMA.md](DB-SCHEMA.md) に置く。
 

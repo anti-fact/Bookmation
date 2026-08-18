@@ -88,6 +88,8 @@ Plan は `docs/plans/YYYY-MM-DD-短い名称.md` に置く。`AGENTS.md` にはP
 
 QR／CSVを扱うPlanは同じ固定Bookmark集合を使い、QRの実encoder容量超過時は分割・切捨てをせずCSV actionへ誘導する。CSVは固定header、escaping、数式注入neutralization、秘密情報除外を検証する。QR checksumは破損／切詰め検出に限定し、真正性を保証しないことを明記する。異なる親の同名Tag競合は別名／skip／cancel後の再previewとする。Driveを扱うPlanは同一field更新、update-delete、add-delete、名前競合を自動LWWせず `syncConflicts` へ送り、immutableな `syncSnapshots` と明示的なresolution planを使う。OPEN中のsnapshotは回収せず、解決後も30日保持し、Label IDやedgeを暗黙に付け替えない。
 
+Chrome標準Bookmark取込を扱うPlanは、各URL nodeの直上FolderだけをTagへ対応させ、祖先／full path／AI分類を取込分類へ含めない。同名active Tagの再利用、新規Tagのactive親Category選択またはCategory side view作成、空／不正Folder名、tombstone同名、同名leaf Folder、選択fingerprint、中断再開、元tree不変を列挙する。取込commitでは1 BookmarkへFolder由来Tagを1件だけ付け、Category edgeをTag親から導出する。
+
 ## マイルストーン
 
 ### M1: <独立して確認できる成果>
@@ -125,7 +127,7 @@ QR／CSVを扱うPlanは同じ固定Bookmark集合を使い、QRの実encoder容
 - [ ] AIエージェントE2E: ビルド済み拡張機能をPlaywrightで確認し、report、screenshot、trace、skipを記録する。
 - [ ] 手動検証: <操作> の結果、<観察可能な結果> になる。
 - [ ] 人間受入: AIエージェント確認後、同じcommit／buildを人間が承認または差戻しする。
-- [ ] 状態fixture: 初回／再訪、Category templateの未適用／適用／同名競合／再送／途中再開、0件／8件／9件以上候補、Tag作成／編集のCategory候補／side view／draft、Tag親変更の参照Bookmark 0件／1件／多数、expected revision競合、同request再送／別payload再利用拒否、全件rollback、AI再分類なし、BookmarkのCategory自動導出、Category使用状況、Normalizer v1、設定境界値、右クリックtoggleの欠損移行／ON／OFF／登録失敗／worker再起動／遅延click、AI snapshot、権限拒否、Bookmark／Tagの確認なし削除、Category警告付きcascade削除、PENDING／NEEDS_REVIEW再分類、tombstone中の同名作成拒否、削除Undo経路なし、archiveの既定30／toggle権限gate／履歴なしエラー／復元、QR容量超過CSV fallback／Drive競合を必要に応じて含める。
+- [ ] 状態fixture: 初回／再訪、Category templateの未適用／適用／同名競合／再送／途中再開、0件／8件／9件以上候補、Tag作成／編集のCategory候補／side view／draft、Tag親変更の参照Bookmark 0件／1件／多数、expected revision競合、同request再送／別payload再利用拒否、全件rollback、AI再分類なし、BookmarkのCategory自動導出、Category使用状況、Normalizer v1、設定境界値、右クリックtoggleの欠損移行／ON／OFF／登録失敗／worker再起動／遅延click、AI snapshot、権限拒否、Bookmark／Tagの確認なし削除、Category警告付きcascade削除、PENDING／NEEDS_REVIEW再分類、tombstone中の同名作成拒否、削除Undo経路なし、archiveの既定30／toggle権限gate／履歴なしエラー／復元、QR容量超過CSV fallback／Drive競合、標準Bookmarkの直上FolderだけをTag化する取込を必要に応じて含める。
 - [ ] エラー経路: <条件> でも保存済みデータを失わず、<案内> を表示する。
 - [ ] 文書: 関連文書と実装が一致する。
 

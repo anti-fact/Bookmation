@@ -37,7 +37,7 @@
 22. 設定画面のアーカイブ欄にはアーカイブ済みBookmarkをリスト表示し、検索とチェックボックスで選んだ項目を復元できるようにする。
 23. ユーザー間共有はQR／CSV export、同一Googleアカウントの端末間同期は `appDataFolder`、所有権または共有権限を確認できる別アカウントとの共有は通常Drive fileを使い、用途とOAuth scopeを混同しない。Driveでは利用者が対象アカウントを選び、通常fileのpermissions／capabilitiesを確認する。
 24. QR／CSV共有はカテゴリ別、タグ別、個別Bookmarkから検索とチェックボックスで対象を選び、同じ固定集合から両形式を生成する。QR容量超過時は分割・切捨てをせず、エラーからCSV exportへ誘導する。QR読取インポートは提供するがCSV importは要求しない。
-25. Chrome標準Bookmarkのインポートは明示操作でBookmationへコピーし、標準BookmarkとFolderを変更・削除しない。
+25. Chrome標準Bookmarkのインポートは明示操作でBookmationへコピーし、各Bookmarkの直上Folderだけを1件のTagへ対応させる。祖先／full pathをLabel化せず、取込時のAI分類を行わない。同名active Tagは再利用し、新規Tagの親Categoryは利用者がpreviewで選択／作成する。標準BookmarkとFolderを変更・削除しない。
 26. ページ／リンクの右クリック保存は、端末固有の設定toggle `contextMenuBookmarkEnabled`（既定ON）で有効化する。ONではBookmation所有の固定menu IDだけを重複なく登録し、OFFでは解除する。保存直前にも設定を再確認し、既存のURL検証・重複検出・保存ユースケースを再利用する。
 27. 拡張機能UIは本番componentを共有するテスト／モック用の通常Webページでも表示できるようにする。プレビュー専用の画面コピーを作らない。
 28. Webプレビューはfake Adapterと版管理fixtureだけを使い、実Chrome profile、実閲覧履歴、実OAuth tokenを暗黙に参照しない。
@@ -109,6 +109,5 @@
 - 最終訪問日時が存在しないBookmarkの再確認UI
 - QR encoder別の実効容量、任意暗号化、CSVの長期互換性
 - Google Driveの複数所有アカウント間方式、競合UI、tombstone保持期間、追加暗号化
-- Chrome標準Bookmark FolderのCategory／Tag階層への対応と重複時UI
 
 未決事項は [ISSUES.md](ISSUES.md) で追跡する。

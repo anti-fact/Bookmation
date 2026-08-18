@@ -174,13 +174,13 @@ Drive領域では接続に使うGoogleアカウントを選ぶ。同一アカウ
 
 ## 標準Bookmark取込と右クリック保存
 
-Chrome標準Bookmark取込は権限説明、folder別件数、プレビュー、進捗、成功／skip／失敗を示し、元データを変更しない。context menuは `右クリックメニューから保存` がONの時だけページ／リンク用の固定menu IDを表示して共通保存ユースケースへ渡す。OFFへ切り替えたらBookmation所有項目を解除し、OFF状態で届いた遅延clickは無視する。
+Chrome標準Bookmark取込は権限説明、直上Folder別件数、プレビュー、進捗、成功／skip／失敗を示し、元データを変更しない。各行はページ名／URL、直上Folder名、付与予定Tag、そのTagの親Categoryを表示する。深いtreeでも直上FolderだけをTagとして示し、祖先Folderやfull pathを追加分類として表示・保存しない。同名active Tagは再利用表示にし、新規Tagの行groupにはactive Categoryの選択とCategory新規作成side viewを置く。全選択項目の解決が終わるまで取込を確定できず、空／不正Folder名とtombstone同名はskipまたは全体cancelを選ばせる。取込直後のTagはこの1件だけで、AI分類中の表示を出さない。context menuは `右クリックメニューから保存` がONの時だけページ／リンク用の固定menu IDを表示して共通保存ユースケースへ渡す。OFFへ切り替えたらBookmation所有項目を解除し、OFF状態で届いた遅延clickは無視する。
 
 ## テスト用Webプレビュー
 
-welcomeとCategory template step、popup、一覧、検索ページ、AIポップアップ、カテゴリ・タグ一覧の通常／管理、作成連続操作、ブックマーク編集サイドビュー、設定3区分、リマインダー、アーカイブ権限／履歴なし／復元、Drive／QR／CSVを本番と同じReact componentとTailwind tokenで通常Webページ表示する。
+welcomeとCategory template step、popup、一覧、検索ページ、AIポップアップ、カテゴリ・タグ一覧の通常／管理、作成連続操作、ブックマーク編集サイドビュー、設定3区分、リマインダー、アーカイブ権限／履歴なし／復元、Drive／QR／CSV、標準Bookmark取込previewを本番と同じReact componentとTailwind tokenで通常Webページ表示する。
 
-fake Adapterと版管理fixtureで、Category templateの未適用／明示適用／同名競合／途中再開、0／8／9件候補、カテゴリ／タグの同名作成拒否、親カテゴリ欠損、Tag作成／編集中のCategory side view、Tag親変更の影響Bookmark更新とrevision競合、細分化0〜4、権限拒否、抑止済みURL、Bookmark／Tagの即時論理削除、Category削除警告、子Tag連鎖削除、影響Bookmark再分類、archive toggleのhistory許可／拒否／取消、履歴なしエラー、QR容量超過とCSV誘導、QR破損、Drive競合、200%拡大等を選べるようにする。Webプレビュー後にAIエージェントが実拡張をPlaywrightで確認し、最後に人間が同じbuildを受け入れる。
+fake Adapterと版管理fixtureで、Category templateの未適用／明示適用／同名競合／途中再開、0／8／9件候補、カテゴリ／タグの同名作成拒否、親カテゴリ欠損、Tag作成／編集中のCategory side view、Tag親変更の影響Bookmark更新とrevision競合、細分化0〜4、権限拒否、抑止済みURL、Bookmark／Tagの即時論理削除、Category削除警告、子Tag連鎖削除、影響Bookmark再分類、archive toggleのhistory許可／拒否／取消、履歴なしエラー、QR容量超過とCSV誘導、QR破損、Drive競合、標準Bookmarkの直上FolderだけをTag化する取込、200%拡大等を選べるようにする。Webプレビュー後にAIエージェントが実拡張をPlaywrightで確認し、最後に人間が同じbuildを受け入れる。
 
 ## 主要な受け入れ確認
 
