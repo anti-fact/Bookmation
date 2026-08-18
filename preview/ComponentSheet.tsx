@@ -79,6 +79,12 @@ export function ComponentSheet() {
           <p className="mb-0 mt-4 max-w-3xl text-sm leading-6 text-bm-muted-text">
             本番と同じtokenとprimitiveを使う通常Webページです。ここでの操作はfixture内だけに留まり、Bookmationの保存データやChrome権限を変更しません。
           </p>
+          <a
+            className="mt-4 inline-flex rounded-bm-field font-semibold text-bm-ink underline decoration-2 underline-offset-4 outline-none focus-visible:ring-2 focus-visible:ring-bm-focus"
+            href="?view=app-shell#/home"
+          >
+            UI-02 App Shellを確認する
+          </a>
         </header>
 
         <SheetSection

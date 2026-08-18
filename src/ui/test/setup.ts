@@ -30,6 +30,11 @@ Object.defineProperty(window, "matchMedia", {
   }))
 })
 
+Object.defineProperty(window, "scrollTo", {
+  configurable: true,
+  value: vi.fn()
+})
+
 Object.defineProperty(HTMLElement.prototype, "hasPointerCapture", {
   configurable: true,
   value: vi.fn(() => false)

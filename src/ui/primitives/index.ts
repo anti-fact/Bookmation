@@ -1,5 +1,7 @@
 export * from "./button"
 export * from "./dialog"
+export * from "./icon-button"
 export * from "./select"
 export * from "./slider"
 export * from "./switch"
+export * from "./tooltip"
