@@ -1,0 +1,35 @@
+:root {
+  color-scheme: light;
+
+  --bm-color-paper: #ffffff;
+  --bm-color-ink: #1e1e1e;
+  --bm-color-accent: #b9d4ea;
+  --bm-color-panel: #161616;
+  --bm-color-on-panel: #eaeaea;
+  --bm-color-muted: #7a7a7a;
+  --bm-color-muted-text: #505050;
+  --bm-color-control-muted: #505050;
+  --bm-color-danger: #c33232;
+  --bm-color-error: #ff383c;
+  --bm-color-black: #000000;
+  --bm-color-border: #1e1e1e;
+  --bm-color-focus: #1e1e1e;
+  --bm-color-overlay: rgb(22 22 22 / 60%);
+
+  --bm-radius-field: 0.25rem;
+  --bm-radius-switch: 0.3125rem;
+  --bm-radius-control: 0.5rem;
+  --bm-radius-dialog: 0.875rem;
+  --bm-radius-chip: 0.90625rem;
+  --bm-radius-pill: 1.5rem;
+
+  --bm-shadow-header: 0 0.25rem 0.25rem rgb(0 0 0 / 25%);
+  --bm-shadow-floating: 0.25rem 0.25rem 5rem rgb(0 0 0 / 25%);
+  --bm-shadow-control: 0 0.125rem 0.25rem rgb(0 0 0 / 10%);
+
+  --bm-z-sticky: 20;
+  --bm-z-floating: 30;
+  --bm-z-popover: 55;
+  --bm-z-dialog: 50;
+  --bm-z-toast: 60;
+}
