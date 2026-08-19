@@ -1,3 +1,4 @@
+// Dialog の開閉だけでなく、フォーカス管理とキーボード操作も確認するテストです。
 import { render, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import * as React from "react"
@@ -32,6 +33,7 @@ function TestDialog() {
 
 describe("Dialog", () => {
   it("opens accessibly, closes with Escape, and restores trigger focus", async () => {
+    // 閉じた後に起点へ戻ると、キーボード利用者が現在位置を見失いません。
     const user = userEvent.setup()
     render(<TestDialog />)
 
@@ -63,6 +65,7 @@ describe("Dialog", () => {
   })
 
   it("keeps forward and reverse Tab navigation inside the open dialog", async () => {
+    // モーダル表示中は Tab／Shift+Tab が背後の画面へ抜けないことを検証します。
     const user = userEvent.setup()
     render(<TestDialog />)
 

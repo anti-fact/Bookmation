@@ -29,5 +29,8 @@ describe("ComponentSheet", () => {
     expect(
       screen.getByRole("combobox", { name: "訪問の集計期間" })
     ).not.toBeNull()
+    expect(
+      screen.getByRole("link", { name: "UI-02 App Shellを確認する" })
+    ).not.toBeNull()
   })
 })

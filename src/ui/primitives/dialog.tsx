@@ -1,13 +1,16 @@
+// Radix Dialog に Bookmation 共通の見た目と閉じる操作を付けるファイルです。
 import { Cross2Icon } from "@radix-ui/react-icons"
 import * as React from "react"
 import { Dialog as DialogPrimitive } from "radix-ui"
 
 import { joinClassNames } from "./class-names"
 
+// 開閉状態・フォーカス移動・Esc キー処理は Radix 側に任せ、その機能をそのまま公開します。
 export const Dialog = DialogPrimitive.Root
 export const DialogClose = DialogPrimitive.Close
 export const DialogTrigger = DialogPrimitive.Trigger
 
+// Portal によりオーバーレイとモーダルを document.body 側へ移し、画面内の重なりに埋もれにくくします。
 export const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & {

@@ -1,3 +1,4 @@
+/* Figma 由来の色・角丸・影・重なり順を CSS から使うための共通変数です。 */
 :root {
   color-scheme: light;
 
@@ -27,6 +28,7 @@
   --bm-shadow-floating: 0.25rem 0.25rem 5rem rgb(0 0 0 / 25%);
   --bm-shadow-control: 0 0.125rem 0.25rem rgb(0 0 0 / 10%);
 
+  /* 数値が大きいほど手前です。Tooltip は Dialog より手前、Toast はさらに手前にします。 */
   --bm-z-sticky: 20;
   --bm-z-floating: 30;
   --bm-z-popover: 55;
