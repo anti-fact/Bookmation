@@ -695,7 +695,7 @@ UI-01のtokenとRadix wrapperを土台に、Bookmation全画面で再利用す�
 - SPA route変更時だけ見出しへfocusし、初回mountではfocus ringを出さない。labels／settingsをアプリ内から開いた場合はbrowser backで元routeとscrollを復元し、直接entryではhomeへreplaceする。settings section間は同じhistory entryをreplaceする。
 - 320 CSS pxで折り返すlabels headerの高さに合わせて見出しのscroll marginを256 pxとし、`lg`以上は128 pxへ戻した。labels headerは`lg`未満で折り返し、768 pxでも検索操作を潰さない。
 - Web previewはcomponent sheetをrootに維持し、`?view=app-shell#/home`でproduction App Shellとpreview専用fixture menuを表示できるようにした。preview fixtureはPlasmo production bundleへ含めない。
-- UI-02コードをcommit `1bc3ba8`へ分離し、Markdownを含まないDraft PR [#47](https://github.com/anti-fact/Bookmation/pull/47)としてUI-01コードPR #45へ積み上げた。本節を含む文書更新は別PRとして管理する。
+- UI-02コードと`src/ui`全35テキストファイルの日本語解説コメントを単一commit `9d5e44d`へまとめ、Markdownを含まないDraft PR [#49](https://github.com/anti-fact/Bookmation/pull/49)としてUI-01コードPR #45へ積み上げた。旧PR #47はコメント未commit版として#49へ置き換え、本節を含む文書更新は別PRとして管理する。
 
 ### 検証
 
