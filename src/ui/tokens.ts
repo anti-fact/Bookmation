@@ -1,5 +1,6 @@
 /**
- * figma/Bookmation.svg と figma/Bookmation_component.svg から抽出した再利用 token。
+ * UI 全体で共有する色・角丸・寸法・重なり順を TypeScript から参照するファイルです。
+ * figma/Bookmation.svg と figma/Bookmation_component.svg から抽出した再利用 token で、
  * SVG 自体は改変しない。値の変更はデザイン正本の更新と同時に行う。
  */
 export const designTokens = {
@@ -24,6 +25,7 @@ export const designTokens = {
     chip: 14.5,
     pill: 24
   },
+  // z-index は sticky < dialog < popover < toast の順で手前になるようにします。
   layout: {
     controlHeight: 48,
     fieldHeight: 38,

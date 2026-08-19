@@ -1,3 +1,4 @@
+// Slider の ARIA 数値、キーボード操作、上下限、無効状態を確認するテストです。
 import { render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import * as React from "react"
@@ -6,6 +7,7 @@ import { describe, expect, it } from "vitest"
 import { Slider } from "./slider"
 
 function ControlledSlider() {
+  // 親の state と Slider の value を同期する通常の利用方法を再現します。
   const [value, setValue] = React.useState(2)
 
   return (

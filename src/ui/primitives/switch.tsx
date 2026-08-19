@@ -1,3 +1,4 @@
+// オン・オフ設定を、ラベル・説明・保存待ち状態込みで表示する共通スイッチです。
 import * as React from "react"
 import { Switch as SwitchPrimitive } from "radix-ui"
 
@@ -21,10 +22,12 @@ export const Switch = React.forwardRef<
     { className, description, disabled, id, label, pending = false, ...props },
     ref
   ) => {
+    // useId から各 ID を作り、見える文言と Radix の操作部分を ARIA で結び付けます。
     const generatedId = React.useId()
     const controlId = id ?? `bm-switch-${generatedId}`
     const labelId = `${controlId}-label`
     const descriptionId = description ? `${controlId}-description` : undefined
+    // 保存処理中も操作を止め、連続クリックで状態が食い違うのを防ぎます。
     const isDisabled = disabled || pending
 
     return (

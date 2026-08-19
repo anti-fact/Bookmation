@@ -1,3 +1,4 @@
+// Bookmation 全体で使うボタンの見た目と操作規則を一か所にまとめるファイルです。
 import * as React from "react"
 import { Slot } from "radix-ui"
 
@@ -18,6 +19,7 @@ export type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
 const baseClass =
   "inline-flex shrink-0 select-none items-center justify-center gap-2 border-2 font-semibold leading-none outline-none transition-colors focus-visible:ring-2 focus-visible:ring-bm-focus focus-visible:ring-offset-2 focus-visible:ring-offset-bm-paper disabled:cursor-not-allowed disabled:opacity-45 aria-disabled:cursor-not-allowed aria-disabled:opacity-45"
 
+// size・tone・variant を表にして、画面ごとに Tailwind の指定がばらつくのを防ぎます。
 const sizeClass: Record<ButtonSize, string> = {
   compact: "min-h-9 rounded-bm-chip px-4 text-xs",
   regular: "min-h-12 min-w-32 rounded-bm-pill px-5 text-sm"
@@ -58,9 +60,12 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     },
     ref
   ) => {
+    // asChild=true では Radix の Slot が子要素（例: <a>）へ属性と ref を合成します。
+    // そのため、リンクをボタンの中へ入れる不正な HTML を作らずに同じ見た目を使えます。
     const Component = asChild ? Slot.Root : "button"
     const isDisabled = disabled || loading
 
+    // <a> には disabled 属性がないため、asChild の無効状態はクリックも明示的に止めます。
     const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
       if (isDisabled) {
         event.preventDefault()

@@ -1,3 +1,4 @@
+// TypeScript 側のデザイントークンが Figma 由来の基準値と層順を保つか確認します。
 import { describe, expect, it } from "vitest"
 
 import { designTokens } from "./tokens"
@@ -15,6 +16,7 @@ describe("designTokens", () => {
   })
 
   it("keeps observed control geometry as CSS-friendly numbers", () => {
+    // 単位なしの数値なら、利用側で px など必要な単位へ変換できます。
     expect(designTokens.radius.dialog).toBe(14)
     expect(designTokens.radius.pill).toBe(24)
     expect(designTokens.layout.controlHeight).toBe(48)

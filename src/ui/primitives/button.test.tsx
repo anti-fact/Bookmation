@@ -1,3 +1,4 @@
+// Button の属性引き継ぎ、無効化、asChild 合成が壊れていないか確認するテストです。
 import { fireEvent, render, screen } from "@testing-library/react"
 import * as React from "react"
 import { describe, expect, it, vi } from "vitest"
@@ -53,6 +54,7 @@ describe("Button", () => {
   })
 
   it("uses the child anchor without losing consumer props or its forwarded ref", () => {
+    // asChild では button を増やさず、リンク自体が装飾と ref を受け取ることが重要です。
     const ref = React.createRef<HTMLButtonElement>()
 
     render(
@@ -72,6 +74,7 @@ describe("Button", () => {
   })
 
   it("removes a disabled asChild link from tab order and blocks navigation", () => {
+    // disabled 属性を持てないリンクでも、キーボード移動とクリックの両方を止めます。
     const onClick = vi.fn()
     render(
       <Button asChild disabled onClick={onClick}>
