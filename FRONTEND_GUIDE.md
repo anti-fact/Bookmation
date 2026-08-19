@@ -1,6 +1,6 @@
 # Bookmation フロントエンド実装ガイド
 
-- 状態: 実装手順。UI-01 primitive／Web component sheet実装済み、feature UI未実装
+- 状態: 実装手順。UI-01 primitive／Web component sheetとUI-02 App Shell／hash route／共通headerを実装済み、feature UI未実装
 - 基準日: 2026-08-19
 - 対象: Radix Primitives + Plasmo 0.90.5 + React 18.3.1 + Tailwind CSS 3.4.17 + TypeScript 5.9.2
 - 関連: [要件](docs/REQUIREMENTS.md) / [UI設計](docs/UI.md) / [フロントエンド設計](docs/FRONTEND.md) / [テスト仕様](docs/TESTING.md)
@@ -334,12 +334,12 @@ GRIDの開始例は次のとおりである。
 
 Plasmoのfile conventionに従い、entryは薄く保つ。
 
-| path                 | 責務                                                                                                                  |
-| -------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| `src/popup.tsx`      | popup専用Appへ本番Portを注入する                                                                                      |
-| `src/tabs/index.tsx` | dashboard Appへ本番Portを注入する。`#/...` routeを受ける                                                              |
-| `src/background.ts`  | Service Worker eventとmessage handler。ReactやRadixをimportしない                                                     |
-| `preview/main.tsx`   | ViteでUI-01 component sheetを起動する。後続タスクで同じpage componentへfake Portを注入する全画面fixture入口へ拡張する |
+| path                 | 責務                                                                                             |
+| -------------------- | ------------------------------------------------------------------------------------------------ |
+| `src/popup.tsx`      | popup専用Appへ本番Portを注入する                                                                 |
+| `src/tabs/index.tsx` | dashboard Appへ本番Portを注入する。`#/...` routeを受ける                                         |
+| `src/background.ts`  | Service Worker eventとmessage handler。ReactやRadixをimportしない                                |
+| `preview/main.tsx`   | ViteでrootのUI-01 component sheetと `?view=app-shell#/...` のUI-02 App Shell fixtureを切り替える |
 
 Plasmoのtab pageは`src/tabs/*.tsx`から`chrome-extension://<id>/tabs/*.html`へbundleされる。`src/tabs/index.tsx`内でhash routeを解釈し、Welcome、Home、Search、Labels、Settingsを同じApp shellで切り替える。
 
@@ -461,6 +461,8 @@ Dialog wrapperでは最低限、次を必須にする。
 6. 画面遷移後のheading focus、戻る時のscroll復元を実装する。
 
 headerを画面ごとにコピーしない。`variant="default" | "labels" | "settings"`とslotで差を表現し、検索挙動とfocus順を共有する。
+
+UI-02ではこのphaseの基盤を実装済みである。Plasmo dashboard entryは型付きの9 routeをApp Shellへ渡し、3種の共通header、`IconButton`／`Tooltip`、route変更後のheading focus、戻る／進む時のscroll復元、`ErrorBoundary`を共有する。route本文は後続phaseを接続するためのshellであり、Bookmarkデータ、検索／AI、カテゴリ・タグ管理、設定formの完成を意味しない。
 
 ### Phase 3: popupを完成させる
 
@@ -671,7 +673,9 @@ Radixを導入しただけではBookmation全体のアクセシビリティは�
 
 [TESTING.md](docs/TESTING.md) のとおり、本番と同じReact componentを通常Webページで人間が確認できるようにする。preview専用の画面コピーを作らない。
 
-UI-01ではVite 7.3.6をrunnerに固定し、`preview/ComponentSheet.tsx`がproduction tokenとprimitiveだけを読み込む通常Webページを実装した。`pnpm ui:preview`は `127.0.0.1:4173`、`pnpm ui:build`は `build/ui-preview`を使う。以下のPort／Adapter付き全画面fixtureとPlaywright環境はISSUE-018／TASK-013の残作業である。
+Vite 7.3.6をrunnerに固定し、`preview/ComponentSheet.tsx`がproduction tokenとprimitiveだけを読み込む通常Webページを実装した。`pnpm ui:preview`は `127.0.0.1:4173`、`pnpm ui:build`は `build/ui-preview`を使う。root URLはUI-01 component sheetを維持し、UI-02 App Shellは `http://127.0.0.1:4173/?view=app-shell#/home` でproduction componentを表示する。hashを上記9 routeへ差し替えてheader variant、focus、戻る／進むを確認できる。
+
+現時点のApp Shell fixtureはnavigation shellだけを対象とする。以下のPort／Adapter付きfeature fixture catalogとPlaywright拡張E2E環境はISSUE-018／TASK-013の残作業である。
 
 ```tsx
 const previewPorts = createFakeUiPorts(fixture)
@@ -719,6 +723,8 @@ pnpm ui:build
 pnpm build
 ```
 
+`pnpm test:e2e` と `pnpm test:e2e:ui` のscriptはまだ存在しない。UI-02までのunit／component testとWebプレビューは実拡張Playwright E2Eの代替ではなく、人間による実Chrome受入も未完了である。
+
 Radix wrapperのcomponent testでは最低限、次を固定する。
 
 - Dialogのopen、Tab cycle、Escape、close、triggerへのfocus return
@@ -758,6 +764,8 @@ visual testは同一OS、browser、font、viewport、device scale factorで行�
 10. `UI-10`: Settings一般／archive／share
 11. `UI-11`: reminder、import、QR／CSV／Drive状態
 12. `UI-12`: Web preview catalog、visual baseline、extension E2E
+
+UI-01とUI-02は実装済みである。UI-02のWebプレビューはApp Shellのroute／header／layoutだけを対象とし、UI-03以降のfeature完成やUI-12の全fixture／E2E完了を示さない。
 
 各PRはtokenやprimitiveを勝手に複製せず、必要な共通変更を先行PRへ戻す。画面PRで新しい色やradiusが必要になったら、Figma上の役割を確認してtoken PRとしてレビューする。
 

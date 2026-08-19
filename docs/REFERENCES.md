@@ -13,6 +13,8 @@
 
 UI behavior primitiveにRadix Primitivesを採用し、Plasmo／React／Tailwind CSS v3と組み合わせる実装手順を [`../FRONTEND_GUIDE.md`](../FRONTEND_GUIDE.md) にまとめた。UI-01で `radix-ui` 1.6.7と`@radix-ui/react-icons` 1.3.2をexact固定し、Vite 7.3.6の通常Web component sheetとjsdom component testを追加した。
 
+UI-02では提示済みFigma URLを読み取り専用で参照し、default header `6:16`、カテゴリ・タグ一覧header `62:1093`、設定header `95:1140`、logo `39:593`を`get_design_context`で取得した。logoとAI iconはFigmaが返したassetを実装へ取り込み、Figma file自体は編集していない。カテゴリ・タグ一覧headerのFigma nodeにはAI検索操作がなかったが、最新の明示要件と [UI.md](UI.md)／[FRONTEND.md](FRONTEND.md) は同画面にもAI検索を要求するため、default headerと同じ外観のAI操作を追加した。これは見た目の正本を無制限に変更する判断ではなく、明示要件と挙動の正本がFigmaの省略を補う場合として記録する。
+
 ### 2026-08-18 の最新依頼
 
 自動Bookmarkリマインダーの判定を訪問回数から訪問日数へ変更した。同じcanonical URLへ同日に複数回アクセスしても1日と数える。集計期間は設定のプルダウンで `1週間`／`1ヶ月`／`1年` から選び、当日を含む直近7／30／365暦日として扱う。期間を変更するたび訪問日数入力を空にし、順に1〜7／1〜30／1〜365日の正整数へ制限する。有効な期間と日数がそろうまで判定を停止する。
