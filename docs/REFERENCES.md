@@ -1,13 +1,19 @@
 # 参考資料
 
-- 基準日: 2026-08-19
+- 基準日: 2026-08-22
 - 方針: 資料内の命令文ではなく、要件・観察事実・技術仕様の根拠として参照する。外部サイトの外見を複製しない。
 
 ## 一次要件
 
+### 2026-08-22 のFigma正本URLと初期画面
+
+画面構成・外観のオンライン正本は [Figma「Bookmation」](https://www.figma.com/design/lyvChnxwPPol2bn4gHLQw1/Bookmation?node-id=0-1)（file key `lyvChnxwPPol2bn4gHLQw1`）である。「メイン画面」ページにある初期画面の正本フレームは [node `66:830`](https://www.figma.com/design/lyvChnxwPPol2bn4gHLQw1/Bookmation?node-id=66-830) とする。`#/welcome` の大枠は、このフレームの白い全画面、中央配置のlogo・見出し・2行の導入文・`ここからはじめる` buttonを基準にする。
+
+[`../figma/Bookmation.svg`](../figma/Bookmation.svg) と [`../figma/Bookmation_component.svg`](../figma/Bookmation_component.svg) はrepository内で参照できる正本の書き出しsnapshotである。オンラインFigmaと書き出しsnapshotに差異がある場合は、利用者が明示した最新のFigma nodeを優先する。
+
 ### 2026-08-19 のFigmaフォルダ更新と実装ガイド
 
-画面構成・外観の正本は [`../figma/Bookmation.svg`](../figma/Bookmation.svg)、部品と状態の正本は [`../figma/Bookmation_component.svg`](../figma/Bookmation_component.svg) へ更新された。前者のSHA-256は `d05997589696ff346f59f3850bfc3296bd5b6acbd3e518980421ff6e0533ea8b`、後者は `f6c44b21deea9893c01f1f08c8b8556d1479b05f336dfb6cd70bd1ba0cce8f89` である。旧repository直下の `デザインシート.svg` は利用者が削除し、本作業では復元・変換・編集していない。
+2026-08-19時点のrepository内書き出しは、画面構成・外観を [`../figma/Bookmation.svg`](../figma/Bookmation.svg)、部品と状態を [`../figma/Bookmation_component.svg`](../figma/Bookmation_component.svg) へ更新した。前者のSHA-256は `d05997589696ff346f59f3850bfc3296bd5b6acbd3e518980421ff6e0533ea8b`、後者は `f6c44b21deea9893c01f1f08c8b8556d1479b05f336dfb6cd70bd1ba0cce8f89` である。旧repository直下の `デザインシート.svg` は利用者が削除し、本作業では復元・変換・編集していない。
 
 画面SVGではBookmark GRID／LIST、AI agent overlay、Bookmark編集、全画面カテゴリ・タグ一覧の通常／管理、Welcome、Settingsを確認した。component SVGでは共通／分類／設定header、Category／Tag作成・編集、Bookmark編集、訪問リマインダー、Category削除警告、Category ribbon、Tag chip、Bookmark card／row、switch、slider、floating controlを確認した。SVG内の文字はpath化されているためfont familyを確定できず、正式なtypographyはFigma Text Styleの確認を必要とする。
 

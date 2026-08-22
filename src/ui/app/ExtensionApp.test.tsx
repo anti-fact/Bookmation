@@ -98,6 +98,10 @@ describe("ExtensionApp", () => {
       screen.getByRole("banner", { name: "アプリケーションヘッダー" }).dataset
         .variant
     ).toBe("default")
+    expect(
+      screen.getByRole("button", { name: "AI検索を開く" }).querySelector("img")
+        ?.className
+    ).toContain("size-[1.125rem]")
 
     fireEvent.click(screen.getByRole("button", { name: "設定を開く" }))
 
@@ -105,12 +109,68 @@ describe("ExtensionApp", () => {
       kind: "settings",
       section: "general"
     })
-    const settingsHeading = screen.getByRole("heading", { name: "一般設定" })
+    const settingsHeading = screen.getByRole("heading", {
+      level: 1,
+      name: "一般設定"
+    })
     expect(document.activeElement).toBe(settingsHeading)
+    const generalLink = screen.getByRole("link", { name: "一般" })
+    expect(generalLink.getAttribute("href")).toBe("#/settings/general")
+    expect(generalLink.getAttribute("aria-current")).toBe("page")
+    expect(generalLink.className).toContain("font-bold")
+    expect(generalLink.className).toContain("text-bm-paper")
+    expect(generalLink.className).toContain("focus-visible:ring-bm-paper")
+    expect(generalLink.className).toContain("group")
+    const settingsNavigation = screen.getByRole("navigation", {
+      name: "設定メニュー"
+    })
+    expect(settingsNavigation.className).toContain("-ml-4")
+    expect(settingsNavigation.className).toContain("lg:-ml-[4.5rem]")
+    const [currentHoverHighlight, selectionHighlight] =
+      generalLink.querySelectorAll('[aria-hidden="true"]')
+    const sharedBackgroundClasses = [
+      "absolute",
+      "inset-y-0",
+      "right-0",
+      "w-screen",
+      "md:-right-6"
+    ]
+    for (const className of sharedBackgroundClasses) {
+      expect(currentHoverHighlight?.className).toContain(className)
+      expect(selectionHighlight?.className).toContain(className)
+    }
+    expect(currentHoverHighlight?.className).toContain("bg-transparent")
+    expect(currentHoverHighlight?.className).toContain(
+      "group-hover:bg-bm-accent"
+    )
+    expect(selectionHighlight?.className).toContain("right-0")
+    expect(selectionHighlight?.className).toContain("w-screen")
+    expect(selectionHighlight?.className).toContain("bg-bm-ink")
+    expect(selectionHighlight?.className).toContain("md:-right-6")
+    expect(selectionHighlight?.className).not.toContain(
+      "group-hover:bg-bm-accent"
+    )
+    expect(selectionHighlight?.className).not.toContain("w-0.5")
+    expect(selectionHighlight?.className).not.toContain("left-0")
+    const archiveLink = screen.getByRole("link", { name: "アーカイブ" })
+    const hoverHighlight = archiveLink.querySelector('[aria-hidden="true"]')
+    for (const className of sharedBackgroundClasses) {
+      expect(hoverHighlight?.className).toContain(className)
+    }
+    expect(hoverHighlight?.className).toContain("bg-transparent")
+    expect(hoverHighlight?.className).toContain("group-hover:bg-bm-accent")
+    expect(hoverHighlight?.className).not.toContain("bg-bm-ink")
+    expect(screen.queryByRole("button", { name: "一般" })).toBeNull()
     expect(
       screen.getByRole("banner", { name: "アプリケーションヘッダー" }).dataset
         .variant
     ).toBe("settings")
+    const settingsSeparator = screen.getByRole("separator", {
+      name: "設定メニューと設定内容の区切り"
+    })
+    expect(settingsSeparator.getAttribute("aria-orientation")).toBe("vertical")
+    expect(settingsSeparator.className).toContain("md:block")
+    expect(settingsSeparator.className).toContain("bg-bm-muted")
   })
 
   it("renders all header variants from one AppHeader component", () => {
@@ -120,8 +180,13 @@ describe("ExtensionApp", () => {
       screen.getByRole("banner", { name: "アプリケーションヘッダー" }).dataset
         .variant
     ).toBe("labels")
-    expect(screen.getByRole("button", { name: "AI検索を開く" })).not.toBeNull()
-    expect(screen.getByRole("button", { name: "新規作成" })).not.toBeNull()
+    expect(screen.queryByRole("button", { name: "AI検索を開く" })).toBeNull()
+    expect(
+      screen.getByRole("button", { name: "新規作成メニュー" })
+    ).not.toBeNull()
+    expect(
+      screen.getByRole("button", { name: "管理モードを切り替える" })
+    ).not.toBeNull()
 
     act(() => emit({ kind: "settings", section: "archive" }))
     expect(
@@ -136,6 +201,39 @@ describe("ExtensionApp", () => {
     expect(
       screen.getByRole("heading", { name: "Bookmationへようこそ" })
     ).not.toBeNull()
+  })
+
+  it("renders the canonical Figma welcome layout and starts from its action", () => {
+    const { store } = renderApp({ kind: "welcome" })
+
+    const main = screen.getByRole("main")
+    expect(main.className).toContain("min-h-dvh")
+    expect(main.className).toContain("items-center")
+    expect(main.className).toContain("justify-center")
+    expect(screen.queryByText("Welcome")).toBeNull()
+
+    const logo = screen.getByRole("img", { name: "Bookmation" })
+    expect(logo.getAttribute("width")).toBe("400")
+    expect(logo.className).toContain("max-w-[25rem]")
+    expect(
+      screen.getByText(
+        "Bookmationはブックマークを簡単に整理できる拡張機能です。"
+      )
+    ).not.toBeNull()
+    expect(
+      screen.getByText(
+        "かんたんな初期設定を終わらせて、さっそくはじめましょう。"
+      )
+    ).not.toBeNull()
+
+    const startButton = screen.getByRole("button", {
+      name: "ここからはじめる"
+    })
+    expect(startButton.className).toContain("max-w-[26.75rem]")
+    expect(startButton.className).toContain("!rounded-none")
+
+    fireEvent.click(startButton)
+    expect(store.navigate).toHaveBeenCalledWith({ kind: "home" })
   })
 
   it("restores saved native-document scroll on browser back navigation", () => {
@@ -158,7 +256,7 @@ describe("ExtensionApp", () => {
     const { store } = renderApp({ kind: "home" })
 
     fireEvent.click(screen.getByRole("button", { name: "設定を開く" }))
-    fireEvent.click(screen.getByRole("button", { name: "アーカイブ" }))
+    fireEvent.click(screen.getByRole("link", { name: "アーカイブ" }))
     expect(store.navigate).toHaveBeenLastCalledWith(
       { kind: "settings", section: "archive" },
       { replace: true }
@@ -194,7 +292,15 @@ describe("ExtensionApp", () => {
     ).not.toBeNull()
     expect(store.navigate).not.toHaveBeenCalled()
 
-    fireEvent.click(screen.getByRole("button", { name: "ホームへ移動" }))
+    const homeButton = screen.getByRole("button", { name: "ホームへ移動" })
+    expect(homeButton.parentElement?.className).toContain("justify-end")
+    expect(homeButton.className).toContain("bg-bm-paper")
+    expect(homeButton.className).toContain("text-bm-ink")
+    expect(homeButton.className).toContain("hover:bg-bm-accent")
+    expect(homeButton.className).toContain("active:bg-bm-ink")
+    expect(homeButton.className).toContain("active:text-bm-paper")
+
+    fireEvent.click(homeButton)
     expect(store.navigate).toHaveBeenCalledWith({ kind: "home" })
   })
 

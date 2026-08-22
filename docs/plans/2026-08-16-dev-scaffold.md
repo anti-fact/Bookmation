@@ -149,4 +149,4 @@ responsive 方針: デザインシートのデスクトップ構成を基準に�
 
 ## 結果と残課題
 
-M1 は自動検証まで完了した。Node は実行環境が v23.5.0、推奨は `.nvmrc` の 22。`package.json` の `engines` は Plasmo/Parcel の解決バグを避けるため置かない。placeholder の `assets/icon.png` は正式アイコンではない。Chrome への手動読込み、popup 2ボタン、データ層は TASK-002 以降。ISSUE-007、ISSUE-002、Prompt API 対応条件は未決のまま残す。
+M1 は自動検証まで完了した。Node は実行環境が v23.5.0、推奨は `.nvmrc` の 22。`package.json` の `engines` は Plasmo/Parcel の解決バグを避けるため置かない。現行の同梱 `assets/icon.png` は正式アイコンではなく、ISSUE-002で定めた取得失敗時ロゴfallbackの実装assetはTASK-010で確定する。Chrome への手動読込み、popup 2ボタン、データ層は TASK-002 以降。ISSUE-007とPrompt API 対応条件は未決のまま残す。

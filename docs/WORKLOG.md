@@ -906,6 +906,38 @@ Chrome Prompt API v151 での型定義エラーを修正し、Availability チ�
 - Chrome 151 は検証できた環境であり、最低対応Chrome版は未確定。
 - 非対応環境、モデル取得失敗、セッション終了時のfallback検証。
 
+## 2026-08-22 — UI-03 popup・shortcut・保存状態
+
+### 目的
+
+`FRONTEND.md`のUI-03に従い、production popupを保存／ホームの2操作、現在のshortcut、Chrome管理画面への案内、保存中／成功／重複／失敗状態を持つ画面へ更新する。
+
+### 変更
+
+- `PopupApp`／`PopupView`と`PopupPort`を追加し、画面からChrome APIを分離した。
+- Chrome adapterでallowlist済み2 commandのshortcut取得、現在ページ保存message、`#/home`表示、`chrome://extensions/shortcuts`表示を実装した。
+- popupを開いただけでは保存せず、保存結果をpopup内のlive regionへ残すようにした。
+- productionと同じ`PopupView`を使い、割当済み／未割当、保存中／成功／重複／失敗、shortcut取得失敗を切り替えるWeb fixtureを追加した。
+- 320px相当でも操作名とshortcutが重ならないよう、操作button内を縦配置にした。
+
+### 検証
+
+- デザイン正本SHA-256: `Bookmation.svg` は `d05997589696ff346f59f3850bfc3296bd5b6acbd3e518980421ff6e0533ea8b`、`Bookmation_component.svg` は `f6c44b21deea9893c01f1f08c8b8556d1479b05f336dfb6cd70bd1ba0cce8f89`。
+- `pnpm test`: 30 files／216 tests成功。
+- `pnpm typecheck`: 成功。
+- UI-03変更対象のESLint: 成功。
+- `pnpm ui:build`: 成功。
+- `pnpm build`: 成功。
+- Web fixture: Chromiumで通常幅と320px幅を確認し、320pxで見つかった右端切れとbutton内の重なりを修正後、再確認した。
+- build済み拡張: 隔離したheadless Chromiumへ読み込み、`chrome-extension://eniieiddckicpmlijkhkglklehlgmpjd/popup.html`とService Worker targetの起動、未割当表示、表示欠けがないことを確認した。
+- `pnpm lint`: 失敗。今回未変更のUnicode生成script、Domain import、Normalizer testに既存27件のerrorがあり、UI-03変更対象にはerrorなし。
+
+### 残課題
+
+- 現行Service Workerの保存Applicationは`ACTION_NOT_AVAILABLE`を返すため、実Bookmark保存、重複判定、command保存はTASK-004で接続する。
+- repository管理されたPlaywright拡張E2E、toolbarから開いた実popupの自動操作、人間による実Chrome受入は未実施。
+- 全体Lintの既存27件を別作業で解消する。
+
 ## 追記テンプレート
 
 ```markdown

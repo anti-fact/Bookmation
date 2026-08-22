@@ -141,7 +141,7 @@ Bookmark保存には2つの入力経路を設け、同じ検証・正規化ユ�
 - ページタイトル
 - サイト名
 - ファビコンURLまたは取得済みBlob
-- ユーザー設定で有効な場合のサムネイル
+- 保存時に `og:image` を第一候補として取得するサムネイル
 
 URL指定で保存する場合はURLと任意タイトルを受け取る。`http:` / `https:` だけを許可し、文字数、構文、正規化結果を検証する。タイトル優先順位は **ユーザー入力（あれば） → fetch タイトル → ホスト名** とする。保存時の手入力タイトルは任意であり、dashboard / 編集 modal では常に編集できる。
 
@@ -150,6 +150,8 @@ URL が valid なら、メタデータ取得の成否に関わらず Bookmark �
 URL 指定保存専用のメタデータ fetch は、Manifest の `host_permissions: ["https://*/*", "http://*/*"]` を使い、対象 URL へ HTTP GET する。HTML から `<title>`、favicon link、`og:image` / `twitter:image` 等を parse し、画像は Blob 化して IndexedDB の blobs Store へ保存する。一覧描画で外部画像 URL を直接参照しない。
 
 現在タブ保存（popup / ショートカット）は `activeTab` 由来の `tab.title` / `tab.favIconUrl` を優先し、上記 fetch 経路は URL 指定保存専用とする。画像 MIME、最大サイズ、リサイズ、`thumbnailEnabled` 既定、fetch 失敗時 UI は ISSUE-002 / TASK-010 で詰める。
+
+サムネイルは保存処理の一部として `og:image` を第一候補に取得し、MIME、寸法、容量、content hashを検証してlocal Blobへ保存する。取得・検証・Blob保存の失敗時は画像参照を残さず、同梱の `assets/icon.png` を表示する。保存後の一覧表示で外部画像URLへ接続せず、画面キャプチャや認証後画面の取得も行わない。
 
 ページ本文をAIへ渡すことはMVPの既定動作にしない。分類精度のため本文が必要になった場合は、取得範囲、保存有無、権限、プライバシー表示を別途設計する。
 

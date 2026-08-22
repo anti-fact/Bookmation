@@ -1,7 +1,7 @@
 # テスト仕様
 
-- 状態: **確定要件・UI-01 component sheet／UI-02 App Shell fixture実装済み・feature fixture／拡張E2E基盤／人間受入未実装**
-- 更新日: 2026-08-19
+- 状態: **確定要件・UI-01 component sheet／UI-02 App Shell／UI-03 popup fixture実装済み・拡張E2E基盤／人間受入未実装**
+- 更新日: 2026-08-22
 - 関連: [要件](REQUIREMENTS.md) / [制約](CONSTRAINTS.md) / [設計](DESIGN.md) / [フロントエンド](FRONTEND.md) / [セキュリティ](SECURITY.md) / [実装タスク](TASKS.md)
 
 ## 目的
@@ -40,7 +40,7 @@ flowchart LR
 
 ## Webプレビューの確定仕様
 
-UI-01ではVite 7.3.6をrunnerとして採用し、semantic tokenとButton／Dialog／Switch／Slider／Selectをproduction codeから直接読み込むcomponent sheetを実装した。UI-02ではproductionのApp Shell、共通Header、型付きhash routeと同じcomponentを使う全画面shell fixtureを追加した。Bookmark、Category／Tag、検索、設定等のfeature data／fake Adapterと以下の全fixture catalogは未実装であり、shell fixtureの存在はPlaywright拡張E2E基盤の完了を意味しない。
+UI-01ではVite 7.3.6をrunnerとして採用し、semantic tokenとButton／Dialog／Switch／Slider／Selectをproduction codeから直接読み込むcomponent sheetを実装した。UI-02ではproductionのApp Shell、共通Header、型付きhash routeと同じcomponentを使う全画面shell fixtureを追加した。UI-03ではproductionの`PopupView`を共有し、`?view=popup&fixture=assigned`から割当済み／未割当、保存中／成功／重複／失敗、shortcut取得失敗を表示できる。Bookmark、Category／Tag、検索、設定等のfeature data／fake Adapterと以下の残りのfixture catalogは未実装であり、Web fixtureの存在はPlaywright拡張E2E基盤や実Bookmark保存の完了を意味しない。
 
 ### 同じUIを使う
 
@@ -62,7 +62,7 @@ UI-01ではVite 7.3.6をrunnerとして採用し、semantic tokenとButton／Dia
 
 少なくとも次の状態を人間が一覧または直接URLで開けるようにする。
 
-- 空、通常件数、大量件数、長い日本語、画像なし。
+- 空、通常件数、大量件数、長い日本語、画像なし、`og:image` 取得成功、MIME／寸法／容量／content hash検証失敗、取得失敗時の同梱Bookmationロゴfallback。
 - LIST / GRID、カテゴリ常時表示、タグ閉／開。
 - `runtime.onInstalled` のINSTALLで開く初回ホームと、UPDATE／導入完了後の最近追加ホーム。
 - 初回Category templateのcatalog表示だけではCategoryが増えない状態、明示適用中／成功／既存active同名／tombstone同名／部分失敗／応答消失後再送／onboarding再開。具体的catalog内容と選択controlのfixtureはISSUE-022の決定後に固定する。
