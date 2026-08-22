@@ -62,7 +62,7 @@ UI-01ではVite 7.3.6をrunnerとして採用し、semantic tokenとButton／Dia
 
 少なくとも次の状態を人間が一覧または直接URLで開けるようにする。
 
-- 空、通常件数、大量件数、長い日本語、画像なし。
+- 空、通常件数、大量件数、長い日本語、画像なし、`og:image` 取得成功、MIME／寸法／容量／content hash検証失敗、取得失敗時の同梱Bookmationロゴfallback。
 - LIST / GRID、カテゴリ常時表示、タグ閉／開。
 - `runtime.onInstalled` のINSTALLで開く初回ホームと、UPDATE／導入完了後の最近追加ホーム。
 - 初回Category templateのcatalog表示だけではCategoryが増えない状態、明示適用中／成功／既存active同名／tombstone同名／部分失敗／応答消失後再送／onboarding再開。具体的catalog内容と選択controlのfixtureはISSUE-022の決定後に固定する。

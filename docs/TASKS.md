@@ -150,7 +150,7 @@
 
 - [ ] `storage`、`activeTab`、commands を基準に Manifest をレビューする。
 - [ ] URL、title、Label名、AI出力、JSON document、message payloadを未信頼入力として検証する。
-- [ ] favicon / thumbnail の MIME、寸法、容量、local Blob、代替表示を実装する。
+- [ ] 保存時に `og:image` を第一候補として取得し、MIME、寸法、容量、content hashを検証してlocal Blob化する。失敗時は外部URLを参照せず同梱のBookmationロゴ画像へ縮退し、画面キャプチャは行わない。
 - [ ] remote code、外部画像追跡、危険 scheme、PII log を防ぐ。
 - 完了条件: [SECURITY.md](SECURITY.md) の P0 条件を自動／手動テストで満たす。
 
