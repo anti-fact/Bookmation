@@ -69,7 +69,7 @@ export const Slider = React.forwardRef<
           className
         )}
       >
-        <div className="flex items-baseline justify-between gap-4">
+        <div className="flex items-baseline justify-start gap-4">
           <span className="text-sm font-semibold" id={labelId}>
             {label}
           </span>

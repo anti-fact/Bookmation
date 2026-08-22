@@ -1,27 +1,14 @@
 {
   "extends": "plasmo/templates/tsconfig.base",
-  "exclude": [
-    "node_modules",
-    "build",
-    "coverage",
-    ".plasmo"
-  ],
-  "include": [
-    ".plasmo/index.d.ts",
-    "./**/*.ts",
-    "./**/*.tsx"
-  ],
+  "exclude": ["node_modules", "build", "coverage", ".plasmo"],
+  "include": [".plasmo/index.d.ts", "./**/*.ts", "./**/*.tsx"],
   "compilerOptions": {
     "strict": true,
+    "jsx": "preserve",
     "baseUrl": ".",
     "paths": {
-      "~*": [
-        "./src/*"
-      ]
+      "~*": ["./src/*"]
     },
-    "types": [
-      "chrome",
-      "node"
-    ]
+    "types": ["chrome", "node"]
   }
 }

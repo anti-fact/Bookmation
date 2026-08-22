@@ -10,6 +10,7 @@ describe("designTokens", () => {
     expect(designTokens.color.accent).toBe("#B9D4EA")
     expect(designTokens.color.panel).toBe("#161616")
     expect(designTokens.color.onPanel).toBe("#EAEAEA")
+    expect(designTokens.color.placeholder).toBe("rgb(122 122 122 / 60%)")
     expect(designTokens.color.mutedText).toBe("#505050")
     expect(designTokens.color.danger).toBe("#C33232")
     expect(designTokens.color.error).toBe("#FF383C")
