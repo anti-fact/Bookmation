@@ -6,7 +6,7 @@ import { Tooltip } from "./tooltip"
 
 type IconButtonSize = "compact" | "regular"
 type IconButtonShape = "pill" | "square"
-type IconButtonVariant = "outline" | "quiet" | "solid"
+type IconButtonVariant = "accent" | "outline" | "quiet" | "solid"
 
 export type IconButtonProps = Omit<
   React.ButtonHTMLAttributes<HTMLButtonElement>,
@@ -39,6 +39,8 @@ const sizeAndShapeClass: Record<
 }
 
 const appearanceClass: Record<IconButtonVariant, string> = {
+  accent:
+    "border-bm-ink bg-bm-accent text-bm-ink hover:bg-bm-paper active:bg-bm-ink active:text-bm-paper",
   outline:
     "border-bm-ink bg-bm-paper text-bm-ink hover:bg-bm-accent active:bg-bm-ink active:text-bm-paper",
   quiet:

@@ -12,6 +12,7 @@ module.exports = {
           panel: "var(--bm-color-panel)",
           "on-panel": "var(--bm-color-on-panel)",
           muted: "var(--bm-color-muted)",
+          placeholder: "var(--bm-color-placeholder)",
           "muted-text": "var(--bm-color-muted-text)",
           "control-muted": "var(--bm-color-control-muted)",
           danger: "var(--bm-color-danger)",
