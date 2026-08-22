@@ -65,12 +65,13 @@
 
 ### TASK-004: popup・commands・保存
 
-- [ ] popup に保存／ホームの2ボタンを置き、開いただけでは保存しない。
-- [ ] `chrome.commands.getAll()` で各実キーまたは `未割り当て` を表示する。
-- [ ] `割り当てを変更` から `chrome://extensions/shortcuts` への遷移または手順案内を実装する。
+- [x] popup に保存／ホームの2ボタンを置き、開いただけでは保存しない。
+- [x] `chrome.commands.getAll()` で各実キーまたは `未割り当て` を表示する。
+- [x] `割り当てを変更` から `chrome://extensions/shortcuts` への遷移または手順案内を実装する。
 - [ ] 2 commands を別 handler へ接続する。
 - [ ] `http:` / `https:` URL の直接入力、検証、保存を実装する。
 - [ ] `runtime.onInstalled` の `reason=INSTALL` だけで初回状態を初期化し、初回だけ導入ホーム、完了後は最近追加ホームを開く。
+- UI-03でpopup画面、Chrome Port、保存中／成功／重複／失敗状態、Web fixtureを実装した。実保存Application、command保存、URL指定保存は未完了である。
 - 完了条件: 3保存入口が共通 use case を使い、worker 再起動でもデータを失わない。
 
 ### TASK-014: 初回カテゴリテンプレート

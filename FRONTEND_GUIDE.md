@@ -1,7 +1,7 @@
 # Bookmation フロントエンド実装ガイド
 
-- 状態: 実装手順。UI-01 primitive／Web component sheetとUI-02 App Shell／hash route／共通headerを実装済み、feature UI未実装
-- 基準日: 2026-08-19
+- 状態: 実装手順。UI-01 primitive／Web component sheet、UI-02 App Shell／hash route／共通header、UI-03 popup／shortcut／保存状態を実装済み
+- 基準日: 2026-08-22
 - 対象: Radix Primitives + Plasmo 0.90.5 + React 18.3.1 + Tailwind CSS 3.4.17 + TypeScript 5.9.2
 - 関連: [要件](docs/REQUIREMENTS.md) / [UI設計](docs/UI.md) / [フロントエンド設計](docs/FRONTEND.md) / [テスト仕様](docs/TESTING.md)
 
@@ -477,6 +477,8 @@ popupはdashboardとは別entryだが、Button、token、error表現を共有す
 
 キーを拡張機能内から書き換えるAPIがあると仮定しない。
 
+UI-03ではこのphaseの画面、Chrome Port、Web fixture、component testを実装済みである。production entryは`PopupApp`へChrome adapterを注入し、画面から`chrome.*`を直接呼ばない。保存messageのApplication use caseと永続化、command経由の保存はTASK-004の範囲として残る。
+
 ### Phase 4: Bookmark一覧を作る
 
 1. `BookmarkListPage`へsticky toolbarを置く。
@@ -765,7 +767,7 @@ visual testは同一OS、browser、font、viewport、device scale factorで行�
 11. `UI-11`: reminder、import、QR／CSV／Drive状態
 12. `UI-12`: Web preview catalog、visual baseline、extension E2E
 
-UI-01とUI-02は実装済みである。UI-02のWebプレビューはApp Shellのroute／header／layoutだけを対象とし、UI-03以降のfeature完成やUI-12の全fixture／E2E完了を示さない。
+UI-01からUI-03は実装済みである。UI-02のWebプレビューはApp Shellのroute／header／layout、UI-03のpopupプレビューは画面状態とPort境界だけを対象とし、保存Applicationの永続化やUI-04以降のfeature完成、UI-12の全fixture／E2E完了を示さない。
 
 各PRはtokenやprimitiveを勝手に複製せず、必要な共通変更を先行PRへ戻す。画面PRで新しい色やradiusが必要になったら、Figma上の役割を確認してtoken PRとしてレビューする。
 
