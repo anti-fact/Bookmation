@@ -83,6 +83,7 @@ export interface LocalDataLayerPort {
     contentHash: string
   }): Promise<void>
   getBookmark(id: string): Promise<PersistedActiveBookmarkRecord | undefined>
+  findActiveBookmarkByNormalizedUrl(normalizedUrl: string): Promise<PersistedActiveBookmarkRecord | undefined>
   createCategory(input: CreateCategoryInput): Promise<PersistedLabelRecord>
   createTag(input: CreateTagInput): Promise<PersistedLabelRecord>
   assignTagEdge(input: AssignTagEdgeInput): Promise<unknown>

@@ -12,6 +12,10 @@ const popupPort = createChromePopupPort({
   windows: chrome.windows,
 })
 
+function saveCurrentPage() {
+  void chrome.runtime.sendMessage({ schemaVersion: 1, requestId: crypto.randomUUID(), source: "popup", action: "save-current-tab", payload: {} })
+}
+
 function IndexPopup() {
   return <PopupApp port={popupPort} />
 }

@@ -170,6 +170,14 @@ export class LocalDataLayer {
     return record
   }
 
+  async findActiveBookmarkByNormalizedUrl(normalizedUrl: string): Promise<PersistedActiveBookmarkRecord | undefined> {
+    const urlHash = await computeUrlHash(normalizedUrl)
+    const candidates = await this.db.getAllFromIndex(STORES.bookmarks, "byUrlHash", urlHash)
+    return candidates.find((record): record is PersistedActiveBookmarkRecord =>
+      record.archiveState === "ACTIVE" && record.deletedAt === null && record.normalizedUrl === normalizedUrl,
+    )
+  }
+
   async getLabel(id: Id): Promise<PersistedLabelRecord | undefined> {
     return this.db.get(STORES.labels, id)
   }
