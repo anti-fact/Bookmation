@@ -175,6 +175,15 @@ type RouteBodyProps = {
   route: HashRoute
 }
 
+function SaveUrlForm() {
+  const [url, setUrl] = React.useState("")
+  const [notice, setNotice] = React.useState("")
+  return <form className="mb-6 flex gap-2" onSubmit={(event) => { event.preventDefault(); if (!url.trim()) return; void chrome.runtime.sendMessage({ schemaVersion: 1, requestId: crypto.randomUUID(), source: "dashboard", action: "save-bookmark-by-url", payload: { url } }).then((response) => setNotice(response?.data?.outcome === "DUPLICATE" ? "同じURLはすでに保存されています。" : response?.ok ? "保存しました。" : "保存できませんでした。")) }}>
+    <label className="sr-only" htmlFor="save-bookmark-url">保存するURL</label><input className="min-w-0 flex-1 rounded-bm-field border-2 border-bm-border px-3" id="save-bookmark-url" onChange={(event) => setUrl(event.target.value)} placeholder="https://example.com" type="url" value={url} />
+    <Button type="submit">URLを保存</Button>{notice ? <span role="status">{notice}</span> : null}
+  </form>
+}
+
 // UI-02では画面遷移の骨組みを実装し、後続機能の領域はプレースホルダーにします。
 function RouteBody({ navigate, route }: RouteBodyProps) {
   if (route.kind === "welcome") {
@@ -265,6 +274,8 @@ function RouteBody({ navigate, route }: RouteBodyProps) {
       </div>
     )
   }
+
+  if (route.kind === "home") return <><SaveUrlForm /><section aria-label="画面コンテンツ" className="min-h-64 rounded-bm-dialog border-2 border-dashed border-bm-muted bg-bm-paper p-5 sm:p-8"><p className="m-0 text-sm leading-6 text-bm-muted-text">表示するデータを準備しています。</p></section></>
 
   return (
     <section

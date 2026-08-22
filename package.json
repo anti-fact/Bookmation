@@ -55,6 +55,10 @@
       "storage",
       "activeTab"
     ],
+    "host_permissions": [
+      "https://*/*",
+      "http://*/*"
+    ],
     "commands": {
       "save-current-page": {
         "description": "現在のページをブックマーク"

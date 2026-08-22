@@ -101,6 +101,7 @@ export interface SaveBookmarkWithJobInput {
   rawUrl: string
   title: string
   siteName?: string | null
+  faviconUrl?: string | null
   source?: PersistedActiveBookmarkRecord["source"]
   policy?: ClassificationPolicySnapshot
   creationRequestId: Id
@@ -166,6 +167,14 @@ export class LocalDataLayer {
     return record
   }
 
+  async findActiveBookmarkByNormalizedUrl(normalizedUrl: string): Promise<PersistedActiveBookmarkRecord | undefined> {
+    const urlHash = await computeUrlHash(normalizedUrl)
+    const candidates = await this.db.getAllFromIndex(STORES.bookmarks, "byUrlHash", urlHash)
+    return candidates.find((record): record is PersistedActiveBookmarkRecord =>
+      record.archiveState === "ACTIVE" && record.deletedAt === null && record.normalizedUrl === normalizedUrl,
+    )
+  }
+
   async getLabel(id: Id): Promise<PersistedLabelRecord | undefined> {
     return this.db.get(STORES.labels, id)
   }
@@ -203,7 +212,7 @@ export class LocalDataLayer {
       urlNormalizationVersion: 1,
       title: input.title,
       siteName: input.siteName ?? null,
-      faviconUrl: null,
+      faviconUrl: input.faviconUrl ?? null,
       faviconBlobId: null,
       thumbnailBlobId: null,
       classificationState: "PENDING",

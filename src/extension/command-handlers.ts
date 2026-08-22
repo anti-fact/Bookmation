@@ -7,11 +7,13 @@ import {
 
 type CommandRuntime = Pick<typeof chrome.runtime, "getURL">
 type CommandTabs = Pick<typeof chrome.tabs, "create">
+type SaveCurrentPage = () => Promise<void>
 
 export async function handleExtensionCommand(
   command: ExtensionCommand,
   runtime: CommandRuntime,
-  tabs: CommandTabs
+  tabs: CommandTabs,
+  saveCurrentPage?: SaveCurrentPage,
 ): Promise<void> {
   switch (command) {
     case EXTENSION_COMMANDS.OPEN_BOOKMATION_HOME:
@@ -23,7 +25,7 @@ export async function handleExtensionCommand(
       })
       return
     case EXTENSION_COMMANDS.SAVE_CURRENT_PAGE:
-      // TASK-004 wires SaveCurrentPage and shared use cases.
+      await saveCurrentPage?.()
       return
   }
 }

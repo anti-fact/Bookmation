@@ -45,7 +45,7 @@ type MessageRequest<
  * Chrome boundary の版、送信元、JSON性、サイズだけを検証する。
  */
 export type ExtensionMessageRequest =
-  | MessageRequest<"save-current-tab", "popup", Record<string, never>>
+  | MessageRequest<"save-current-tab", "popup", { }>
   | MessageRequest<"save-bookmark-by-url", "popup" | "dashboard", { url: string; title?: string }>
   | MessageRequest<"update-bookmark", "dashboard", JsonValue>
   | MessageRequest<"delete-bookmark", "dashboard", JsonValue>
