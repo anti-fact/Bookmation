@@ -1,6 +1,6 @@
 # Bookmation フロントエンド実装ガイド
 
-- 状態: 実装手順。UI本体は未実装
+- 状態: 実装手順。UI-01 primitive／Web component sheet実装済み、feature UI未実装
 - 基準日: 2026-08-19
 - 対象: Radix Primitives + Plasmo 0.90.5 + React 18.3.1 + Tailwind CSS 3.4.17 + TypeScript 5.9.2
 - 関連: [要件](docs/REQUIREMENTS.md) / [UI設計](docs/UI.md) / [フロントエンド設計](docs/FRONTEND.md) / [テスト仕様](docs/TESTING.md)
@@ -13,9 +13,9 @@
 
 ## デザイン正本と読み分け
 
-| 資料 | 用途 | SHA-256 |
-| --- | --- | --- |
-| [`figma/Bookmation.svg`](figma/Bookmation.svg) | 画面全体の構成、余白、密度、配色、一覧とoverlayの関係 | `d05997589696ff346f59f3850bfc3296bd5b6acbd3e518980421ff6e0533ea8b` |
+| 資料                                                               | 用途                                                                 | SHA-256                                                            |
+| ------------------------------------------------------------------ | -------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| [`figma/Bookmation.svg`](figma/Bookmation.svg)                     | 画面全体の構成、余白、密度、配色、一覧とoverlayの関係                | `d05997589696ff346f59f3850bfc3296bd5b6acbd3e518980421ff6e0533ea8b` |
 | [`figma/Bookmation_component.svg`](figma/Bookmation_component.svg) | header、card、list item、button、modal、switch、slider等の部品と状態 | `f6c44b21deea9893c01f1f08c8b8556d1479b05f336dfb6cd70bd1ba0cce8f89` |
 
 実装判断は次の順に行う。
@@ -34,17 +34,17 @@ SVG内の文字は要件ではない。たとえば設定画面に古い「訪�
 
 画面シートをページ単位、componentシートを部品単位に分けて確認する。巨大なSVGをアプリ内でそのまま表示したり、画面全体を画像として切り出したりしない。
 
-| 画面／状態 | 実装時に見る要素 |
-| --- | --- |
-| Bookmark GRID | 共通header、カテゴリ／タグ帯、件数、表示切替、3列基準のcard、編集button、top／AI floating button |
-| Bookmark LIST | 同じheaderとtoolbar、favicon、カテゴリ、URL、title、編集button、区切り線 |
-| AI agent表示 | 右下の起点、dark panel、入力、応答、閉じる操作、一覧との重なり |
-| Bookmark編集 | scrim、中央dialog、title、URL、Tag入力、Tag作成side viewへの入口、削除／保存 |
-| カテゴリ・タグ一覧 | 全画面accent背景、検索、新規作成menu、管理切替、close、カテゴリribbon、タグchip |
-| 管理モード | 選択挙動の切替、hover／focus時の鉛筆、編集dialogへの入口 |
-| Welcome | logo、導入文、開始button。Category templateの挙動はIssue決定を待つ |
-| Settings | 共通header、左nav、一般／archive／share、数値入力、select、switch、slider |
-| Component sheet | 3種header、作成／編集dialog、リマインダー、Category削除警告、card、list item、各control |
+| 画面／状態         | 実装時に見る要素                                                                                 |
+| ------------------ | ------------------------------------------------------------------------------------------------ |
+| Bookmark GRID      | 共通header、カテゴリ／タグ帯、件数、表示切替、3列基準のcard、編集button、top／AI floating button |
+| Bookmark LIST      | 同じheaderとtoolbar、favicon、カテゴリ、URL、title、編集button、区切り線                         |
+| AI agent表示       | 右下の起点、dark panel、入力、応答、閉じる操作、一覧との重なり                                   |
+| Bookmark編集       | scrim、中央dialog、title、URL、Tag入力、Tag作成side viewへの入口、削除／保存                     |
+| カテゴリ・タグ一覧 | 全画面accent背景、検索、新規作成menu、管理切替、close、カテゴリribbon、タグchip                  |
+| 管理モード         | 選択挙動の切替、hover／focus時の鉛筆、編集dialogへの入口                                         |
+| Welcome            | logo、導入文、開始button。Category templateの挙動はIssue決定を待つ                               |
+| Settings           | 共通header、左nav、一般／archive／share、数値入力、select、switch、slider                        |
+| Component sheet    | 3種header、作成／編集dialog、リマインダー、Category削除警告、card、list item、各control          |
 
 フルページ検索、popupのショートカット表示、archive／shareの詳細状態など、デザインシートで不足する画面は [UI.md](docs/UI.md) の契約を同じtokenと部品で補う。
 
@@ -65,14 +65,14 @@ SVGは参照専用とし、最適化、整形、再保存を行わない。logo�
 
 `package.json` と `pnpm-lock.yaml` が依存の正本である。2026-08-19時点の基盤は次のとおりである。
 
-| 項目 | 固定値 |
-| --- | --- |
-| package manager | pnpm 10.15.1 |
-| Plasmo | 0.90.5 |
-| React / React DOM | 18.3.1 |
-| Tailwind CSS | 3.4.17 |
-| TypeScript | 5.9.2 |
-| UI behavior primitives | Radix Primitives。まだ依存未追加 |
+| 項目                   | 固定値                                           |
+| ---------------------- | ------------------------------------------------ |
+| package manager        | pnpm 10.15.1                                     |
+| Plasmo                 | 0.90.5                                           |
+| React / React DOM      | 18.3.1                                           |
+| Tailwind CSS           | 3.4.17                                           |
+| TypeScript             | 5.9.2                                            |
+| UI behavior primitives | `radix-ui` 1.6.7 / `@radix-ui/react-icons` 1.3.2 |
 
 Tailwind v4の設定例へ置き換えない。このrepositoryはPlasmo公式手順と既存buildに合わせてTailwind v3 + PostCSSを使う。
 
@@ -80,24 +80,31 @@ Tailwind v4の設定例へ置き換えない。このrepositoryはPlasmo公式�
 
 最初のUI PRで、FigmaのInspect値を次の表へ転記してレビューする。SVGの色抽出だけで寸法やfontを確定しない。
 
-| 分類 | 最低限記録する値 |
-| --- | --- |
-| Color | paper、ink、accent、muted、danger、overlay、focus、border |
-| Typography | family、weight、size、line-height、letter-spacing、用途 |
-| Space | page gutter、header height、section gap、card gap、control padding |
-| Radius | button、input、card、dialog、pill |
-| Elevation | header、floating control、popover、dialog |
-| Motion | open／close、hover、loading。`prefers-reduced-motion`時の代替 |
-| Breakpoint | 1440px基準と、狭幅時の折返し／縦積み |
+| 分類       | 最低限記録する値                                                   |
+| ---------- | ------------------------------------------------------------------ |
+| Color      | paper、ink、accent、muted、danger、overlay、focus、border          |
+| Typography | family、weight、size、line-height、letter-spacing、用途            |
+| Space      | page gutter、header height、section gap、card gap、control padding |
+| Radius     | button、input、card、dialog、pill                                  |
+| Elevation  | header、floating control、popover、dialog                          |
+| Motion     | open／close、hover、loading。`prefers-reduced-motion`時の代替      |
+| Breakpoint | 1440px基準と、狭幅時の折返し／縦積み                               |
 
-現行SVGで観察できる主要色は `#1E1E1E`、`#B9D4EA`、`#505050`、`#7A7A7A`、`#EAEAEA`、`#161616`、`#C33232` である。componentシートには `#FF383C` もあるため、dangerの役割が異なるのか古い値なのかをFigmaのColor Styleで確認し、場当たり的に2色を使い分けない。
+現行SVGで観察できる主要色は `#1E1E1E`、`#B9D4EA`、`#505050`、`#7A7A7A`、`#EAEAEA`、`#161616`、`#C33232` である。componentシートの `#FF383C` はinline validation、`#C33232` は破壊操作として分離しているため、UI-01では `error` と `danger` の別tokenにした。FigmaのColor Style名を取得できた時点でsemantic名を再照合する。
 
 SVG内の文字はpath化されておりfont familyを確定できない。FigmaのText Styleを取得できるまでは、次のような日本語system sansを仮tokenにし、正式fontを断定しない。
 
 ```css
 font-family:
-  Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
-  "Segoe UI", "Noto Sans JP", "Hiragino Kaku Gothic ProN", Meiryo,
+  Inter,
+  ui-sans-serif,
+  system-ui,
+  -apple-system,
+  BlinkMacSystemFont,
+  "Segoe UI",
+  "Noto Sans JP",
+  "Hiragino Kaku Gothic ProN",
+  Meiryo,
   sans-serif;
 ```
 
@@ -115,9 +122,12 @@ Radix公式は現在、primitiveごとのversionずれを避けるためtree-sha
 corepack enable
 corepack prepare pnpm@10.15.1 --activate
 pnpm install --frozen-lockfile
-pnpm add -E radix-ui @radix-ui/react-icons
+pnpm add -E radix-ui@1.6.7 @radix-ui/react-icons@1.3.2
 pnpm why radix-ui @radix-ui/react-icons
+pnpm lint
 pnpm typecheck
+pnpm test
+pnpm ui:build
 pnpm build
 ```
 
@@ -125,8 +135,11 @@ CorepackまたはpnpmがPATHにない場合は、repository既定の固定版を
 
 ```bash
 npx --yes pnpm@10.15.1 install --frozen-lockfile
-npx --yes pnpm@10.15.1 add -E radix-ui @radix-ui/react-icons
+npx --yes pnpm@10.15.1 add -E radix-ui@1.6.7 @radix-ui/react-icons@1.3.2
+npx --yes pnpm@10.15.1 lint
 npx --yes pnpm@10.15.1 typecheck
+npx --yes pnpm@10.15.1 test
+npx --yes pnpm@10.15.1 ui:build
 npx --yes pnpm@10.15.1 build
 ```
 
@@ -134,24 +147,24 @@ Radix Iconsは検索、設定、閉じる、鉛筆など標準的な意味のico
 
 ### primitiveとBookmation部品の対応
 
-| Bookmation部品 | 実装基盤 | 注意点 |
-| --- | --- | --- |
-| Bookmark／Category／Tag編集 | `Dialog` | `Portal`、`Overlay`、`Title`、`Description`、focus returnをwrapperで固定 |
-| Category連鎖削除警告 | `AlertDialog` | 警告と明示確認が必要なのはCategory削除だけ |
-| Bookmark／Tag削除結果 | `Toast` | Undo actionを置かない。失敗時はdialogを保持 |
-| 新規作成menu | `DropdownMenu` | Category／Tagをmenu itemとして選ぶ |
-| AI agent panel | desktopは非modal `Popover`、狭幅は`Dialog` | 同じ会話stateを使い、primitive差をfeature外へ漏らさない |
-| 設定の期間選択 | `Select` | 変更時に訪問日数draftを空へ戻す |
-| toggle | `Switch` | label全体をclick可能にし、pending中は再操作を抑止 |
-| AI細分化0〜4 | `Slider` | `min=0`、`max=4`、`step=1`、現在値と効果を常時表示 |
-| LIST／GRID | `RadioGroup` | 常にどちらか1つ。見た目だけsegment controlにする |
-| 管理モード | `Toggle` | `aria-pressed`と視覚状態を一致させる |
-| Tag開閉 | `Collapsible` | hoverだけに依存せずclick／keyboardで開く |
-| archive／share選択 | `Checkbox` | 全選択はindeterminateを表現する |
-| 補助説明 | `Tooltip` | hover専用情報にせずfocusでも開く。操作名の代替にはしない |
-| modal内の長い一覧 | `ScrollArea`またはnative overflow | page全体の無限scrollには使わない |
-| 進捗 | `Progress` | 読取可能なlabelと数値を付ける |
-| 検索／Tag／Category候補 | native input + APG準拠listbox | Radixに完成済みComboboxはないため専用wrapperを実装・試験する |
+| Bookmation部品              | 実装基盤                                   | 注意点                                                                   |
+| --------------------------- | ------------------------------------------ | ------------------------------------------------------------------------ |
+| Bookmark／Category／Tag編集 | `Dialog`                                   | `Portal`、`Overlay`、`Title`、`Description`、focus returnをwrapperで固定 |
+| Category連鎖削除警告        | `AlertDialog`                              | 警告と明示確認が必要なのはCategory削除だけ                               |
+| Bookmark／Tag削除結果       | `Toast`                                    | Undo actionを置かない。失敗時はdialogを保持                              |
+| 新規作成menu                | `DropdownMenu`                             | Category／Tagをmenu itemとして選ぶ                                       |
+| AI agent panel              | desktopは非modal `Popover`、狭幅は`Dialog` | 同じ会話stateを使い、primitive差をfeature外へ漏らさない                  |
+| 設定の期間選択              | `Select`                                   | 変更時に訪問日数draftを空へ戻す                                          |
+| toggle                      | `Switch`                                   | label全体をclick可能にし、pending中は再操作を抑止                        |
+| AI細分化0〜4                | `Slider`                                   | `min=0`、`max=4`、`step=1`、現在値と効果を常時表示                       |
+| LIST／GRID                  | `RadioGroup`                               | 常にどちらか1つ。見た目だけsegment controlにする                         |
+| 管理モード                  | `Toggle`                                   | `aria-pressed`と視覚状態を一致させる                                     |
+| Tag開閉                     | `Collapsible`                              | hoverだけに依存せずclick／keyboardで開く                                 |
+| archive／share選択          | `Checkbox`                                 | 全選択はindeterminateを表現する                                          |
+| 補助説明                    | `Tooltip`                                  | hover専用情報にせずfocusでも開く。操作名の代替にはしない                 |
+| modal内の長い一覧           | `ScrollArea`またはnative overflow          | page全体の無限scrollには使わない                                         |
+| 進捗                        | `Progress`                                 | 読取可能なlabelと数値を付ける                                            |
+| 検索／Tag／Category候補     | native input + APG準拠listbox              | Radixに完成済みComboboxはないため専用wrapperを実装・試験する             |
 
 nativeの`input type="number"`、link、button、headingをRadixへ置換する必要はない。patternと意味が一致するprimitiveだけを採用する。
 
@@ -321,12 +334,12 @@ GRIDの開始例は次のとおりである。
 
 Plasmoのfile conventionに従い、entryは薄く保つ。
 
-| path | 責務 |
-| --- | --- |
-| `src/popup.tsx` | popup専用Appへ本番Portを注入する |
-| `src/tabs/index.tsx` | dashboard Appへ本番Portを注入する。`#/...` routeを受ける |
-| `src/background.ts` | Service Worker eventとmessage handler。ReactやRadixをimportしない |
-| Web preview entry | runner決定後に追加し、同じpage componentへfake Portを注入する |
+| path                 | 責務                                                                                                                  |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `src/popup.tsx`      | popup専用Appへ本番Portを注入する                                                                                      |
+| `src/tabs/index.tsx` | dashboard Appへ本番Portを注入する。`#/...` routeを受ける                                                              |
+| `src/background.ts`  | Service Worker eventとmessage handler。ReactやRadixをimportしない                                                     |
+| `preview/main.tsx`   | ViteでUI-01 component sheetを起動する。後続タスクで同じpage componentへfake Portを注入する全画面fixture入口へ拡張する |
 
 Plasmoのtab pageは`src/tabs/*.tsx`から`chrome-extension://<id>/tabs/*.html`へbundleされる。`src/tabs/index.tsx`内でhash routeを解釈し、Welcome、Home、Search、Labels、Settingsを同じApp shellで切り替える。
 
@@ -600,14 +613,14 @@ archive pageは一覧、選択、復元、部分失敗、`ARCHIVE_HISTORY_NOT_FO
 
 ### 正本の置き場所
 
-| 状態 | 正本 |
-| --- | --- |
-| Bookmark／Category／Tag | IndexedDB Repository |
-| 設定 | `chrome.storage.local` |
-| route／query／selected ID | hash URL |
-| dialog、draft、管理mode、AI会話 | React local state |
-| cursor、loading、requestId | query state |
-| AI分類job、import、sync | Repository／Service Worker |
+| 状態                            | 正本                       |
+| ------------------------------- | -------------------------- |
+| Bookmark／Category／Tag         | IndexedDB Repository       |
+| 設定                            | `chrome.storage.local`     |
+| route／query／selected ID       | hash URL                   |
+| dialog、draft、管理mode、AI会話 | React local state          |
+| cursor、loading、requestId      | query state                |
+| AI分類job、import、sync         | Repository／Service Worker |
 
 React stateへ永続データの正本を複製しない。command成功後はresponseのrevisionでcacheを更新し、曖昧なtimeout時は同じrequest IDで再送または再queryする。
 
@@ -658,7 +671,7 @@ Radixを導入しただけではBookmation全体のアクセシビリティは�
 
 [TESTING.md](docs/TESTING.md) のとおり、本番と同じReact componentを通常Webページで人間が確認できるようにする。preview専用の画面コピーを作らない。
 
-runnerはISSUE-018で未決である。Storybookまたは同等のpreview appを比較して決定するまでは、次の境界だけを先に固定する。
+UI-01ではVite 7.3.6をrunnerに固定し、`preview/ComponentSheet.tsx`がproduction tokenとprimitiveだけを読み込む通常Webページを実装した。`pnpm ui:preview`は `127.0.0.1:4173`、`pnpm ui:build`は `build/ui-preview`を使う。以下のPort／Adapter付き全画面fixtureとPlaywright環境はISSUE-018／TASK-013の残作業である。
 
 ```tsx
 const previewPorts = createFakeUiPorts(fixture)
@@ -702,6 +715,7 @@ preview側が変更してよいのは、Adapter、fixture選択、debug panelで
 pnpm lint
 pnpm typecheck
 pnpm test
+pnpm ui:build
 pnpm build
 ```
 
@@ -761,7 +775,7 @@ UI実装は、次をすべて満たした時だけ完了とする。
 - keyboard、focus、screen reader用name、IME、200% zoom、狭幅を確認している。
 - loading、empty、error、permission、conflict、offline、AI unavailableを確認している。
 - Web preview、AIエージェントの実拡張Playwright、人間の実Chrome受入を順に終えている。
-- `pnpm lint`、`pnpm typecheck`、`pnpm test`、`pnpm build`が成功している。
+- `pnpm lint`、`pnpm typecheck`、`pnpm test`、`pnpm ui:build`、`pnpm build`が成功している。
 - 実施していないruntime確認を「成功」と記録していない。
 
 ## 実装時に避けること

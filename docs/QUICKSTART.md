@@ -2,7 +2,7 @@
 
 ## 現在できること
 
-2026-08-16 時点で、Plasmo 拡張の開発基盤がある。同じコマンドで依存導入、lint、型検査、テスト、本番ビルドができる。popup は確認用画面のみで、保存・ホーム・dashboard は [TASK-002](TASKS.md) 以降である。
+2026-08-19 時点で、Plasmo拡張の開発基盤に加えてUI-01のsemantic token、Radix wrapper、通常Webページのcomponent sheetがある。同じコマンドで依存導入、lint、型検査、テスト、Webプレビュー、本番ビルドができる。popupは確認用画面のみで、保存・ホーム・dashboardは [TASK-002](TASKS.md) 以降である。
 
 最初の縦切り方針は [Execution Plan](plans/2026-08-16-dev-scaffold.md) を正本とする。
 
@@ -53,6 +53,7 @@ npx --yes pnpm@10.15.1 dev
 pnpm lint
 pnpm typecheck
 pnpm test
+pnpm ui:build
 pnpm build
 ```
 
@@ -64,15 +65,18 @@ fallbackでは同様に `npx --yes pnpm@10.15.1 lint`、`typecheck`、`test`、`
 
 ## テスト入口
 
-現在実行できる自動テストは `pnpm test` のVitestである。初回ホーム、フルページ検索、AI入力ポップアップ、カテゴリ・タグ管理、設定、archive、共有を確認するUI WebプレビューとPlaywright拡張機能E2Eは [TASK-013](TASKS.md) で実装するため、次のtarget scriptはまだ存在しない。
+`pnpm test`はtokenとUI-01 wrapperのVitest component testを実行する。`pnpm ui:preview`はViteの通常Webページを `http://127.0.0.1:4173/` で開き、Button、Dialog、Switch、Slider、Selectのproduction primitiveをcomponent sheetとして確認できる。`pnpm ui:build`は同じページを `build/ui-preview` へ静的生成する。
 
 ```bash
-# TASK-013 完了後に利用可能になる目標コマンド
 pnpm ui:preview
 pnpm ui:build
+
+# TASK-013の残タスク。現時点では未実装
 pnpm test:e2e
 pnpm test:e2e:ui
 ```
+
+component sheetはUI-01だけを対象とし、初回ホーム、フルページ検索、AI入力ポップアップ、カテゴリ・タグ管理、設定、archive、共有の全fixtureはまだない。Playwright拡張機能E2Eも未実装である。
 
 受入は、通常WebページでUI fixtureを確認し、AIエージェントがPlaywrightでビルド済み実拡張を確認して証拠を保存し、その後に人間が同じcommit／buildを実Chromeで確認する順とする。WebプレビューだけをChrome E2E成功として扱わない。詳細は [TESTING.md](TESTING.md) を参照する。
 

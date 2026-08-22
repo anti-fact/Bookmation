@@ -1,17 +1,17 @@
 # フロントエンド設計
 
-- 状態: 設計決定・popup確認用scaffoldのみ実装済み
+- 状態: 設計決定・popup scaffoldとUI-01 primitive／Web component sheetを実装済み
 - 更新日: 2026-08-19
 - 採用: Plasmo + React + TypeScript + Radix Primitives + Tailwind CSS
 - 関連: [UI](./UI.md) / [設計](./DESIGN.md) / [要件](./REQUIREMENTS.md) / [実装ガイド](../FRONTEND_GUIDE.md) / [テスト](./TESTING.md)
 
 ## エントリポイント
 
-| entry | 責務 |
-| --- | --- |
-| `src/popup.tsx` | 保存／ホームの2操作、ショートカット表示、変更案内 |
-| `src/tabs/index.tsx` | welcome、一覧、検索、カテゴリ・タグ、設定、各overlay、AI Host |
-| `src/background.ts` | install、commands、contextMenus、alarms、保存、履歴判定、DB、メッセージ。Prompt APIは呼ばない |
+| entry                | 責務                                                                                          |
+| -------------------- | --------------------------------------------------------------------------------------------- |
+| `src/popup.tsx`      | 保存／ホームの2操作、ショートカット表示、変更案内                                             |
+| `src/tabs/index.tsx` | welcome、一覧、検索、カテゴリ・タグ、設定、各overlay、AI Host                                 |
+| `src/background.ts`  | install、commands、contextMenus、alarms、保存、履歴判定、DB、メッセージ。Prompt APIは呼ばない |
 
 `chrome.runtime.onInstalled` のinstall時だけ拡張タブの `#/welcome` を開く。update時や通常起動で開かない。popupは `chrome.commands.getAll()` のallowlistだけを表示し、空の割当は `未割り当て` とする。
 
@@ -19,60 +19,60 @@
 
 ## routes と一時状態
 
-| route | component |
-| --- | --- |
-| `#/welcome` | `WelcomePage` |
-| `#/home` | `BookmarkListPage`（最近追加） |
+| route                       | component                            |
+| --------------------------- | ------------------------------------ |
+| `#/welcome`                 | `WelcomePage`                        |
+| `#/home`                    | `BookmarkListPage`（最近追加）       |
 | `#/bookmarks?category=<id>` | `BookmarkListPage`（親カテゴリ条件） |
-| `#/bookmarks?tag=<id>` | `BookmarkListPage`（子タグ条件） |
-| `#/search?q=<query>` | `SearchResultsPage` |
-| `#/labels` | `FullScreenCategoryTagPage` |
-| `#/settings/general` | `SettingsPage` 一般 |
-| `#/settings/archive` | `SettingsPage` アーカイブ |
-| `#/settings/share` | `SettingsPage` 共有 |
+| `#/bookmarks?tag=<id>`      | `BookmarkListPage`（子タグ条件）     |
+| `#/search?q=<query>`        | `SearchResultsPage`                  |
+| `#/labels`                  | `FullScreenCategoryTagPage`          |
+| `#/settings/general`        | `SettingsPage` 一般                  |
+| `#/settings/archive`        | `SettingsPage` アーカイブ            |
+| `#/settings/share`          | `SettingsPage` 共有                  |
 
 `BookmarkEditDialog`、`CategoryTagCreateDialog`、`CategoryTagEditDialog`、`AddUrlDialog`、`AiAgentPopup` はroute上へ重ねる。キーワードqueryはhash routeへ保持し、AI会話、編集draft、候補cursorは永続化しない。
 
 ## コンポーネント境界
 
-| component | 責務 |
-| --- | --- |
-| `WelcomePage` | 初回説明、開始、再開可能な初期設定、カテゴリテンプレートstepの進行 |
-| `CategoryTemplateStep` | 同梱catalogの表示、未適用preview、利用者操作によるCategory作成。具体的な選択controlはISSUE-022で確定する |
-| `StickyBookmarkHeader` | `SearchBox`、AI、件数、LIST / GRID、一覧・設定導線 |
-| `BookmarkList` / `BookmarkItem` | cursor描画、カテゴリ常時、タグdisclosure、編集 |
-| `SearchBox` | 最大8件typeahead、検索ページ遷移 |
-| `SearchSuggestionList` | カテゴリ・タグ上／Bookmark下のcombobox |
-| `SearchResultsPage` | フルページ結果と種類別cursor |
-| `AiAgentPopup` | AI入力、応答、検索候補、製品ヘルプ |
-| `FullScreenCategoryTagPage` | 親カテゴリごとの子タグ、通常／管理モード |
-| `StickyCategoryTagHeader` | 統合検索、AI検索、新規作成dropdown、管理、閉じる |
-| `CategoryRibbon` / `TagChip` | 遷移、管理時の編集trigger |
-| `BookmarkEditDialog` | title、URL、タグ編集、タグからのカテゴリ自動導出、削除 |
-| `ExistingTagCombobox` | 親カテゴリ付き既存タグを最大8候補から複数選択 |
-| `ParentCategoryCombobox` | Tag作成／編集時にactiveな既存Categoryを最大8候補から単一選択 |
-| `LabelCreateSideView` | Bookmark／Tag draftを保持した同一Dialog内の新規作成 |
-| `CategoryTagCreateDialog` | 種類別の連続作成 |
-| `CategoryTagEditDialog` | 名前、Tagの親Category変更、Categoryの使用中Tag／関連Bookmark件数、種類別削除導線 |
-| `CategoryCascadeDeleteDialog` | Category、子Tag、影響Bookmarkを示す連鎖削除警告 |
-| `SettingsPage` | 一般／アーカイブ／共有のサイドナビ |
-| `VisitReminder` | はい／いいえ／URL単位の次回抑止 |
-| `ArchiveManager` | checkbox選択と一括復元 |
-| `DriveAccountPanel` | account選択、同期、権限、競合 |
-| `QrSharePanel` / `QrImportPanel` | 対象選択、生成、読取、取込 |
-| `ChromeBookmarkImportPanel` | 権限説明、直上Folder別preview、Tag再利用／新規Tagの親Category解決、進捗、結果 |
-| `BackToTopButton` | 閾値後のscroll／focus |
+| component                        | 責務                                                                                                     |
+| -------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `WelcomePage`                    | 初回説明、開始、再開可能な初期設定、カテゴリテンプレートstepの進行                                       |
+| `CategoryTemplateStep`           | 同梱catalogの表示、未適用preview、利用者操作によるCategory作成。具体的な選択controlはISSUE-022で確定する |
+| `StickyBookmarkHeader`           | `SearchBox`、AI、件数、LIST / GRID、一覧・設定導線                                                       |
+| `BookmarkList` / `BookmarkItem`  | cursor描画、カテゴリ常時、タグdisclosure、編集                                                           |
+| `SearchBox`                      | 最大8件typeahead、検索ページ遷移                                                                         |
+| `SearchSuggestionList`           | カテゴリ・タグ上／Bookmark下のcombobox                                                                   |
+| `SearchResultsPage`              | フルページ結果と種類別cursor                                                                             |
+| `AiAgentPopup`                   | AI入力、応答、検索候補、製品ヘルプ                                                                       |
+| `FullScreenCategoryTagPage`      | 親カテゴリごとの子タグ、通常／管理モード                                                                 |
+| `StickyCategoryTagHeader`        | 統合検索、AI検索、新規作成dropdown、管理、閉じる                                                         |
+| `CategoryRibbon` / `TagChip`     | 遷移、管理時の編集trigger                                                                                |
+| `BookmarkEditDialog`             | title、URL、タグ編集、タグからのカテゴリ自動導出、削除                                                   |
+| `ExistingTagCombobox`            | 親カテゴリ付き既存タグを最大8候補から複数選択                                                            |
+| `ParentCategoryCombobox`         | Tag作成／編集時にactiveな既存Categoryを最大8候補から単一選択                                             |
+| `LabelCreateSideView`            | Bookmark／Tag draftを保持した同一Dialog内の新規作成                                                      |
+| `CategoryTagCreateDialog`        | 種類別の連続作成                                                                                         |
+| `CategoryTagEditDialog`          | 名前、Tagの親Category変更、Categoryの使用中Tag／関連Bookmark件数、種類別削除導線                         |
+| `CategoryCascadeDeleteDialog`    | Category、子Tag、影響Bookmarkを示す連鎖削除警告                                                          |
+| `SettingsPage`                   | 一般／アーカイブ／共有のサイドナビ                                                                       |
+| `VisitReminder`                  | はい／いいえ／URL単位の次回抑止                                                                          |
+| `ArchiveManager`                 | checkbox選択と一括復元                                                                                   |
+| `DriveAccountPanel`              | account選択、同期、権限、競合                                                                            |
+| `QrSharePanel` / `QrImportPanel` | 対象選択、生成、読取、取込                                                                               |
+| `ChromeBookmarkImportPanel`      | 権限説明、直上Folder別preview、Tag再利用／新規Tagの親Category解決、進捗、結果                            |
+| `BackToTopButton`                | 閾値後のscroll／focus                                                                                    |
 
 ## 状態管理
 
-| 状態 | 置き場所 |
-| --- | --- |
-| Bookmark / Category / Tag正本 | IndexedDB repository |
+| 状態                                                                                                         | 置き場所                                                             |
+| ------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------- |
+| Bookmark / Category / Tag正本                                                                                | IndexedDB repository                                                 |
 | onboarding状態／Category template step、LIST / GRID、訪問期間／日数、archive日数、reminder有効、AI細分化0〜4 | `chrome.storage.local`。catalog versionの永続形式はISSUE-022で決める |
-| categoryId、tagId、検索query、設定section | hash route |
-| AI conversation、dialog、side view、管理モード | React画面内state |
-| cursor、requestId、hasNext | query state |
-| 一覧へ戻るscroll anchor | navigation state |
+| categoryId、tagId、検索query、設定section                                                                    | hash route                                                           |
+| AI conversation、dialog、side view、管理モード                                                               | React画面内state                                                     |
+| cursor、requestId、hasNext                                                                                   | query state                                                          |
+| 一覧へ戻るscroll anchor                                                                                      | navigation state                                                     |
 
 React stateをデータ正本にしない。保存commandにはrevisionとidempotency keyを含め、完了応答後にquery cacheを更新する。
 
@@ -125,13 +125,13 @@ Enterまたは検索ボタンで `#/search?q=<encoded>` へ遷移する。`Searc
 
 draftは次を持つ。
 
-~~~ts
+```ts
 type BookmarkEditDraft = {
   title: string
   url: string
   tagIds: string[]
 }
-~~~
+```
 
 分類fieldはTagのcomboboxだけとする。Tag見出し横の `＋新規作成` は同じDialog内部を `FORM` から `CREATE_TAG` へ切り替え、親dialogを重ねない。戻るとBookmark draft、dirty state、検索語、focusを復元し、新規Tag作成成功時だけIDをdraftへ追加する。Category ID集合は保存直前にactive Tagの `parentCategoryId` から重複なく導出し、利用者の入力値として保持しない。
 

@@ -3,7 +3,7 @@
 Bookmation は、Chrome標準ブックマークとは別の専用領域へWebページを保存し、カテゴリ／タグと検索で見つけ直すChrome拡張機能である。
 
 > [!IMPORTANT]
-> 開発基盤はある。保存・一覧・AI は未実装である。始め方は [QUICKSTART.md](docs/QUICKSTART.md) を参照する。
+> 開発基盤とUI-01（semantic token、Radix wrapper、Web component sheet）は実装済みである。保存・一覧・AI は未実装である。始め方は [QUICKSTART.md](docs/QUICKSTART.md) を参照する。
 
 ## プロダクト概要
 
@@ -40,16 +40,16 @@ Bookmation は、Chrome標準ブックマークとは別の専用領域へWebペ
 
 ## 技術構成
 
-| 領域 | 方針 |
-| --- | --- |
-| 拡張機能 | Chrome Manifest V3 + Plasmo |
-| UI | React + Radix Primitives + Tailwind CSS |
-| 実装言語 | TypeScript |
-| データ | IndexedDB上の版付きJSONドキュメント、設定は `chrome.storage.local`、Blobは別Store |
-| AI | Chrome Prompt API / Gemini Nano 候補による端末内分類、自然言語検索、機能案内 |
+| 領域       | 方針                                                                                                                    |
+| ---------- | ----------------------------------------------------------------------------------------------------------------------- |
+| 拡張機能   | Chrome Manifest V3 + Plasmo                                                                                             |
+| UI         | React + Radix Primitives + Tailwind CSS                                                                                 |
+| 実装言語   | TypeScript                                                                                                              |
+| データ     | IndexedDB上の版付きJSONドキュメント、設定は `chrome.storage.local`、Blobは別Store                                       |
+| AI         | Chrome Prompt API / Gemini Nano 候補による端末内分類、自然言語検索、機能案内                                            |
 | 共有・同期 | ユーザー間はQR／CSV exportとQR取込、同一GoogleアカウントはDrive `appDataFolder`、別アカウントは通常Drive file＋権限検証 |
-| テスト | 通常WebページのUIプレビュー、AIエージェントによるPlaywright拡張E2E、人間の最終受入 |
-| サーバー | 独自サーバーは設けない |
+| テスト     | 通常WebページのUIプレビュー、AIエージェントによるPlaywright拡張E2E、人間の最終受入                                      |
+| サーバー   | 独自サーバーは設けない                                                                                                  |
 
 Prompt API は Service Worker から実行せず、対応確認済みのトップレベル拡張ページを AI Host とする。Service Worker は保存、分類ジョブ永続化、結果の再検証・適用を担う。
 
@@ -85,6 +85,7 @@ pnpm install --frozen-lockfile
 pnpm lint
 pnpm typecheck
 pnpm test
+pnpm ui:build
 pnpm build
 pnpm dev
 ```

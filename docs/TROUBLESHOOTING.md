@@ -2,7 +2,7 @@
 
 ## 最初に確認すること
 
-2026-08-17時点ではPlasmo開発基盤、`package.json`、Vitest、確認用popupが存在する。保存・一覧・AI、UI Webプレビュー、Playwright拡張E2Eは未実装である。`package.json` 自体が見つからない場合は古いbranch、誤ったディレクトリ、不完全なcheckoutを疑い、[QUICKSTART.md](QUICKSTART.md) で現在の状態を確認する。
+2026-08-19時点ではPlasmo開発基盤、`package.json`、Vitest、確認用popupに加え、UI-01のRadix wrapperと通常Web component sheetが存在する。保存・一覧・AI、全featureのWeb fixture、Playwright拡張E2Eは未実装である。`package.json` 自体が見つからない場合は古いbranch、誤ったディレクトリ、不完全なcheckoutを疑い、[QUICKSTART.md](QUICKSTART.md) で現在の状態を確認する。
 
 実装後の障害調査では、次の順序を守る。
 
@@ -16,24 +16,24 @@
 
 ## 早見表
 
-| 症状 | 主な切り分け先 |
-| --- | --- |
-| `package.json` がない / 開発サーバーを起動できない | [まだアプリがない](#packagejson-がない--起動コマンドが分からない) |
-| 拡張機能を読み込めない | [ビルド出力とmanifest](#chromeが拡張機能を読み込まない) |
-| AI分類だけ使えない | [Prompt APIの可用性](#prompt-apiが利用できない) |
-| モデル取得が終わらない | [モデルダウンロード](#モデルのダウンロードが進まない) |
-| 保存後に消える / 容量エラー | [ストレージ](#保存できない容量エラーまたは再読込後に消える) |
-| 一度は動くが後でボタンが反応しない | [service worker](#しばらくすると保存処理が反応しない) |
-| タグが増えすぎる / 同名タグが作成される | [分類](#タグが増えすぎるまたは同名タグが作成される) |
-| 自然言語検索の候補がない / 1件に固定される | [検索候補](#自然言語検索の候補が正しく出ない) |
-| keyword候補が8件を超える / 一覧上に検索結果が重なる | [フルページ検索](#keyword候補またはフルページ検索が正しくない) |
-| 初回ホームが毎回出る / 一度も出ない | [初回ホーム](#初回ホームが正しく表示されない) |
-| Category templateを見るだけで作成される / 適用で重複する | [初回ホーム](#初回ホームが正しく表示されない) |
-| カテゴリ・タグの削除や親子表示が正しくない | [カテゴリ・タグ管理](#カテゴリタグの作成編集削除が正しくない) |
-| 削除に確認画面やUndoが出る / 削除後も一覧に残る | [削除](#削除処理が正しくない) |
-| 設定値を保存できない / リマインダーが止まらない | [履歴とarchive](#訪問リマインダーまたは自動アーカイブが動かない) |
-| popupやshortcutが意図した操作をしない | [保存導線](#popupまたはshortcutが意図した操作をしない) |
-| Webプレビューと実拡張の結果が違う / E2E証拠がない | [テスト面の切り分け](#webプレビューplaywright人間確認を切り分けられない) |
+| 症状                                                     | 主な切り分け先                                                           |
+| -------------------------------------------------------- | ------------------------------------------------------------------------ |
+| `package.json` がない / 開発サーバーを起動できない       | [まだアプリがない](#packagejson-がない--起動コマンドが分からない)        |
+| 拡張機能を読み込めない                                   | [ビルド出力とmanifest](#chromeが拡張機能を読み込まない)                  |
+| AI分類だけ使えない                                       | [Prompt APIの可用性](#prompt-apiが利用できない)                          |
+| モデル取得が終わらない                                   | [モデルダウンロード](#モデルのダウンロードが進まない)                    |
+| 保存後に消える / 容量エラー                              | [ストレージ](#保存できない容量エラーまたは再読込後に消える)              |
+| 一度は動くが後でボタンが反応しない                       | [service worker](#しばらくすると保存処理が反応しない)                    |
+| タグが増えすぎる / 同名タグが作成される                  | [分類](#タグが増えすぎるまたは同名タグが作成される)                      |
+| 自然言語検索の候補がない / 1件に固定される               | [検索候補](#自然言語検索の候補が正しく出ない)                            |
+| keyword候補が8件を超える / 一覧上に検索結果が重なる      | [フルページ検索](#keyword候補またはフルページ検索が正しくない)           |
+| 初回ホームが毎回出る / 一度も出ない                      | [初回ホーム](#初回ホームが正しく表示されない)                            |
+| Category templateを見るだけで作成される / 適用で重複する | [初回ホーム](#初回ホームが正しく表示されない)                            |
+| カテゴリ・タグの削除や親子表示が正しくない               | [カテゴリ・タグ管理](#カテゴリタグの作成編集削除が正しくない)            |
+| 削除に確認画面やUndoが出る / 削除後も一覧に残る          | [削除](#削除処理が正しくない)                                            |
+| 設定値を保存できない / リマインダーが止まらない          | [履歴とarchive](#訪問リマインダーまたは自動アーカイブが動かない)         |
+| popupやshortcutが意図した操作をしない                    | [保存導線](#popupまたはshortcutが意図した操作をしない)                   |
+| Webプレビューと実拡張の結果が違う / E2E証拠がない        | [テスト面の切り分け](#webプレビューplaywright人間確認を切り分けられない) |
 
 ## `package.json` がない / 起動コマンドが分からない
 
@@ -107,12 +107,8 @@ find . -maxdepth 2 -name package.json -o -name manifest.json
 ```js
 typeof globalThis.LanguageModel
 const options = {
-  expectedInputs: [
-    { type: "text", languages: ["en", "ja"] },
-  ],
-  expectedOutputs: [
-    { type: "text", languages: ["ja"] },
-  ],
+  expectedInputs: [{ type: "text", languages: ["en", "ja"] }],
+  expectedOutputs: [{ type: "text", languages: ["ja"] }]
 }
 await LanguageModel.availability(options)
 ```
@@ -512,7 +508,7 @@ Chromeは拡張service workerを非活動時に終了するため、グローバ
 
 **症状**
 
-- `pnpm ui:preview` または `pnpm test:e2e` が存在しない。
+- `pnpm ui:preview`は開くがcomponent sheetしかなく、目的のfeature fixtureが存在しない。または`pnpm test:e2e`が存在しない。
 - Webプレビューでは動くが、実拡張機能でChrome APIや永続化が失敗する。
 - AIエージェントが成功と報告したが、HTML report、screenshot、trace、対象commitがない。
 
@@ -525,7 +521,7 @@ Chromeは拡張service workerを非活動時に終了するため、グローバ
 
 **対処**
 
-- TASK-013完了前はWebプレビュー／Playwright scriptがなくても既知の未実装である。存在しない検査をpassと記録しない。
+- UI-01では`ui:preview`／`ui:build`だけが実装済みである。全feature fixtureとPlaywright scriptはTASK-013の残作業なので、存在しない検査をpassと記録しない。
 - Webプレビュー成功をpermissions、commands、Service Worker、拡張機能originの成功根拠にしない。
 - reportまたはtraceがない場合はAIエージェント確認を未実施として再実行し、その後に人間受入を行う。
 - screenshot基準を自動更新せず、人間が差分と理由を確認する。
@@ -542,6 +538,7 @@ Chromeは拡張service workerを非活動時に終了するため、グローバ
 ### 期待結果 / 実際の結果
 
 ### 環境
+
 - Bookmation版:
 - Chrome版:
 - OS:
@@ -551,6 +548,7 @@ Chromeは拡張service workerを非活動時に終了するため、グローバ
 ### 最初のエラー
 
 ### データ保護状況
+
 - エクスポート済みか:
 - ストレージ削除・再インストールを行っていないか:
 ```

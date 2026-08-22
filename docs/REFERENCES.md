@@ -11,7 +11,7 @@
 
 画面SVGではBookmark GRID／LIST、AI agent overlay、Bookmark編集、全画面カテゴリ・タグ一覧の通常／管理、Welcome、Settingsを確認した。component SVGでは共通／分類／設定header、Category／Tag作成・編集、Bookmark編集、訪問リマインダー、Category削除警告、Category ribbon、Tag chip、Bookmark card／row、switch、slider、floating controlを確認した。SVG内の文字はpath化されているためfont familyを確定できず、正式なtypographyはFigma Text Styleの確認を必要とする。
 
-UI behavior primitiveにRadix Primitivesを採用し、Plasmo／React／Tailwind CSS v3と組み合わせる実装手順を [`../FRONTEND_GUIDE.md`](../FRONTEND_GUIDE.md) にまとめた。Radix依存はまだ `package.json` へ追加していないため、導入PRで互換性を検証してexact versionをlockfileへ固定する。
+UI behavior primitiveにRadix Primitivesを採用し、Plasmo／React／Tailwind CSS v3と組み合わせる実装手順を [`../FRONTEND_GUIDE.md`](../FRONTEND_GUIDE.md) にまとめた。UI-01で `radix-ui` 1.6.7と`@radix-ui/react-icons` 1.3.2をexact固定し、Vite 7.3.6の通常Web component sheetとjsdom component testを追加した。
 
 ### 2026-08-18 の最新依頼
 
