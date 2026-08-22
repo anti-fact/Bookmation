@@ -92,6 +92,12 @@ export {
   assertValidStateTransition,
   policyFromGranularity,
 } from "./classification-job"
+export {
+  CLASSIFICATION_JOB_LEASE_MS,
+  CLASSIFICATION_JOB_MAX_ATTEMPTS,
+  proposalCreationRequestId,
+  type ClassificationApplyOutcome,
+} from "./classification-job-contract"
 
 // --- LocalSettings ---
 export type { LocalSettings } from "./local-settings"

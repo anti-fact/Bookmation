@@ -1,7 +1,9 @@
 import { LocalDataLayer } from "~/adapters"
 import { CATEGORY_TEMPLATE_CATALOG } from "~/catalogs/category-templates"
 import type { ExtensionMessageResponse } from "~/extension/messages"
+import { isDomainError } from "~/domain"
 
+import { handleClassificationJobMessage } from "./classification-job-application"
 import {
   applyCategoryTemplates,
   getCategoryTemplateCatalog,
@@ -186,7 +188,20 @@ export function createLibraryApplication(
         const totalCount = "totalCount" in result && typeof result.totalCount === "number" ? result.totalCount : result.items.length
         return { requestId: request.requestId, ok: true, data: { items: result.items.map((item) => ({ id: item.id, title: item.title, normalizedUrl: item.normalizedUrl, savedAt: item.savedAt, revision: item.revision })), nextCursor: result.nextCursor ? { savedAt: result.nextCursor.savedAt, id: result.nextCursor.id } : null, totalCount } }
       }
+
+      const classificationResponse = await handleClassificationJobMessage(layer, request)
+      if (classificationResponse) {
+        return classificationResponse
+      }
+
       return { requestId: request.requestId, ok: false, error: { code: "ACTION_NOT_AVAILABLE" } }
-    } catch { return { requestId: request.requestId, ok: false, error: { code: "INTERNAL_ERROR" } } } finally { await layer.close() }
+    } catch (error: unknown) {
+      if (isDomainError(error)) {
+        console.error("[Bookmation] Library action failed:", error.code, error.message)
+      } else {
+        console.error("[Bookmation] Library action failed:", error)
+      }
+      return { requestId: request.requestId, ok: false, error: { code: "INTERNAL_ERROR" } }
+    } finally { await layer.close() }
   } }
 }

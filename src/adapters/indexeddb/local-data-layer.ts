@@ -23,6 +23,19 @@ import {
 } from "~/domain"
 
 import { computeUrlHash, fingerprintFromObject, syncInputFingerprint } from "./crypto-utils"
+import {
+  applyClassificationResultShell,
+  cancelClassificationJob,
+  claimClassificationJob,
+  getClassificationJob,
+  getLatestClassificationJobForBookmark,
+  recoverStaleClassificationJobs,
+  retryClassificationJob,
+  type ApplyClassificationResultShellInput,
+  type ApplyClassificationResultShellResult,
+  type ClaimClassificationJobInput,
+  type ClaimClassificationJobResult,
+} from "./classification-job-ops"
 import { stripUndefinedFields } from "./document-validation"
 import {
   assertRequestIdNamespace,
@@ -1198,6 +1211,40 @@ export class LocalDataLayer {
     if (meta.migrationState !== "FAILED") return
     await tx.store.put({ ...meta, migrationState: "IDLE", updatedAt: Date.now() })
     await tx.done
+  }
+
+  async recoverStaleClassificationJobs(now: EpochMs = Date.now()): Promise<number> {
+    return recoverStaleClassificationJobs(this.db, now)
+  }
+
+  async claimClassificationJob(
+    input: Omit<ClaimClassificationJobInput, "now"> & { now?: EpochMs },
+  ): Promise<ClaimClassificationJobResult | null> {
+    return claimClassificationJob(this.db, { ...input, now: input.now ?? Date.now() })
+  }
+
+  async getClassificationJob(jobId: Id): Promise<PersistedClassificationJobRecord | undefined> {
+    return getClassificationJob(this.db, jobId)
+  }
+
+  async getLatestClassificationJobForBookmark(
+    bookmarkId: Id,
+  ): Promise<PersistedClassificationJobRecord | undefined> {
+    return getLatestClassificationJobForBookmark(this.db, bookmarkId)
+  }
+
+  async cancelClassificationJob(jobId: Id, now: EpochMs = Date.now()): Promise<PersistedClassificationJobRecord> {
+    return cancelClassificationJob(this.db, jobId, now)
+  }
+
+  async retryClassificationJob(jobId: Id, now: EpochMs = Date.now()): Promise<PersistedClassificationJobRecord> {
+    return retryClassificationJob(this.db, jobId, now)
+  }
+
+  async applyClassificationResultShell(
+    input: Omit<ApplyClassificationResultShellInput, "now"> & { now?: EpochMs },
+  ): Promise<ApplyClassificationResultShellResult> {
+    return applyClassificationResultShell(this.db, { ...input, now: input.now ?? Date.now() })
   }
 
   private async collectCascadeSnapshot(

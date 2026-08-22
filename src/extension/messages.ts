@@ -21,6 +21,9 @@ export const EXTENSION_MESSAGE_ACTIONS = {
   APPLY_CATEGORY_TEMPLATES: "apply-category-templates",
   CLAIM_CLASSIFICATION_JOB: "claim-classification-job",
   APPLY_CLASSIFICATION_RESULT: "apply-classification-result",
+  GET_CLASSIFICATION_JOB: "get-classification-job",
+  RETRY_CLASSIFICATION_JOB: "retry-classification-job",
+  CANCEL_CLASSIFICATION_JOB: "cancel-classification-job",
   SEARCH_LIBRARY: "search-library",
 } as const
 
@@ -41,6 +44,33 @@ export type SaveCurrentTabPayload = Readonly<{
 export type SaveBookmarkByUrlPayload = Readonly<{
   url: string
   title?: string
+}>
+
+export type ClaimClassificationJobPayload = Readonly<{
+  executorInstanceId: string
+  jobId?: string
+}>
+
+export type ApplyClassificationResultPayload = Readonly<{
+  jobId: string
+  executorInstanceId: string
+  bookmarkRevision: number
+  outcome: "SUCCEEDED" | "FAILED" | "NEEDS_REVIEW" | "CANCELED"
+  errorCode?: string | null
+  tagIds?: string[]
+}>
+
+export type GetClassificationJobPayload = Readonly<{
+  jobId?: string
+  bookmarkId?: string
+}>
+
+export type RetryClassificationJobPayload = Readonly<{
+  jobId: string
+}>
+
+export type CancelClassificationJobPayload = Readonly<{
+  jobId: string
 }>
 
 export type ListBookmarksPayload = Readonly<{
@@ -85,8 +115,11 @@ export type ExtensionMessageRequest =
   | MessageRequest<"list-label-candidates", "dashboard", JsonValue>
   | MessageRequest<"get-category-template-catalog", "dashboard", Record<never, never>>
   | MessageRequest<"apply-category-templates", "dashboard", JsonValue>
-  | MessageRequest<"claim-classification-job", "ai-host", JsonValue>
-  | MessageRequest<"apply-classification-result", "ai-host", JsonValue>
+  | MessageRequest<"claim-classification-job", "ai-host", ClaimClassificationJobPayload>
+  | MessageRequest<"apply-classification-result", "ai-host", ApplyClassificationResultPayload>
+  | MessageRequest<"get-classification-job", "dashboard", GetClassificationJobPayload>
+  | MessageRequest<"retry-classification-job", "dashboard", RetryClassificationJobPayload>
+  | MessageRequest<"cancel-classification-job", "dashboard", CancelClassificationJobPayload>
   | MessageRequest<"search-library", "dashboard" | "ai-host", JsonValue>
 
 export type ExtensionMessageErrorCode =

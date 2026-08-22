@@ -30,6 +30,28 @@ describe("extension message protocol", () => {
     expect(parseExtensionMessage(listRequest())).toEqual(listRequest())
   })
 
+  it("accepts ai-host classification job requests", () => {
+    const claimRequest = {
+      schemaVersion: EXTENSION_MESSAGE_SCHEMA_VERSION,
+      requestId: "claim-1",
+      source: "ai-host",
+      action: "claim-classification-job",
+      payload: { executorInstanceId: crypto.randomUUID() },
+    } as const
+    expect(parseExtensionMessage(claimRequest)).toEqual(claimRequest)
+  })
+
+  it("accepts dashboard classification job management requests", () => {
+    const getRequest = {
+      schemaVersion: EXTENSION_MESSAGE_SCHEMA_VERSION,
+      requestId: "get-job-1",
+      source: "dashboard",
+      action: "get-classification-job",
+      payload: { jobId: crypto.randomUUID() },
+    } as const
+    expect(parseExtensionMessage(getRequest)).toEqual(getRequest)
+  })
+
   it("rejects unknown action, invalid source, and unknown schema version", () => {
     expect(parseExtensionMessage({ ...listRequest(), action: "unknown" })).toBeNull()
     expect(parseExtensionMessage({ ...listRequest(), source: "popup" })).toBeNull()
