@@ -1,3 +1,4 @@
+import { ChromeCategoryTemplateReceiptStore } from "~adapters"
 import { createLibraryApplication } from "~application"
 import { createSaveBookmarkMessageApplication } from "~application/save-bookmark-message-application"
 import { handleExtensionCommand } from "~extension/command-handlers"
@@ -12,6 +13,7 @@ const messageRouter = createExtensionMessageRouter(
       action: chrome.action,
       tabs: chrome.tabs,
     }),
+    new ChromeCategoryTemplateReceiptStore(chrome.storage.local),
   ),
 )
 

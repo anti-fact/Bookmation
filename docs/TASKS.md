@@ -77,10 +77,10 @@
 ### TASK-014: 初回カテゴリテンプレート
 
 - [ ] ISSUE-022で候補名／件数、set構成、選択方式、初期選択、skip、名前編集、初回後の再表示、locale、catalog version、再適用と名前競合のUXを決定する。決定前に本番候補をhardcodeしない。
-- [ ] version付きのローカルCategory template catalogを定義し、remote fetchや実行コードを含めずbundleする。
+- [x] version付きのローカルCategory template catalogを定義し、remote fetchや実行コードを含めずbundleする。
 - [ ] 初回オンボーディングへtemplate stepを追加し、catalog表示だけではCategoryを作らない。途中終了時は既存のonboarding進捗から再開する。
-- [ ] 利用者の明示適用を通常のCategory作成use caseへ渡し、`origin=USER`、Normalizer、一意名、tombstone予約を維持する。AI用Category作成経路や `origin=TEMPLATE` を追加しない。
-- [ ] 複数候補の適用requestを冪等化し、応答消失後の再送、既存／tombstone同名、部分失敗、update／reloadでの意図しない再適用を扱う。
+- [x] 利用者の明示適用を通常のCategory作成use caseへ渡し、`origin=USER`、Normalizer、一意名、tombstone予約を維持する。AI用Category作成経路や `origin=TEMPLATE` を追加しない。
+- [x] 複数候補の適用requestを冪等化し、応答消失後の再送、既存／tombstone同名、部分失敗、update／reloadでの意図しない再適用を扱う。
 - [ ] 作成されたCategoryを通常の一覧・編集・削除から扱え、既存Categoryを自動改名・削除しない。
 - [ ] Webプレビュー、Playwright実拡張E2E、人間受入で未適用／適用中／成功／競合／再開状態を確認する。
 - 完了条件: ISSUE-022がDecidedになり、利用者操作前のCategory件数が変わらず、明示適用後だけ通常のUSER Categoryが重複なく作成され、update／reload／retryで再作成されない。
