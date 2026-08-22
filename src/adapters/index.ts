@@ -5,7 +5,9 @@ export type {
   CreateCategoryInput,
   CreateTagInput,
   AssignTagEdgeInput,
+  UpdateBookmarkInput,
   ListRecentBookmarksResult,
+  LabelCandidate,
 } from "./indexeddb/local-data-layer"
 
 export type {

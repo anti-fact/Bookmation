@@ -3,6 +3,7 @@ export {
   successResponse,
   type ExtensionMessageApplication,
 } from "./extension-message-application"
+export { createLibraryApplication } from "./library-application"
 export {
   createSaveBookmarkMessageApplication,
   resetSaveBookmarkDataLayerCache,

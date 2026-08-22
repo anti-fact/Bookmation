@@ -143,10 +143,20 @@ export interface AssignTagEdgeInput {
   now?: EpochMs
 }
 
+export interface UpdateBookmarkInput {
+  bookmarkId: Id
+  expectedRevision: number
+  title: string
+  rawUrl: string
+  tagIds: readonly Id[]
+  now?: EpochMs
+}
+
 export interface ListRecentBookmarksResult {
   items: PersistedActiveBookmarkRecord[]
   nextCursor: BookmarkCursor | null
 }
+export interface LabelCandidate { id: Id; name: string; kind: "CATEGORY" | "TAG"; parentCategoryId: Id | null; revision: number; origin: PersistedLabelRecord["origin"]; usageCount: number }
 
 export class LocalDataLayer {
   private constructor(private readonly db: BookmationDatabase) {}
@@ -166,7 +176,7 @@ export class LocalDataLayer {
 
   async getBookmark(id: Id): Promise<PersistedActiveBookmarkRecord | undefined> {
     const record = await this.db.get(STORES.bookmarks, id)
-    if (!record || record.archiveState !== "ACTIVE") return undefined
+    if (!record || record.archiveState !== "ACTIVE" || record.deletedAt !== null) return undefined
     return record
   }
 
@@ -570,6 +580,44 @@ export class LocalDataLayer {
     return edge
   }
 
+  async updateBookmark(input: UpdateBookmarkInput): Promise<PersistedActiveBookmarkRecord> {
+    const now = input.now ?? Date.now()
+    const normalized = validateAndNormalizeUrl(input.rawUrl)
+    const urlHash = await computeUrlHash(normalized.normalized)
+    if (new Set(input.tagIds).size !== input.tagIds.length) {
+      throw new DomainError(DomainErrorCode.INVALID_ID, "Duplicate tag IDs")
+    }
+    const tx = this.db.transaction([...TAG_EDGE_TX_STORES], "readwrite")
+    let bookmark = await getActiveBookmarkOrThrow(tx, input.bookmarkId)
+    assertRevisionMatch(bookmark.revision, input.expectedRevision, "Bookmark")
+    for (const tagId of input.tagIds) {
+      const tag = await getLabelOrThrow(tx, tagId)
+      if (tag.kind !== "TAG" || tag.deletedAt !== null) throw new DomainError(DomainErrorCode.INVALID_ID)
+    }
+    const wanted = new Set(input.tagIds)
+    const edges = await listEdgesForBookmark(tx, bookmark.id)
+    for (const edge of edges) {
+      const label = await getLabelOrThrow(tx, edge.labelId)
+      if (label.kind !== "TAG") continue
+      if (wanted.has(edge.labelId)) {
+        if (edge.deletedAt !== null) await putEdge(tx, { ...edge, deletedAt: null, updatedAt: now, revision: nextRevision(edge.revision), assignedBy: "USER" })
+      } else if (edge.deletedAt === null) {
+        await putEdge(tx, { ...edge, deletedAt: now, updatedAt: now, revision: nextRevision(edge.revision) })
+      }
+    }
+    for (const tagId of input.tagIds) {
+      if (!edges.some((edge) => edge.labelId === tagId)) {
+        await putEdge(tx, { schemaVersion: 1, id: crypto.randomUUID(), bookmarkId: bookmark.id, labelId: tagId, classificationJobId: null, assignedBy: "USER", confidence: null, createdAt: now, updatedAt: now, revision: 1, deletedAt: null })
+      }
+    }
+    bookmark = await syncCategoryEdgesFromTags(tx, bookmark, now)
+    const updated: PersistedActiveBookmarkRecord = { ...bookmark, rawUrl: normalized.raw, normalizedUrl: normalized.normalized, urlHash, urlNormalizationVersion: normalized.normalizationVersion, title: input.title.trim(), updatedAt: now, revision: nextRevision(bookmark.revision) }
+    await putBookmark(tx, updated)
+    await tx.objectStore(STORES.searchDocuments).put(buildBookmarkSearchDocument(updated, now))
+    await tx.done
+    return updated
+  }
+
   async updateTag(command: UpdateTagCommand): Promise<UpdateTagResult> {
     assertTagParentChangeIsUserCommand(command.requestId)
     assertRequestIdNamespace(command.requestId, "tag-update:")
@@ -962,6 +1010,22 @@ export class LocalDataLayer {
       [STORES.bookmarks, STORES.bookmarkLabels, STORES.searchDocuments],
       "readwrite",
     )
+    const existing = await tx.objectStore(STORES.bookmarks).get(bookmarkId)
+    if (!existing) {
+      throw new DomainError(DomainErrorCode.INVALID_ID)
+    }
+    if (existing.archiveState !== "ACTIVE") {
+      throw new DomainError(DomainErrorCode.INVALID_ID)
+    }
+    // The retry carries the revision from immediately before deletion.  Do not
+    // create a second tombstone or advance its revision in that case.
+    if (existing.deletedAt !== null) {
+      if (existing.revision === expectedRevision + 1) {
+        await tx.done
+        return
+      }
+      assertRevisionMatch(existing.revision, expectedRevision, "Bookmark")
+    }
     const bookmark = await getActiveBookmarkOrThrow(tx, bookmarkId)
     assertRevisionMatch(bookmark.revision, expectedRevision, "Bookmark")
 
@@ -994,8 +1058,15 @@ export class LocalDataLayer {
       "readwrite",
     )
     const tag = await getLabelOrThrow(tx, tagId)
-    if (tag.kind !== "TAG" || tag.deletedAt !== null) {
+    if (tag.kind !== "TAG") {
       throw new DomainError(DomainErrorCode.INVALID_ID)
+    }
+    if (tag.deletedAt !== null) {
+      if (tag.revision === expectedRevision + 1) {
+        await tx.done
+        return
+      }
+      assertRevisionMatch(tag.revision, expectedRevision, "Tag")
     }
     assertRevisionMatch(tag.revision, expectedRevision, "Tag")
 
@@ -1066,6 +1137,26 @@ export class LocalDataLayer {
       slice.length === limit && last ? { savedAt: last.savedAt, id: last.id } : null
 
     return { items: slice, nextCursor }
+  }
+
+  async listBookmarksByLabel(labelId: Id, cursor: BookmarkCursor | null, limit = INTERNAL_PAGE_SIZE): Promise<ListRecentBookmarksResult & { totalCount: number }> {
+    const edges = await this.db.getAllFromIndex(STORES.bookmarkLabels, "byLabel", labelId)
+    const records = await Promise.all(edges.filter((edge) => edge.deletedAt === null).map((edge) => this.db.get(STORES.bookmarks, edge.bookmarkId)))
+    const active = records.filter((record): record is PersistedActiveBookmarkRecord => !!record && isActiveBookmark(record))
+    active.sort((a, b) => b.savedAt - a.savedAt || b.id.localeCompare(a.id))
+    const start = cursor ? active.findIndex((b) => b.savedAt < cursor.savedAt || (b.savedAt === cursor.savedAt && b.id < cursor.id)) : 0
+    const items = active.slice(start < 0 ? active.length : start, (start < 0 ? active.length : start) + limit)
+    const last = items.at(-1)
+    return { items, totalCount: active.length, nextCursor: items.length === limit && last ? { savedAt: last.savedAt, id: last.id } : null }
+  }
+
+  async listLabelCandidates(keyword: string, kind?: "CATEGORY" | "TAG", limit = 8): Promise<LabelCandidate[]> {
+    const needle = keyword.trim().toLowerCase()
+    if (!needle) return []
+    const labels = await this.db.getAll(STORES.labels)
+    const matches = labels.filter((label) => label.deletedAt === null && (!kind || label.kind === kind) && label.normalizedName.includes(needle))
+    const candidates = await Promise.all(matches.map(async (label) => ({ id: label.id, name: label.name, kind: label.kind, parentCategoryId: label.parentCategoryId, revision: label.revision, origin: label.origin, usageCount: (await this.db.getAllFromIndex(STORES.bookmarkLabels, "byLabel", label.id)).filter((edge) => edge.deletedAt === null).length })))
+    return candidates.sort((a, b) => b.usageCount - a.usageCount || a.name.localeCompare(b.name)).slice(0, limit)
   }
 
   /** tombstone Label を物理削除（テスト・GC 用） */
