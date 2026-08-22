@@ -55,9 +55,10 @@
 | --- | --- | --- |
 | storage | chrome.storage.localへ設定を保存 | 初期候補 |
 | activeTab | ユーザー操作時に現在タブの情報を取得 | 初期候補 |
+| host_permissions | URL指定保存のメタデータ fetch（HTML parse、favicon / thumbnail 取得） | `https://*/*` と `http://*/*` を P0 で宣言（ISSUE-D35） |
 | commands | 現在タブ保存とホーム表示の2ショートカットを宣言 | 権限ではなくManifest機能として定義 |
 
-IndexedDB利用だけを理由に追加権限は要求しない。全サイトを対象にした恒久的host_permissionsは初期候補に含めない。
+IndexedDB利用だけを理由に追加権限は要求しない。host_permissions は URL 指定保存のメタデータ fetch に限定し、現在タブ保存は `activeTab` を優先する。Manifest へ記載する host permission は上記 2 パターンだけとし、それ以外の通信目的へ転用しない。
 
 ### 技術スパイク後に判断
 
@@ -82,7 +83,8 @@ IndexedDB利用だけを理由に追加権限は要求しない。全サイト�
 - javascript:、data:など意図しないURLスキームを外部ページを開く操作に使わない。
 - P0 のURL指定保存は `http:` / `https:` だけを許可し、`javascript:`、`data:`、`chrome:`、`file:`、拡張機能URLを拒否する。現在タブ保存で追加スキームが必要になった場合は、別要件として安全性を検証する。
 - URL指定保存はpopupや現在タブ由来の値と同じURL検証を通し、入力URLをHTML、CSSクラス、コマンド、fetch先へ直接連結しない。
-- 画像URLをそのまま長期参照せず、必要なら取得・検証・縮小したBlobを保存する。
+- URL指定保存のメタデータ fetch は検証済み URL だけを対象とし、取得 HTML は parse 後に破棄する。fetch 失敗や parse 不能でも Bookmark 本体の保存は止めない。
+- 画像URLをそのまま長期参照せず、取得・検証・縮小した Blob を IndexedDB に保存し、一覧描画で外部 URL を直接参照しない。
 - 外部画像の自動読込による追跡を避ける。
 - URL表示は省略しても、開く前にホスト名を確認できるようにする。
 - CSSクラス名や属性へ未検証文字列を連結しない。
@@ -254,7 +256,7 @@ Chromeプロファイルへアクセスできる同一端末の攻撃者から�
 
 実装後、少なくとも次を確認する。
 
-- Manifestの権限が使用機能と一致し、不要なhost_permissionsがない。
+- Manifestの権限が使用機能と一致し、host_permissions は `https://*/*` と `http://*/*` のみで URL 指定保存のメタデータ fetch に使われている。
 - popupと2つのcommandsがallowlist済み操作だけを起動し、URL指定保存が不正スキーム・過大入力を拒否する。
 - `runtime.onInstalled` はinstall時だけパッケージ内オンボーディングURLを開いてonboardingStateを未初期化時だけ作り、updateやService Worker再起動で進捗・完了状態を巻き戻さない。
 - Category template catalogがローカル版付きassetだけから読み込まれ、閲覧時にはLabelを書き込まず、明示適用した候補だけが通常のUSER Category検証を通る。retry、update、reloadで重複作成または既存Categoryの上書きを行わない。

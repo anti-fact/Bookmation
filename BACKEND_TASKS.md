@@ -85,8 +85,8 @@ flowchart TD
 | --- | --- | --- | --- | --- | --- |
 | BE-00 | 開発基盤とバックエンドPlan | 完了 | T-taku | なし | チームが同じコマンドで実装を開始できる |
 | BE-01 | Domain型と不変条件 | 完了 | GreenTea | BE-00 | 不正なBookmark・Label・AI結果を共通規則で拒否できる |
-| BE-02 | IndexedDBとRepository | 進行中 | 未定 | BE-01 | 再読込後もデータが残り、一覧をカーソル取得できる |
-| BE-03 | Message契約とService Worker | 完了 | 未定 | BE-01 | popup、dashboard、workerが安全に連携できる |
+| BE-02 | IndexedDBとRepository | 完了 | 🐳 | BE-01 | 再読込後もデータが残り、一覧をカーソル取得できる |
+| BE-03 | Message契約とService Worker | 進行中 | 未定 | BE-01 | popup、dashboard、workerが安全に連携できる |
 | BE-04 | 現在ページ・URL保存 | 未着手 | 未定 | BE-02、BE-03 | AIなしでもBookmarkを保存できる |
 | BE-05 | 編集・親子Label・一覧Query | 未着手 | 未定 | BE-02、BE-03 | 編集、削除、親カテゴリ／子タグ管理、候補・一覧取得ができる |
 | BE-19 | 初回Category template適用 | 未着手 | 未定 | ISSUE-022、BE-03、BE-05 | 利用者が明示適用したtemplate Categoryだけを通常規則で重複なく作成できる |

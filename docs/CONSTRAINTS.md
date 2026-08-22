@@ -69,7 +69,7 @@
 
 - 正本はIndexedDB上の版付きJSON互換ドキュメント、少量設定は `chrome.storage.local` のJSON互換値とする。SQL/RDBを前提にしない。
 - JSON文書には `schemaVersion` を持たせ、`undefined`、関数、循環参照、非有限数、BigIntを保存しない。画像BlobはID参照にして別Storeへ分離する。
-- P0 の初期権限候補は `storage` と `activeTab`。`commands` は2操作を manifest 宣言する。
+- P0 の初期権限候補は `storage`、`activeTab`、`host_permissions`（`https://*/*` と `http://*/*`、URL 指定保存のメタデータ fetch 専用）。`commands` は2操作を manifest 宣言する。
 - P1では `contextMenus` と定期判定用 `alarms` を宣言し、`history`、`notifications`、`bookmarks`、`identity` / Drive OAuthは機能の開始時に目的を説明して必要な範囲だけ要求する。リマインダー開始時は履歴・通知、自動archive toggleのON操作時は履歴だけを要求する。自動archiveはhistory許可前にONへ保存せず、後から権限が消えた場合もOFFへ戻す。P0へ無条件追加しない。
 - 履歴は判定に必要な集約値だけを保持し、履歴の追加・削除を行わない。Drive OAuthトークンはIndexedDBや同期payloadへ保存しない。
 - アーカイブ済みBookmarkはページ名、URL、カテゴリのID／表示名、タグのID／表示名／親カテゴリID以外のサムネイル、説明、検索用本文、訪問集約値を保持しない。復元に不可欠なBookmark ID、状態、schema version等は分離した最小メタデータとして扱う。
