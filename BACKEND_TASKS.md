@@ -358,7 +358,7 @@ Plan: [docs/plans/2026-08-23-be-10-security-hardening.md](docs/plans/2026-08-23-
 
 完了条件: [SECURITY.md](docs/SECURITY.md) のP0確認を自動テストと手動権限レビューで満たす。
 
-完了メモ: 2026-08-23。PR 作成予定。`src/domain/security/`、validated image Blob、`faviconSrc`/`thumbnailSrc` 一覧契約、log redaction、manifest テスト。292 テストパス、`pnpm build` 成功。手動: Dashboard 一覧スクロール時 DevTools Network に保存元サイトへの画像リクエストなしを確認。Plan: [docs/plans/2026-08-23-be-10-security-hardening.md](docs/plans/2026-08-23-be-10-security-hardening.md)。
+完了メモ: 2026-08-23。PR [#69](https://github.com/anti-fact/Bookmation/pull/69)。`src/domain/security/`、validated image Blob、`faviconSrc`/`thumbnailSrc` 一覧契約、log redaction、manifest テスト。292 テストパス、`pnpm build` 成功。手動: Dashboard 一覧スクロール時 DevTools Network に保存元サイトへの画像リクエストなしを確認。Plan: [docs/plans/2026-08-23-be-10-security-hardening.md](docs/plans/2026-08-23-be-10-security-hardening.md)。
 
 ### BE-11 中断復旧とMigration
 
