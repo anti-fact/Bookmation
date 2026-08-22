@@ -7,6 +7,7 @@ import * as React from "react"
 import { AppHeader } from "~/ui/components/AppHeader"
 import { AppShell } from "~/ui/components/AppShell"
 import { Button } from "~/ui/primitives"
+import { PromptApiTester } from "./PromptApiTester"
 
 import { useAppRuntime, useHashRouteStore } from "./AppProviders"
 import {
@@ -222,11 +223,27 @@ function RouteBody({ navigate, route }: RouteBodyProps) {
         </nav>
         <section
           aria-label={`${settingsLabels[route.section]}設定の内容`}
-          className="min-h-64 rounded-bm-dialog border-2 border-bm-border bg-bm-paper p-5 sm:p-8"
+          className="space-y-6 rounded-bm-dialog border-2 border-bm-border bg-bm-paper p-5 sm:p-8"
         >
-          <p className="m-0 text-sm leading-6 text-bm-muted-text">
-            この設定項目は現在準備中です。
-          </p>
+          {route.section === "general" && (
+            <>
+              <div>
+                <h3 className="font-semibold text-bm-ink">一般設定</h3>
+                <p className="mt-2 text-sm leading-6 text-bm-muted-text">
+                  この設定項目は現在準備中です。
+                </p>
+              </div>
+              {/* TASK-007: Prompt API スパイク実装 */}
+              <div className="border-t border-bm-border pt-6">
+                <PromptApiTester />
+              </div>
+            </>
+          )}
+          {route.section !== "general" && (
+            <p className="m-0 text-sm leading-6 text-bm-muted-text">
+              この設定項目は現在準備中です。
+            </p>
+          )}
         </section>
       </div>
     )

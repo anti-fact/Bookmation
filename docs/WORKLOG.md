@@ -32,16 +32,16 @@
 
 ### 検証状況
 
-| 確認項目 | 状態 | 備考 |
-| --- | --- | --- |
-| 指定された文書が全て存在する | 確認済み | 指定19ファイルが `docs/` 直下に存在する |
-| `AGENTS.md` が目次だけである | 確認済み | 見出しとMarkdownリンク以外の本文がない |
-| Markdown相対リンクが解決する | 確認済み | Markdownパーサーで相対リンク161件、見出しリンク12件、参照先漏れ0件 |
-| 外部参考リンクが応答する | 確認済み | 重複を除く25 URLへ2026-08-14にGETし、全てHTTP 200。内容の恒久性を保証するものではない |
-| `AI_GUIDE.md` が空である | 確認済み | `wc -c` で0バイト |
-| 要件と設計の矛盾がない | 静的レビュー済み | 最新依頼をPDFより優先し、右タグサイドバー、3段階分類、3表示、Prompt APIの非Worker実行へ統一した |
-| ビルド・lint・型検査・テスト | 実行不能 | 2026-08-14時点ではソースと`package.json`がない |
-| Chrome実機・Prompt API | 未実施 | 文書作業のみで、拡張機能も未実装 |
+| 確認項目                     | 状態             | 備考                                                                                            |
+| ---------------------------- | ---------------- | ----------------------------------------------------------------------------------------------- |
+| 指定された文書が全て存在する | 確認済み         | 指定19ファイルが `docs/` 直下に存在する                                                         |
+| `AGENTS.md` が目次だけである | 確認済み         | 見出しとMarkdownリンク以外の本文がない                                                          |
+| Markdown相対リンクが解決する | 確認済み         | Markdownパーサーで相対リンク161件、見出しリンク12件、参照先漏れ0件                              |
+| 外部参考リンクが応答する     | 確認済み         | 重複を除く25 URLへ2026-08-14にGETし、全てHTTP 200。内容の恒久性を保証するものではない           |
+| `AI_GUIDE.md` が空である     | 確認済み         | `wc -c` で0バイト                                                                               |
+| 要件と設計の矛盾がない       | 静的レビュー済み | 最新依頼をPDFより優先し、右タグサイドバー、3段階分類、3表示、Prompt APIの非Worker実行へ統一した |
+| ビルド・lint・型検査・テスト | 実行不能         | 2026-08-14時点ではソースと`package.json`がない                                                  |
+| Chrome実機・Prompt API       | 未実施           | 文書作業のみで、拡張機能も未実装                                                                |
 
 ### 次の作業
 
@@ -66,16 +66,16 @@
 
 ### 検証
 
-| 確認項目 | 結果 |
-| --- | --- |
-| 指定文書 | `docs/` 直下の19ファイルが存在する |
-| Markdownリンク | 相対リンク177件、うち見出しリンク13件をパーサーで検査し、参照先漏れ0件 |
-| 旧仕様識別子 | `majorCategories`、`majorCategoryId`、`parentTagId`、旧検索scopeの現行仕様への残存0件 |
-| 文書形式 | コードフェンス不整合0件、末尾空白0件 |
-| `AGENTS.md` | 見出しと索引リンクだけである |
-| `AI_GUIDE.md` | 0バイトのままである |
-| 添付PDF | SHA-256は `0817bed21a4a532572688ddb108a991232162fd30cf686a533cc88c79d591d31` で、文書更新前の確認値と同一 |
-| 実装検証 | `package.json` とアプリソースがないため、build、lint、型検査、Chrome実機確認は実行不能 |
+| 確認項目       | 結果                                                                                                      |
+| -------------- | --------------------------------------------------------------------------------------------------------- |
+| 指定文書       | `docs/` 直下の19ファイルが存在する                                                                        |
+| Markdownリンク | 相対リンク177件、うち見出しリンク13件をパーサーで検査し、参照先漏れ0件                                    |
+| 旧仕様識別子   | `majorCategories`、`majorCategoryId`、`parentTagId`、旧検索scopeの現行仕様への残存0件                     |
+| 文書形式       | コードフェンス不整合0件、末尾空白0件                                                                      |
+| `AGENTS.md`    | 見出しと索引リンクだけである                                                                              |
+| `AI_GUIDE.md`  | 0バイトのままである                                                                                       |
+| 添付PDF        | SHA-256は `0817bed21a4a532572688ddb108a991232162fd30cf686a533cc88c79d591d31` で、文書更新前の確認値と同一 |
+| 実装検証       | `package.json` とアプリソースがないため、build、lint、型検査、Chrome実機確認は実行不能                    |
 
 ### 残課題
 
@@ -96,13 +96,13 @@
 
 ### 検証
 
-| 確認項目 | 結果 |
-| --- | --- |
-| Markdownファイル名 | `README.md`、`AGENTS.md`、`docs/`直下19文書のベース名がすべて大文字規則に一致 |
-| Markdownリンク | README、AGENTS、docsを含む相対リンク192件、見出しリンク13件を検査し、参照先漏れ0件 |
-| 旧ファイル名参照 | 現行リンクへの `index.md`、`db-schema.md`、`tech-debt-tracker.md` の残存0件 |
-| `AI_GUIDE.md` | 0バイトのままである |
-| 実装検証 | `package.json` がないため、build、lint、Chrome実機確認は実行不能 |
+| 確認項目           | 結果                                                                               |
+| ------------------ | ---------------------------------------------------------------------------------- |
+| Markdownファイル名 | `README.md`、`AGENTS.md`、`docs/`直下19文書のベース名がすべて大文字規則に一致      |
+| Markdownリンク     | README、AGENTS、docsを含む相対リンク192件、見出しリンク13件を検査し、参照先漏れ0件 |
+| 旧ファイル名参照   | 現行リンクへの `index.md`、`db-schema.md`、`tech-debt-tracker.md` の残存0件        |
+| `AI_GUIDE.md`      | 0バイトのままである                                                                |
+| 実装検証           | `package.json` がないため、build、lint、Chrome実機確認は実行不能                   |
 
 ## 2026-08-14 — 実装タスク一覧の作成
 
@@ -118,14 +118,14 @@
 
 ### 検証
 
-| 確認項目 | 結果 |
-| --- | --- |
-| 文書数 | `docs/`直下のMarkdownは20ファイル |
+| 確認項目       | 結果                                                                               |
+| -------------- | ---------------------------------------------------------------------------------- |
+| 文書数         | `docs/`直下のMarkdownは20ファイル                                                  |
 | Markdownリンク | README、AGENTS、docsを含む相対リンク213件、見出しリンク13件を検査し、参照先漏れ0件 |
-| 文書名 | 全Markdownのベース名が大文字規則に一致 |
-| `AGENTS.md` | `docs/`直下20文書を過不足なく列挙 |
-| `AI_GUIDE.md` | 0バイトのままである |
-| 実装検証 | `package.json`がないため、build、lint、Chrome実機確認は実行不能 |
+| 文書名         | 全Markdownのベース名が大文字規則に一致                                             |
+| `AGENTS.md`    | `docs/`直下20文書を過不足なく列挙                                                  |
+| `AI_GUIDE.md`  | 0バイトのままである                                                                |
+| 実装検証       | `package.json`がないため、build、lint、Chrome実機確認は実行不能                    |
 
 ## 2026-08-15 — デザインシート準拠のUI要件更新
 
@@ -146,15 +146,15 @@
 
 ### 検証
 
-| 確認項目 | 結果 |
-| --- | --- |
-| 差分形式 | `git diff --check` 成功 |
-| Markdown | 22ファイル、fence不整合0件、base nameは全て大文字規則に一致 |
-| リンク | fence内templateを除く相対リンク199件、見出しリンク11件、参照エラー0件 |
-| 旧UI識別子 | active specに旧search route/use case、ranked candidate、grid/bento列設定、BENTO enum、右追従sidebarの採用記述0件 |
-| `AI_GUIDE.md` | 0バイトを維持 |
-| SVG | SHA-256 `c704c52370a61cc30dba54481e134bbd638acf775695690b92275512c4d181d8`。確認前後で同一 |
-| 実装検証 | `package.json` とアプリソースがないためbuild、test、Chrome実機確認は未実施 |
+| 確認項目      | 結果                                                                                                             |
+| ------------- | ---------------------------------------------------------------------------------------------------------------- |
+| 差分形式      | `git diff --check` 成功                                                                                          |
+| Markdown      | 22ファイル、fence不整合0件、base nameは全て大文字規則に一致                                                      |
+| リンク        | fence内templateを除く相対リンク199件、見出しリンク11件、参照エラー0件                                            |
+| 旧UI識別子    | active specに旧search route/use case、ranked candidate、grid/bento列設定、BENTO enum、右追従sidebarの採用記述0件 |
+| `AI_GUIDE.md` | 0バイトを維持                                                                                                    |
+| SVG           | SHA-256 `c704c52370a61cc30dba54481e134bbd638acf775695690b92275512c4d181d8`。確認前後で同一                       |
+| 実装検証      | `package.json` とアプリソースがないためbuild、test、Chrome実機確認は未実施                                       |
 
 ### 残課題
 
@@ -218,16 +218,16 @@
 
 ### 検証
 
-| 確認項目 | 結果 |
-| --- | --- |
-| 差分形式 | `git diff --check` 成功 |
-| Markdown | 23ファイル、fence block 30件、未閉鎖0件 |
-| リンク | fence内sampleを除く相対リンク217件、見出しリンク11件、参照エラー0件 |
-| ファイル名 | root／docsのMarkdown basenameは大文字、`AI_GUIDE.md` は0バイト |
-| 旧仕様scan | active specの旧名称、画面別search API、旧join名、保留表現、旧archive fieldは0件 |
-| タスク整合 | BE-00〜BE-18が一覧19件・詳細19件で一致、Mermaid block 2件 |
-| 正本assertion | FR-101〜110、TASK-101〜106、検索順、JSON、archive、閾値、権限・同期識別子を静的確認 |
-| 実装検証 | `package.json` とアプリソースがないためbuild、test、Chrome実機、Drive、QR動作確認は未実施 |
+| 確認項目      | 結果                                                                                      |
+| ------------- | ----------------------------------------------------------------------------------------- |
+| 差分形式      | `git diff --check` 成功                                                                   |
+| Markdown      | 23ファイル、fence block 30件、未閉鎖0件                                                   |
+| リンク        | fence内sampleを除く相対リンク217件、見出しリンク11件、参照エラー0件                       |
+| ファイル名    | root／docsのMarkdown basenameは大文字、`AI_GUIDE.md` は0バイト                            |
+| 旧仕様scan    | active specの旧名称、画面別search API、旧join名、保留表現、旧archive fieldは0件           |
+| タスク整合    | BE-00〜BE-18が一覧19件・詳細19件で一致、Mermaid block 2件                                 |
+| 正本assertion | FR-101〜110、TASK-101〜106、検索順、JSON、archive、閾値、権限・同期識別子を静的確認       |
+| 実装検証      | `package.json` とアプリソースがないためbuild、test、Chrome実機、Drive、QR動作確認は未実施 |
 
 ### 残課題
 
@@ -316,15 +316,15 @@
 
 ### 検証
 
-| 確認項目 | 結果 |
-| --- | --- |
-| 差分形式 | 担当11文書への `git diff --check` 成功 |
-| Markdown | Nodeによる担当11文書のfenceと相対リンク172件、現行仕様assertionの検査に成功 |
-| lint | `node_modules/.bin/eslint .` 成功 |
-| 型検査 | `node_modules/.bin/tsc --noEmit` 成功 |
-| unit test | `node_modules/.bin/vitest run` 成功（1 file、2 tests） |
-| build | `node_modules/.bin/plasmo build` 成功（Chrome MV3） |
-| `AI_GUIDE.md` | 0バイトを維持し、編集していない |
+| 確認項目      | 結果                                                                        |
+| ------------- | --------------------------------------------------------------------------- |
+| 差分形式      | 担当11文書への `git diff --check` 成功                                      |
+| Markdown      | Nodeによる担当11文書のfenceと相対リンク172件、現行仕様assertionの検査に成功 |
+| lint          | `node_modules/.bin/eslint .` 成功                                           |
+| 型検査        | `node_modules/.bin/tsc --noEmit` 成功                                       |
+| unit test     | `node_modules/.bin/vitest run` 成功（1 file、2 tests）                      |
+| build         | `node_modules/.bin/plasmo build` 成功（Chrome MV3）                         |
+| `AI_GUIDE.md` | 0バイトを維持し、編集していない                                             |
 
 PATH上に `pnpm` がなかったため、同じcheckoutの `node_modules/.bin` にある固定済み実行ファイルで品質確認した。UI Webプレビュー、Playwright拡張E2E、人間の実Chrome確認、Prompt API、OS通知、QRカメラ、実Googleアカウント／Driveは未実装または未実施であり、文書更新だけで動作確認済みとはしない。
 
@@ -350,16 +350,16 @@ PATH上に `pnpm` がなかったため、同じcheckoutの `node_modules/.bin` 
 
 ### 検証
 
-| 確認項目 | 結果 |
-| --- | --- |
-| 差分形式 | 担当11文書への `git diff --check` 成功 |
-| Markdown | Nodeによる担当11文書の相対リンク172件、code fence 30 markerを検査し、エラー0件 |
-| 現行仕様assertion | 必須監査語と旧global抑止／旧設定名等の禁止表現を検査し、エラー0件 |
-| lint | `node_modules/.bin/eslint .` 成功 |
-| 型検査 | `node_modules/.bin/tsc --noEmit` 成功 |
-| unit test | `node_modules/.bin/vitest run` 成功（1 file、2 tests） |
-| build | `node_modules/.bin/plasmo build` 成功（Plasmo 0.90.5、Chrome MV3） |
-| `AI_GUIDE.md` | 0バイトを維持し、編集していない |
+| 確認項目          | 結果                                                                           |
+| ----------------- | ------------------------------------------------------------------------------ |
+| 差分形式          | 担当11文書への `git diff --check` 成功                                         |
+| Markdown          | Nodeによる担当11文書の相対リンク172件、code fence 30 markerを検査し、エラー0件 |
+| 現行仕様assertion | 必須監査語と旧global抑止／旧設定名等の禁止表現を検査し、エラー0件              |
+| lint              | `node_modules/.bin/eslint .` 成功                                              |
+| 型検査            | `node_modules/.bin/tsc --noEmit` 成功                                          |
+| unit test         | `node_modules/.bin/vitest run` 成功（1 file、2 tests）                         |
+| build             | `node_modules/.bin/plasmo build` 成功（Plasmo 0.90.5、Chrome MV3）             |
+| `AI_GUIDE.md`     | 0バイトを維持し、編集していない                                                |
 
 UI Webプレビュー、Playwright拡張E2E、人間の実Chrome確認、Prompt API、OS通知、QRカメラ、実Googleアカウント／Driveは未実装または未実施である。静的検査と現行scaffoldのbuild成功を、これらの動作確認済みとは扱わない。
 
@@ -765,6 +765,146 @@ UI、DB、AIの全入口で共通適用するDomain型、不変条件バリデ�
 ### 残課題
 
 - BE-02 (IndexedDB と Repository 実装): Domain 型・不変条件を利用して IndexedDB schema、ストア、インデックス、トランザクション境界、Repository を実装する。
+
+## 2026-08-22 — TASK-007 Prompt API Host Spike - 初回実機テスト
+
+### 目的
+
+Chrome Prompt API（Gemini Nano）の対応条件を実機で検証し、ISSUE-001 の要件を確認する。Dashboard top-level page で LanguageModel.availability()・create()・prompt() をテストし、対応環境、最低 Chrome バージョン、日本語対応、構造化出力を記録する。
+
+### 変更
+
+- `src/ui/app/PromptApiTester.tsx` を新規作成。Availability チェック、日本語分類テスト、環境情報表示機能を実装した。
+- `src/ui/app/ExtensionApp.tsx` の settings セクション（一般設定）に PromptApiTester を統合。
+- Chrome Prompt API の型定義を追加し、`window.LanguageModel` にアクセスする型安全なインターフェースを定義した。
+- `docs/TASK-007-spike-impl.md`、`docs/TASK-007-test-manual.md` を作成し、実装詳細とテスト手順を記録した。
+
+### 検証・実機テスト結果
+
+**環境:**
+
+- Chrome バージョン: 151.0.7922.172（公式ビルド、64 ビット）
+- OS: Windows 11 Version 25H2（Build 26200.9168）
+- デバイス: デスクトップ
+
+**テスト実行:**
+
+- `pnpm build`: 成功。`build/chrome-mv3-prod/` へ拡張機能が生成された。
+- Chrome 拡張読み込み: 成功。`chrome://extensions` で拡張機能を読み込みした。
+- PromptApiTester UI 起動: 成功。Dashboard > Settings > 一般 でテスターが表示された。
+- Availability チェック: **失敗**。以下のエラーが発生：
+  ```
+  エラー: Availability check failed: Failed to execute 'availability' on 'LanguageModel':
+  Failed to read the 'expectedInputs' property from 'LanguageModelCreateCoreOptions':
+  The provided value is not of type 'LanguageModelExpected'.
+  ```
+
+**原因分析:**
+
+- `expectedInputs: ["text"]` の形式が正しくない。Chrome Prompt API v151 では異なる型定義が必要。
+- 公式ドキュメント再確認が必要。
+
+**暫定結論:**
+
+- LanguageModel は環境で利用可能（エラーが出ているため、定義とアクセスは成功）。
+- 型引数の形式修正が必須。
+- Chrome 151 での Prompt API 対応は確認（実装側の型定義の問題）。
+
+### 次のステップ
+
+1. Chrome Prompt API v151 の公式仕様を再確認。
+2. `expectedInputs` / `expectedOutputs` の正しい型を特定。
+3. PromptApiTester.tsx を修正。
+4. 再度実機テスト実行。
+
+### 残課題
+
+- Availability / モデル準備 / 日本語分類テストの実行。
+- 最低 Chrome バージョン確認。
+- AI 非対応時のエラーハンドリング検証。
+
+## 2026-08-22 — TASK-007 型定義修正と再テスト
+
+### 目的
+
+Chrome Prompt API v151 での型定義エラーを修正し、Availability チェックが正常に動作することを確認する。
+
+### 変更
+
+- `src/ui/app/PromptApiTester.tsx` の型定義を修正。
+  - 旧: `expectedInputs: string[]` / `expectedOutputs: string[]`
+  - 新: `expectedInputs: {type: string}[]` / `expectedOutputs: {type: string}[]`
+- Chrome v151 での LanguageModelOptions インターフェースを `{type: string}[]` 形式に更新。
+
+### 検証・再テスト結果
+
+**環境:**
+
+- Chrome バージョン: 151.0.7922.172（公式ビルド、64 ビット）
+- OS: Windows 11 Version 25H2（Build 26200.9168）
+- デバイス: デスクトップ
+
+**テスト実行:**
+
+- `pnpm build`: 成功。
+- 型チェック: 成功（エラー0件）。
+- 拡張機能再度読み込み: 成功。
+- Availability チェック実行: **成功** ✓
+  - **状態: `downloadable`**（青で表示）
+  - Gemini Nano モデルがダウンロード可能な状態
+
+**結論:**
+
+- Chrome v151 での型定義修正成功。
+- Prompt API は対応環境で利用可能（Gemini Nano 候補確認）。
+- モデルはダウンロード可能だが、まだインストールされていない。
+
+### 次のステップ
+
+1. **モデル取得** - ユーザー操作でモデルをダウンロード（数GB になる可能性）
+   - Availability が `downloading` → `available` に遷移することを確認
+2. **日本語分類テスト** - モデル準備完了後に実行
+3. **構造化 JSON 出力確認** - プロンプト応答形式を確認
+4. 最終結果を ISSUE-001 に記録
+
+### 残課題
+
+- モデルダウンロード完了待機（`downloadable` → `downloading` → `available`）。
+- 日本語分類テストの実行。
+- モデル取得に要する時間と容量の確認。
+
+## 2026-08-22 — TASK-007 モデル取得後の日本語分類テスト
+
+### 検証・実機テスト結果
+
+- Chrome バージョン: 151.0.7922.172（公式ビルド、64 ビット）
+- OS: Windows 11 Version 25H2（Build 26200.9168）
+- モデル取得後の分類テスト: **成功**
+- 日本語プロンプト入力: 成功
+- 日本語分類結果: 成功
+- 構造化 JSON 形式の応答: 成功
+
+実機で以下の応答を確認した。
+
+```json
+{
+  "category": "開発・技術",
+  "tags": ["React", "JavaScript", "Web開発", "フレームワーク"],
+  "confidence": 0.95
+}
+```
+
+### 結論
+
+- Chrome 151、Windows 11 の Dashboard top-level extension page で、モデル取得後に日本語分類と JSON 形式の応答を確認できた。
+- Prompt API は実機環境で正常に実行できた。
+- `confidence` やカテゴリ・タグ名はAI出力であるため、実装時はDomain境界で検証し、候補外IDや不正値をそのまま適用しない。
+
+### 残課題
+
+- `downloadable` から `available` までのモデル取得状態遷移、取得時間、容量は未記録。
+- Chrome 151 は検証できた環境であり、最低対応Chrome版は未確定。
+- 非対応環境、モデル取得失敗、セッション終了時のfallback検証。
 
 ## 追記テンプレート
 
