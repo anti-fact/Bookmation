@@ -23,7 +23,9 @@ Dashboard の一般設定セクションに Prompt API 検証 UI を追加。
   - 対応可能時のみ有効（`availability === "available"`）
   - `LanguageModel.create()` でセッション作成
   - 日本語でのプロンプト送信
-  - 構造化JSON出力の確認
+  - `responseConstraint` による構造化JSON出力の確認
+  - `downloadprogress` によるモデル取得進捗の確認
+  - `destroy()` によるセッション終了
   - テスト結果の表示
 
 - **環境情報**
@@ -87,7 +89,15 @@ Dashboard の一般設定セクションに Prompt API 検証 UI を追加。
 | ユーザー操作     | ボタンクリックから実行   | ジェスチャ完了後に実行              |
 | 実行場所制限     | Dashboard top-level page | Service Worker/Offscreen/Worker以外 |
 
-### 次のフェーズ（実機テスト後）
+### 実機検証済み（2026-08-22）
+
+- Chrome `151.0.7922.172` / Windows 11 Version 25H2
+- Availability: `downloadable`
+- モデル取得後の日本語分類: 成功
+- 構造化JSON応答: 成功
+- 応答例は [WORKLOG.md](../docs/WORKLOG.md) に記録済み
+
+### 次のフェーズ（未検証項目）
 
 1. **ISSUE-001 への記録**
    - 対応 Chrome バージョン
@@ -107,17 +117,17 @@ Dashboard の一般設定セクションに Prompt API 検証 UI を追加。
 
 ### 注意事項
 
-- **実機テスト必須**: コンポーネント実装は完了したが、実機での Prompt API 動作確認はまだ
+- **実機テスト済み**: Availability、モデル取得後の日本語分類、構造化JSON応答を確認済み
 - **Chrome バージョン**: 最新版 Chrome で確認推奨（Gemini Nano 対応バージョン）
 - **モデル取得**: 初回実行時にモデルダウンロードが必要な場合あり（数GB）
 - **ローカル実行**: すべてデバイス内で実行（外部API不使用）
 
 ## TASK-007 完了条件
 
-- [ ] 実機で Availability チェック確認
-- [ ] 日本語での分類動作確認
+- [x] 実機で Availability チェック確認
+- [x] 日本語での分類動作確認
 - [ ] 最低 Chrome バージョン確認
-- [ ] Service Worker での実行がないことを確認
-- [ ] エラーハンドリングの確認
+- [x] Service Worker での実行がないことを確認
+- [x] エラーハンドリングの確認
 - [ ] 対応条件を ISSUE-001 に記録
-- [ ] ドキュメント更新完了
+- [x] ドキュメント更新完了

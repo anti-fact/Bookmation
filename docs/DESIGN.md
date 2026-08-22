@@ -6,31 +6,31 @@
 
 ## 設計原則
 
-1. Chrome標準Bookmarkとは分離した、版付きJSON互換ドキュメントをローカル正本にする。
-2. カテゴリを親、タグを子とする固定2階層とし、activeなタグはactiveな親カテゴリを1件だけ持つ。tombstoneタグは削除済みの親を参照でき、子tombstoneが残る親は物理回収しない。
+1. Chrome標準Bookmarkとは別に、拡張機能専用のJSON互換ドキュメントをローカル正本にする。
+2. カテゴリを親、タグを子とする固定2階層とし、activeなタグはactiveな親カテゴリを持つ。
 3. カテゴリ名とタグ名は、それぞれの名前空間で正規化後に全体一意とする。タグは親カテゴリが異なっても同名を許さない。
 4. AIは既存のユーザー定義タグを優先し、細分化度0〜4の上限内でタグだけを新規作成する。
 5. 細分化度0でも既存カテゴリ／タグの自動選択・付与は継続する。
 6. Bookmarkを先に永続化し、AI失敗で保存を巻き戻さない。
 7. UIの配置と外観は `figma/Bookmation.svg`、部品と状態は `figma/Bookmation_component.svg`、機能と挙動は [REQUIREMENTS.md](./REQUIREMENTS.md) を正本にする。
-8. Prompt APIはService Workerで実行せず、対応を実証したトップレベル拡張ページでだけ実行する。
+8. Prompt APIはService Workerで実行せず、対応を実証したトップレベル拡張ページでだけ実行する。TASK-007の実機スパイクではDashboardをAI Hostとして、`availability`、`create`、`prompt`、日本語入出力、JSON Schemaによる構造化出力、モデル取得後の分類を確認した。Side Panelは未検証であり、Offscreen Document対応を仮定しない。最低Chrome版、配布要件、モデル取得時間・容量、非対応時のfallbackは [ISSUE-001](./ISSUES.md) の残課題とする。
 9. 同じReact componentをfake AdapterでWeb表示し、AIエージェントの実拡張Playwright確認後に人間が受け入れる。
 
 ## 構成
 
-| 構成要素 | 責務 |
-| --- | --- |
-| Plasmo popup | 現在ページ保存、ホーム表示、ショートカット表示、変更案内 |
-| Plasmo dashboard | welcome、Bookmark一覧、検索、カテゴリ・タグ、設定、overlay、AI Host |
-| React + Radix Primitives + Tailwind | デザインシートを再現する画面、behavior、状態、アクセシビリティ |
-| MV3 Service Worker | install、commands、contextMenus、alarms、保存、履歴判定、Repository、job、AI結果再検証 |
-| IndexedDB | Bookmark、Category、Tag、関連、archive、job、reminder suppression、import、sync outboxのJSON文書と画像Blob |
-| `chrome.storage.local` | LIST / GRID、訪問期間／日数、archive日数、reminder有効、AI細分化0〜4等の小設定 |
-| Chrome Prompt API | ローカル分類、自然言語検索、製品機能案内。対応時だけ利用 |
-| Google Drive adapter | 同一アカウントのappData同期、通常Drive fileによる権限付きアカウント間共有、競合管理 |
-| Share export / QR adapter | 選択BookmarkのQR／CSV生成、QR容量検査、QR読取、検証、import |
-| Web UI preview | 本番componentと決定的fixtureを通常Webページで表示 |
-| Playwright E2E | ビルド済み拡張を隔離Chromium profileで操作し証拠を保存 |
+| 構成要素                            | 責務                                                                                                       |
+| ----------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| Plasmo popup                        | 現在ページ保存、ホーム表示、ショートカット表示、変更案内                                                   |
+| Plasmo dashboard                    | welcome、Bookmark一覧、検索、カテゴリ・タグ、設定、overlay、AI Host                                        |
+| React + Radix Primitives + Tailwind | デザインシートを再現する画面、behavior、状態、アクセシビリティ                                             |
+| MV3 Service Worker                  | install、commands、contextMenus、alarms、保存、履歴判定、Repository、job、AI結果再検証                     |
+| IndexedDB                           | Bookmark、Category、Tag、関連、archive、job、reminder suppression、import、sync outboxのJSON文書と画像Blob |
+| `chrome.storage.local`              | LIST / GRID、訪問期間／日数、archive日数、reminder有効、AI細分化0〜4等の小設定                             |
+| Chrome Prompt API                   | ローカル分類、自然言語検索、製品機能案内。対応時だけ利用                                                   |
+| Google Drive adapter                | 同一アカウントのappData同期、通常Drive fileによる権限付きアカウント間共有、競合管理                        |
+| Share export / QR adapter           | 選択BookmarkのQR／CSV生成、QR容量検査、QR読取、検証、import                                                |
+| Web UI preview                      | 本番componentと決定的fixtureを通常Webページで表示                                                          |
+| Playwright E2E                      | ビルド済み拡張を隔離Chromium profileで操作し証拠を保存                                                     |
 
 ## 主要画面
 
@@ -78,12 +78,12 @@
 8. 失敗時もBookmarkを残し、手動編集へ案内する。
 
 | 細分化度 | 新規AI Tag上限 |
-| --- | --- |
-| 0 | 0 |
-| 1 | 1 |
-| 2 | 2 |
-| 3 | 4 |
-| 4 | 6 |
+| -------- | -------------- |
+| 0        | 0              |
+| 1        | 1              |
+| 2        | 2              |
+| 3        | 4              |
+| 4        | 6              |
 
 ## メディア取得
 
@@ -95,12 +95,12 @@ Bookmark保存時のサムネイルはページの `og:image` を第一候補と
 
 キーワード検索とAI自然言語処理は入口と表示を分ける。
 
-| 機能 | 入力 | 表示 | 対象 |
-| --- | --- | --- | --- |
-| 入力中候補 | 両一覧の検索box | Google検索型popover、最大8件 | Category、Tag、Bookmark |
-| 確定キーワード検索 | Enter／検索button | `#/search` のfull page | Category、Tag、Bookmark |
-| AI自然言語検索 | AI popup | popup内の回答と候補 | Category、Tag、Bookmark |
-| AI機能案内 | AI popup | popup内の説明と画面link | Bookmation機能全般 |
+| 機能               | 入力              | 表示                         | 対象                    |
+| ------------------ | ----------------- | ---------------------------- | ----------------------- |
+| 入力中候補         | 両一覧の検索box   | Google検索型popover、最大8件 | Category、Tag、Bookmark |
+| 確定キーワード検索 | Enter／検索button | `#/search` のfull page       | Category、Tag、Bookmark |
+| AI自然言語検索     | AI popup          | popup内の回答と候補          | Category、Tag、Bookmark |
+| AI機能案内         | AI popup          | popup内の説明と画面link      | Bookmation機能全般      |
 
 入力中候補は決定的な文字列一致度順で最大8件を示す。確定結果とAI検索候補は `カテゴリ・タグ` を上、Bookmarkを下にする。AI検索はscoreや順位番号をUI契約にしない。
 

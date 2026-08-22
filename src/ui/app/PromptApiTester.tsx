@@ -16,6 +16,21 @@ import { Button } from "~/ui/primitives"
 
 type AvailabilityState = "unavailable" | "downloadable" | "downloading" | "available"
 
+type PromptApiApplicationErrorCode =
+  | "PROMPT_API_UNAVAILABLE"
+  | "PROMPT_MODEL_PREPARING"
+  | "PROMPT_MODEL_DOWNLOAD_FAILED"
+  | "PROMPT_SESSION_FAILED"
+  | "PROMPT_SESSION_ENDED"
+  | "PROMPT_INVALID_STRUCTURED_OUTPUT"
+
+type PromptApiMonitor = EventTarget & {
+  addEventListener(
+    type: "downloadprogress",
+    listener: (event: Event & { loaded?: number }) => void
+  ): void
+}
+
 type PromptApiTest = {
   availability: AvailabilityState | null
   error: string | null
@@ -27,13 +42,22 @@ type PromptApiTest = {
 // Chrome Prompt API の型定義
 // Chrome v151+ での型定義に合わせる
 interface LanguageModelOptions {
-  expectedInputs: { type: string }[]
-  expectedOutputs: { type: string }[]
+  expectedInputs: { type: "text"; languages: string[] }[]
+  expectedOutputs: { type: "text"; languages: string[] }[]
   language?: string
+  monitor?: (monitor: PromptApiMonitor) => void
+  signal?: AbortSignal
 }
 
 interface LanguageModelSession {
-  prompt: (text: string) => Promise<string>
+  prompt: (
+    text: string,
+    options?: {
+      responseConstraint?: Record<string, unknown>
+      signal?: AbortSignal
+    }
+  ) => Promise<string>
+  destroy: () => void
 }
 
 interface LanguageModel {
@@ -56,23 +80,33 @@ export function PromptApiTester() {
     classificationResult: null
   })
 
+  const promptOptions = {
+    expectedInputs: [{ type: "text" as const, languages: ["ja"] }],
+    expectedOutputs: [{ type: "text" as const, languages: ["ja"] }]
+  }
+
+  const setApplicationError = (
+    code: PromptApiApplicationErrorCode,
+    detail?: string
+  ) => {
+    setTestState((prev) => ({
+      ...prev,
+      error: `${code}${detail ? `: ${detail}` : ""}`,
+      modelLoading: false
+    }))
+  }
+
   const checkAvailability = async () => {
     try {
       // Service Worker では実行しない - top-level extension page のみ
       const lm = window.LanguageModel
       if (!lm) {
-        setTestState((prev) => ({
-          ...prev,
-          error: "LanguageModel is not available in this context"
-        }))
+        setApplicationError("PROMPT_API_UNAVAILABLE")
         return
       }
 
       const availability = await lm.availability({
-        // Chrome v151+ では expectedInputs/expectedOutputs は {type: string}[] 形式
-        expectedInputs: [{ type: "text" }],
-        expectedOutputs: [{ type: "text" }],
-        language: "ja"
+        ...promptOptions
       })
 
       setTestState((prev) => ({
@@ -82,38 +116,31 @@ export function PromptApiTester() {
         lastTestTime: new Date().toISOString()
       }))
     } catch (error) {
-      setTestState((prev) => ({
-        ...prev,
-        error: `Availability check failed: ${error instanceof Error ? error.message : String(error)}`,
-        availability: null
-      }))
+      setApplicationError(
+        "PROMPT_API_UNAVAILABLE",
+        error instanceof Error ? error.message : String(error)
+      )
     }
   }
 
   const testClassification = async () => {
+    let session: LanguageModelSession | null = null
+
     try {
       const lm = window.LanguageModel
       if (!lm) {
-        setTestState((prev) => ({
-          ...prev,
-          error: "LanguageModel is not available"
-        }))
+        setApplicationError("PROMPT_API_UNAVAILABLE")
         return
       }
 
       // 最初にAvailabilityを確認
       const availability = await lm.availability({
-        expectedInputs: [{ type: "text" }],
-        expectedOutputs: [{ type: "text" }],
-        language: "ja"
+        ...promptOptions
       })
 
-      if (availability !== "available") {
-        setTestState((prev) => ({
-          ...prev,
-          availability,
-          error: `Model not available: ${availability}`
-        }))
+      if (availability === "unavailable") {
+        setTestState((prev) => ({ ...prev, availability }))
+        setApplicationError("PROMPT_API_UNAVAILABLE")
         return
       }
 
@@ -123,10 +150,19 @@ export function PromptApiTester() {
       }))
 
       // モデルの作成 - 日本語対応を指定
-      const session = await lm.create({
-        expectedInputs: [{ type: "text" }],
-        expectedOutputs: [{ type: "text" }],
-        language: "ja"
+      session = await lm.create({
+        ...promptOptions,
+        monitor: (monitor) => {
+          monitor.addEventListener("downloadprogress", (event) => {
+            const loaded = event.loaded
+            if (typeof loaded === "number") {
+              setTestState((prev) => ({
+                ...prev,
+                error: `PROMPT_MODEL_PREPARING: ${Math.round(loaded * 100)}%`
+              }))
+            }
+          })
+        }
       })
 
       // テスト用の分類プロンプト（構造化JSON出力）
@@ -149,7 +185,18 @@ export function PromptApiTester() {
   "confidence": 0.0-1.0の信頼度
 }`
 
-      const result = await session.prompt(prompt)
+      const responseConstraint = {
+        type: "object",
+        properties: {
+          category: { type: "string" },
+          tags: { type: "array", items: { type: "string" } },
+          confidence: { type: "number", minimum: 0, maximum: 1 }
+        },
+        required: ["category", "tags", "confidence"],
+        additionalProperties: false
+      }
+      const result = await session.prompt(prompt, { responseConstraint })
+      JSON.parse(result)
 
       setTestState((prev) => ({
         ...prev,
@@ -159,11 +206,20 @@ export function PromptApiTester() {
         lastTestTime: new Date().toISOString()
       }))
     } catch (error) {
-      setTestState((prev) => ({
-        ...prev,
-        modelLoading: false,
-        error: `Classification test failed: ${error instanceof Error ? error.message : String(error)}`
-      }))
+      const errorName = error instanceof DOMException ? error.name : ""
+      setApplicationError(
+        error instanceof SyntaxError
+          ? "PROMPT_INVALID_STRUCTURED_OUTPUT"
+          : errorName === "AbortError"
+            ? "PROMPT_SESSION_ENDED"
+            : testState.availability === "downloadable" ||
+                testState.availability === "downloading"
+              ? "PROMPT_MODEL_DOWNLOAD_FAILED"
+          : "PROMPT_SESSION_FAILED",
+        error instanceof Error ? error.message : String(error)
+      )
+    } finally {
+      session?.destroy()
     }
   }
 
@@ -222,9 +278,18 @@ export function PromptApiTester() {
         <Button
           onClick={testClassification}
           size="compact"
-          disabled={testState.availability !== "available" || testState.modelLoading}
+          disabled={
+            (testState.availability !== "available" &&
+              testState.availability !== "downloadable" &&
+              testState.availability !== "downloading") ||
+            testState.modelLoading
+          }
         >
-          {testState.modelLoading ? "モデル準備中..." : "分類テスト実行"}
+          {testState.modelLoading
+            ? "モデル準備中..."
+            : testState.availability === "available"
+              ? "分類テスト実行"
+              : "モデルを準備して分類"}
         </Button>
       </div>
 

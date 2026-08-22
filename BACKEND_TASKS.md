@@ -91,7 +91,7 @@ flowchart TD
 | BE-05 | 編集・親子Label・一覧Query | 進行中 | GreenTea | BE-02、BE-03 | 編集、削除、親カテゴリ／子タグ管理、候補・一覧取得ができる |
 | BE-19 | 初回Category template適用 | 未着手 | 未定 | ISSUE-022、BE-03、BE-05 | 利用者が明示適用したtemplate Categoryだけを通常規則で重複なく作成できる |
 | BE-06 | 永続AI Job | 未着手 | 未定 | BE-03、BE-04 | workerやAI Hostが止まっても分類要求を失わない |
-| BE-07 | Prompt API Hostスパイク | 進行中 | 未定 | BE-00、BE-03 | 対応環境とAI実行場所を実証できる |
+| BE-07 | Prompt API Hostスパイク | 進行中 | みやけ | BE-00、BE-03 | 対応環境とAI実行場所を実証できる |
 | BE-08 | AI分類と結果適用 | 未着手 | 未定 | BE-05〜BE-07 | カテゴリ／タグ規則どおり分類し、失敗時も保存を守る |
 | BE-09 | Keyword検索・AIアシスタント | 未着手 | 未定 | BE-02、BE-05、BE-07 | 最大8件の候補と検索／機能説明を返せる |
 | BE-10 | 権限・入力・Blob安全化 | 未着手 | 未定 | BE-03、BE-04 | 最小権限で危険入力と外部画像追跡を防げる |
@@ -287,12 +287,14 @@ sequenceDiagram
 
 目的: 実装前にPrompt APIの利用条件と正しい実行場所を証拠付きで確定する。
 
-- [ ] トップレベル拡張ページでavailability、model準備、session作成、promptを検証する。
-- [ ] availabilityとcreateへ同じ入出力言語optionを渡す。
-- [ ] 日本語入力・出力、構造化JSON、ユーザー操作、モデル取得を確認する。
-- [ ] Service Workerと未確認Offscreen Documentで実行しない。
-- [ ] 非対応、準備中、download失敗、session終了をApplication errorへ変換する。
+- [x] トップレベル拡張ページでavailability、model準備、session作成、promptを検証する。
+- [x] availabilityとcreateへ同じ入出力言語optionを渡す。
+- [x] 日本語入力・出力、構造化JSON、ユーザー操作、モデル取得を確認する。
+- [x] Service Workerと未確認Offscreen Documentで実行しない。
+- [x] 非対応、準備中、download失敗、session終了をApplication errorへ変換する。
 - [ ] 結果を [ISSUE-001](docs/ISSUES.md) と設計文書へ反映する。
+
+実装・実機確認済み: Dashboard top-level pageのPromptApiTesterで、Chrome 151 / Windows 11における`downloadable`、モデル取得後の日本語分類、`responseConstraint`によるJSON Schema指定を確認した。`ai-host`のCLAIM/APPLYメッセージ契約は既存の拡張ページprotocolを利用する。最低Chrome版、モデル取得時間・容量、非対応時のBE-04/BE-05 fallbackは未確定である。
 
 成果物: 最小spike、検証ログ、対応Chrome/OS、AI Host決定、fallback契約。
 
@@ -503,28 +505,28 @@ sequenceDiagram
 
 ## UIとの受け渡し早見表
 
-| UI操作 | バックエンドUse Case | 最低限返すもの |
-| --- | --- | --- |
-| 現在ページを保存 | `SaveCurrentTab` | Bookmark、重複状態、分類Job状態 |
-| URLを入力して保存 | `SaveBookmarkByUrl` | Bookmark、metadata代替状態、分類Job状態 |
-| 初回／通常ホーム | `GetHomeState` / `CompleteOnboarding` | 初回状態、最近追加一覧へ進む状態 |
-| 初回Category template | `GetCategoryTemplateCatalog` / `ApplyCategoryTemplates` | catalog version、未適用候補、項目別の作成／既存／競合結果、onboarding step |
-| 最近追加／Label別一覧 | `ListBookmarks` | items、totalCount、nextCursor、hasNext |
-| フルページkeyword入力 | `Suggest/SearchAllByKeyword` | 最大8候補、labels、bookmarks。結果はlabelsが先 |
-| 全画面カテゴリ・タグ一覧 | `ListLabels` | 親子items、利用件数、nextCursor、hasNext |
-| カテゴリ・タグ作成／編集 | `SuggestCategories` / `CreateCategory` / `CreateTag` / `UpdateCategory` / `UpdateTag` / `GetTagEditDetail` / `GetCategoryEditDetail` | 最大8件のactive Category候補、Tag／親expected revision、requestId／receipt、参照Bookmark更新、Tag実名一覧・件数、Bookmark unique件数、名前予約、競合 |
-| Category削除 | `DeleteCategoryCascade` | 警告確認、cascade結果、再分類Job状態、削除後revision |
-| Tag削除 | `DeleteTag` | 対象ID、削除後revision |
-| Bookmark編集 | `UpdateBookmark` | 更新後Bookmark、Tag関連、自動導出Category関連、revision |
-| Bookmark削除 | `DeleteBookmark` | 対象ID、削除後revision |
-| AI分類 | `ClassifyBookmark` | Job状態、提案、適用結果または要確認 |
-| AI検索／機能質問 | `AskBookmationAssistant` | 検索候補または機能説明、`AI`／`LEXICAL_FALLBACK` |
-| ショートカット表示 | `ListCommands` | command名、実キーまたは未割当 |
-| 訪問リマインダー設定／応答 | `UpdateReminderSettings` / `HandleVisitReminder` | 7／30／365日の期間、期間別訪問日数閾値、frequentVisitReminderEnabled、保存／URL別reset／SUPPRESSED |
-| Archive設定／復元 | `SetAutoArchiveEnabled` / `ArchiveInactiveBookmarks` / `List/RestoreArchivedBookmarks` | 権限gate、既定30日、履歴なしエラー、最小項目一覧、復元結果 |
-| 標準Bookmark取込 | `Preview/ImportChromeBookmarks` | 直上Folder→Tag解決、親Category選択、preview、progress、imported/skipped/failed |
-| QR／CSV共有・QR読取取込 | `ResolveShareSelection` / `ExportQr` / `ExportCsv` / `Preview/ImportQr` | 選択件数、QR／CSV payload、容量超過fallback、preview、取込結果 |
-| Drive設定 | `Connect/SyncAppDataFolder` / `Create/ManageSharedDriveFile` | 選択account、経路、owner、permissions、capabilities、state、conflicts |
+| UI操作                     | バックエンドUse Case                                                                                                                 | 最低限返すもの                                                                                                                                       |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 現在ページを保存           | `SaveCurrentTab`                                                                                                                     | Bookmark、重複状態、分類Job状態                                                                                                                      |
+| URLを入力して保存          | `SaveBookmarkByUrl`                                                                                                                  | Bookmark、metadata代替状態、分類Job状態                                                                                                              |
+| 初回／通常ホーム           | `GetHomeState` / `CompleteOnboarding`                                                                                                | 初回状態、最近追加一覧へ進む状態                                                                                                                     |
+| 初回Category template      | `GetCategoryTemplateCatalog` / `ApplyCategoryTemplates`                                                                              | catalog version、未適用候補、項目別の作成／既存／競合結果、onboarding step                                                                           |
+| 最近追加／Label別一覧      | `ListBookmarks`                                                                                                                      | items、totalCount、nextCursor、hasNext                                                                                                               |
+| フルページkeyword入力      | `Suggest/SearchAllByKeyword`                                                                                                         | 最大8候補、labels、bookmarks。結果はlabelsが先                                                                                                       |
+| 全画面カテゴリ・タグ一覧   | `ListLabels`                                                                                                                         | 親子items、利用件数、nextCursor、hasNext                                                                                                             |
+| カテゴリ・タグ作成／編集   | `SuggestCategories` / `CreateCategory` / `CreateTag` / `UpdateCategory` / `UpdateTag` / `GetTagEditDetail` / `GetCategoryEditDetail` | 最大8件のactive Category候補、Tag／親expected revision、requestId／receipt、参照Bookmark更新、Tag実名一覧・件数、Bookmark unique件数、名前予約、競合 |
+| Category削除               | `DeleteCategoryCascade`                                                                                                              | 警告確認、cascade結果、再分類Job状態、削除後revision                                                                                                 |
+| Tag削除                    | `DeleteTag`                                                                                                                          | 対象ID、削除後revision                                                                                                                               |
+| Bookmark編集               | `UpdateBookmark`                                                                                                                     | 更新後Bookmark、Tag関連、自動導出Category関連、revision                                                                                              |
+| Bookmark削除               | `DeleteBookmark`                                                                                                                     | 対象ID、削除後revision                                                                                                                               |
+| AI分類                     | `ClassifyBookmark`                                                                                                                   | Job状態、提案、適用結果または要確認                                                                                                                  |
+| AI検索／機能質問           | `AskBookmationAssistant`                                                                                                             | 検索候補または機能説明、`AI`／`LEXICAL_FALLBACK`                                                                                                     |
+| ショートカット表示         | `ListCommands`                                                                                                                       | command名、実キーまたは未割当                                                                                                                        |
+| 訪問リマインダー設定／応答 | `UpdateReminderSettings` / `HandleVisitReminder`                                                                                     | 7／30／365日の期間、期間別訪問日数閾値、frequentVisitReminderEnabled、保存／URL別reset／SUPPRESSED                                                   |
+| Archive設定／復元          | `SetAutoArchiveEnabled` / `ArchiveInactiveBookmarks` / `List/RestoreArchivedBookmarks`                                               | 権限gate、既定30日、履歴なしエラー、最小項目一覧、復元結果                                                                                           |
+| 標準Bookmark取込           | `Preview/ImportChromeBookmarks`                                                                                                      | 直上Folder→Tag解決、親Category選択、preview、progress、imported/skipped/failed                                                                       |
+| QR／CSV共有・QR読取取込    | `ResolveShareSelection` / `ExportQr` / `ExportCsv` / `Preview/ImportQr`                                                              | 選択件数、QR／CSV payload、容量超過fallback、preview、取込結果                                                                                       |
+| Drive設定                  | `Connect/SyncAppDataFolder` / `Create/ManageSharedDriveFile`                                                                         | 選択account、経路、owner、permissions、capabilities、state、conflicts                                                                                |
 
 一覧APIに利用者指定の `pageSize` は渡さない。UIはバックエンドが返す `nextCursor` と `hasNext` だけを使って無限スクロールする。
 

@@ -941,6 +941,32 @@ Chrome Prompt API v151 での型定義エラーを修正し、Availability チ�
 - repository管理されたPlaywright拡張E2E、toolbarから開いた実popupの自動操作、人間による実Chrome受入は未実施。
 - 全体Lintの既存27件を別作業で解消する。
 
+## 2026-08-22 — BE-07 Prompt API Host Spikeの要件補完
+
+### 変更
+
+- `PromptApiTester` の `expectedInputs` / `expectedOutputs` に日本語 `languages` を指定し、availability と create で同じオプションを使うようにした。
+- `prompt()` の `responseConstraint` にカテゴリ・タグ・信頼度のJSON Schemaを渡すようにした。
+- `create({ monitor })` の `downloadprogress` を準備状態へ反映し、`downloadable` からユーザー操作でモデル取得を開始できるようにした。
+- `session.destroy()` を成功・失敗時に実行し、非対応、モデル準備、モデル取得失敗、セッション終了、構造化出力不正をApplication errorコードへ変換した。
+- 既存の `ai-host` 用 `CLAIM_CLASSIFICATION_JOB` / `APPLY_CLASSIFICATION_RESULT` メッセージ契約を、Service Workerとのメッセージング境界として確認した。
+- BE-07、ISSUE-001、設計文書、スパイク文書へ実機確認済み項目と残課題を反映した。
+
+### 検証
+
+- 変更対象の `get_errors`: エラーなし。
+- 変更対象のESLint: 成功。
+- `git diff --check`: 成功。
+- `pnpm typecheck`: 失敗。今回未変更のIndexedDB実装で `idb` モジュール未解決、および既存の暗黙 `any` が発生。PromptApiTester / ExtensionAppにはエラーなし。
+- `pnpm build`: 失敗。上記と同じく既存IndexedDB実装の `idb` 解決失敗で停止。
+- 公式Prompt APIドキュメント（2026-05-19更新）を再確認し、`languages`、`responseConstraint`、`downloadprogress`、`destroy()`、Web Worker非対応を実装へ反映した。
+
+### 残課題
+
+- ISSUE-001の最低Chrome版を確定する。
+- モデル取得の実測時間・容量、非対応／取得失敗／セッション終了時のBE-04/BE-05 fallbackを実機で確認する。
+- `idb`依存解決と既存IndexedDB型エラーは別タスクで修正する。
+
 ## 2026-08-22 — UI-04 Bookmark LIST／GRID・一覧toolbar・cursor追加読込
 
 ### 目的
