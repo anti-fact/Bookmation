@@ -8,6 +8,7 @@ import { AppHeader } from "~/ui/components/AppHeader"
 import { AppShell } from "~/ui/components/AppShell"
 import { Button } from "~/ui/primitives"
 import { PromptApiTester } from "./PromptApiTester"
+import { HomeSavePanel } from "./HomeSavePanel"
 
 import { useAppRuntime, useHashRouteStore } from "./AppProviders"
 import {
@@ -197,6 +198,10 @@ function RouteBody({ navigate, route }: RouteBodyProps) {
         </div>
       </div>
     )
+  }
+
+  if (route.kind === "home") {
+    return <HomeSavePanel />
   }
 
   if (route.kind === "settings") {

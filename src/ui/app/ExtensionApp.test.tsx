@@ -105,7 +105,10 @@ describe("ExtensionApp", () => {
       kind: "settings",
       section: "general"
     })
-    const settingsHeading = screen.getByRole("heading", { name: "一般設定" })
+    const settingsHeading = screen.getByRole("heading", {
+      level: 1,
+      name: "一般設定",
+    })
     expect(document.activeElement).toBe(settingsHeading)
     expect(
       screen.getByRole("banner", { name: "アプリケーションヘッダー" }).dataset

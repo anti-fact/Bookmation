@@ -62,7 +62,7 @@ import {
   buildUpdateTagRequestFingerprint,
   searchDocumentId,
 } from "./search-document-builder"
-import { INTERNAL_PAGE_SIZE, STORES } from "./stores"
+import { INTERNAL_PAGE_SIZE, STORES, BOOKMARK_INDEXES } from "./stores"
 
 const SAVE_TX_STORES = [
   STORES.bookmarks,
@@ -101,6 +101,9 @@ export interface SaveBookmarkWithJobInput {
   rawUrl: string
   title: string
   siteName?: string | null
+  faviconUrl?: string | null
+  faviconBlobId?: Id | null
+  thumbnailBlobId?: Id | null
   source?: PersistedActiveBookmarkRecord["source"]
   policy?: ClassificationPolicySnapshot
   creationRequestId: Id
@@ -110,7 +113,8 @@ export interface SaveBookmarkWithJobInput {
 
 export interface SaveBookmarkWithJobResult {
   bookmark: PersistedActiveBookmarkRecord
-  job: PersistedClassificationJobRecord
+  job: PersistedClassificationJobRecord | null
+  duplicate: boolean
 }
 
 export interface CreateCategoryInput {
@@ -177,6 +181,33 @@ export class LocalDataLayer {
     const url = validateAndNormalizeUrl(input.rawUrl)
     const urlHash = await computeUrlHash(url.normalized)
     const policy = input.policy ?? policyFromGranularity(2)
+
+    const txCheck = this.db.transaction([STORES.classificationJobs], "readonly")
+    const existingJob = await txCheck
+      .objectStore(STORES.classificationJobs)
+      .index("byRequestId")
+      .get(input.creationRequestId)
+    await txCheck.done
+
+    if (existingJob) {
+      const bookmark = await this.getBookmark(existingJob.bookmarkId)
+      if (!bookmark) {
+        throw new DomainError(
+          DomainErrorCode.INVALID_ID,
+          `Bookmark missing for job: ${existingJob.bookmarkId}`,
+        )
+      }
+      return { bookmark, job: existingJob, duplicate: false }
+    }
+
+    const duplicateBookmark = await this.findActiveBookmarkByUrlHash(
+      url.normalized,
+      urlHash,
+    )
+    if (duplicateBookmark) {
+      return { bookmark: duplicateBookmark, job: null, duplicate: true }
+    }
+
     const inputFingerprint = await fingerprintFromObject({
       bookmarkId: input.id,
       normalizedUrl: url.normalized,
@@ -185,13 +216,6 @@ export class LocalDataLayer {
 
     const tx = this.db.transaction([...SAVE_TX_STORES], "readwrite")
     const jobsStore = tx.objectStore(STORES.classificationJobs)
-
-    const existingJob = await jobsStore.index("byRequestId").get(input.creationRequestId)
-    if (existingJob) {
-      const bookmark = await getActiveBookmarkOrThrow(tx, existingJob.bookmarkId)
-      await tx.done
-      return { bookmark, job: existingJob }
-    }
 
     const bookmark: PersistedActiveBookmarkRecord = {
       schemaVersion: 1,
@@ -203,9 +227,9 @@ export class LocalDataLayer {
       urlNormalizationVersion: 1,
       title: input.title,
       siteName: input.siteName ?? null,
-      faviconUrl: null,
-      faviconBlobId: null,
-      thumbnailBlobId: null,
+      faviconUrl: input.faviconUrl ?? null,
+      faviconBlobId: input.faviconBlobId ?? null,
+      thumbnailBlobId: input.thumbnailBlobId ?? null,
       classificationState: "PENDING",
       source: input.source ?? "MANUAL_URL",
       savedAt: now,
@@ -267,7 +291,98 @@ export class LocalDataLayer {
       .put(stripUndefinedFields(searchDoc as unknown as Record<string, unknown>) as unknown as PersistedSearchDocumentRecord)
     await tx.done
 
-    return { bookmark, job }
+    return { bookmark, job, duplicate: false }
+  }
+
+  async findActiveBookmarkByUrlHash(
+    normalizedUrl: string,
+    urlHash: string,
+  ): Promise<PersistedActiveBookmarkRecord | undefined> {
+    const tx = this.db.transaction(STORES.bookmarks, "readonly")
+    const candidates = await tx.store.index(BOOKMARK_INDEXES.byUrlHash).getAll(urlHash)
+    await tx.done
+
+    return candidates.find(
+      (record): record is PersistedActiveBookmarkRecord =>
+        record.archiveState === "ACTIVE" &&
+        record.deletedAt === null &&
+        record.normalizedUrl === normalizedUrl,
+    )
+  }
+
+  async updateBookmarkMetadata(input: {
+    bookmarkId: Id
+    expectedRevision: number
+    title?: string
+    faviconUrl?: string | null
+    faviconBlobId?: Id | null
+    thumbnailBlobId?: Id | null
+    now?: EpochMs
+  }): Promise<PersistedActiveBookmarkRecord> {
+    const now = input.now ?? Date.now()
+    const tx = this.db.transaction(
+      [STORES.bookmarks, STORES.searchDocuments],
+      "readwrite",
+    )
+    const bookmark = await getActiveBookmarkOrThrow(tx, input.bookmarkId)
+    assertRevisionMatch(bookmark.revision, input.expectedRevision, "bookmark")
+
+    const updated: PersistedActiveBookmarkRecord = {
+      ...bookmark,
+      title: input.title ?? bookmark.title,
+      faviconUrl:
+        input.faviconUrl !== undefined ? input.faviconUrl : bookmark.faviconUrl,
+      faviconBlobId:
+        input.faviconBlobId !== undefined
+          ? input.faviconBlobId
+          : bookmark.faviconBlobId,
+      thumbnailBlobId:
+        input.thumbnailBlobId !== undefined
+          ? input.thumbnailBlobId
+          : bookmark.thumbnailBlobId,
+      revision: nextRevision(bookmark.revision),
+      updatedAt: now,
+    }
+
+    const searchDoc = buildBookmarkSearchDocument(updated, now)
+    await putBookmark(tx, updated)
+    await tx
+      .objectStore(STORES.searchDocuments)
+      .put(
+        stripUndefinedFields(
+          searchDoc as unknown as Record<string, unknown>,
+        ) as unknown as PersistedSearchDocumentRecord,
+      )
+    await tx.done
+    return updated
+  }
+
+  async putBlobRecord(record: {
+    id: Id
+    kind: "THUMBNAIL" | "FAVICON"
+    mimeType: string
+    byteLength: number
+    data: Blob
+    contentHash: string
+    now?: EpochMs
+  }): Promise<void> {
+    const now = record.now ?? Date.now()
+    const tx = this.db.transaction(STORES.blobs, "readwrite")
+    await tx.store.put({
+      schemaVersion: 1,
+      id: record.id,
+      kind: record.kind,
+      mimeType: record.mimeType,
+      byteLength: record.byteLength,
+      width: null,
+      height: null,
+      contentHash: record.contentHash,
+      data: record.data,
+      createdAt: now,
+      updatedAt: now,
+      lastReferencedAt: now,
+    })
+    await tx.done
   }
 
   async createCategory(input: CreateCategoryInput): Promise<PersistedLabelRecord> {

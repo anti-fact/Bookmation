@@ -13,13 +13,18 @@ export interface SaveBookmarkWithJobInput {
   rawUrl: string
   title: string
   siteName?: string | null
+  faviconUrl?: string | null
+  faviconBlobId?: string | null
+  thumbnailBlobId?: string | null
+  source?: PersistedActiveBookmarkRecord["source"]
   creationRequestId: string
   jobId: string
 }
 
 export interface SaveBookmarkWithJobResult {
   bookmark: PersistedActiveBookmarkRecord
-  job: PersistedClassificationJobRecord
+  job: PersistedClassificationJobRecord | null
+  duplicate: boolean
 }
 
 export interface CreateCategoryInput {
@@ -57,6 +62,26 @@ export interface DeleteCategoryCascadeResult {
 export interface LocalDataLayerPort {
   close(): Promise<void>
   saveBookmarkWithJob(input: SaveBookmarkWithJobInput): Promise<SaveBookmarkWithJobResult>
+  findActiveBookmarkByUrlHash(
+    normalizedUrl: string,
+    urlHash: string,
+  ): Promise<PersistedActiveBookmarkRecord | undefined>
+  updateBookmarkMetadata(input: {
+    bookmarkId: string
+    expectedRevision: number
+    title?: string
+    faviconUrl?: string | null
+    faviconBlobId?: string | null
+    thumbnailBlobId?: string | null
+  }): Promise<PersistedActiveBookmarkRecord>
+  putBlobRecord(input: {
+    id: string
+    kind: "THUMBNAIL" | "FAVICON"
+    mimeType: string
+    byteLength: number
+    data: Blob
+    contentHash: string
+  }): Promise<void>
   getBookmark(id: string): Promise<PersistedActiveBookmarkRecord | undefined>
   createCategory(input: CreateCategoryInput): Promise<PersistedLabelRecord>
   createTag(input: CreateTagInput): Promise<PersistedLabelRecord>
