@@ -19,7 +19,7 @@
 | TASK-014 | 初回カテゴリテンプレート              | Backlog | ISSUE-022、TASK-003、004、006 | 初回にテンプレート候補を提示し、利用者が適用したCategoryだけを安全に作成できる |
 | TASK-005 | Bookmark list UI                      | Backlog | TASK-002、003                 | 最近追加を LIST / GRID で探索・編集できる                                      |
 | TASK-006 | Full-screen Category / Tag UI         | Backlog | TASK-003、005                 | 親カテゴリ／子タグを作成・管理・選択できる                                     |
-| TASK-007 | Prompt API host spike                 | Backlog | TASK-002、ISSUE-001           | 対応条件と fallback が実証される                                               |
+| TASK-007 | Prompt API host spike                 | Done    | TASK-002、ISSUE-001           | 対応条件と fallback が実証される                                               |
 | TASK-008 | AI classification / settings          | Backlog | TASK-003、006、007            | 規則どおりタグを分類できる                                                     |
 | TASK-009 | Full-page search / AI assistant       | Backlog | TASK-003、006、007            | 最大8件の候補検索とAIへの検索・機能質問ができる                                |
 | TASK-010 | Security / media / permissions        | Backlog | TASK-002〜004                 | 最小権限と入力検証が成立する                                                   |
@@ -116,9 +116,9 @@
 
 ### TASK-007: Prompt API host spike
 
-- [ ] [ISSUES.md](ISSUES.md) ISSUE-001 を公式仕様と実機で解決する。
-- [ ] 対応する top-level extension page で Prompt API を実行する。
-- [ ] availability、download、activation、日本語、structured output を検証する。
+- [x] [ISSUES.md](ISSUES.md) ISSUE-001 を公式仕様と実機で解決する。
+- [x] 対応する top-level extension page で Prompt API を実行する。
+- [x] availability、download、activation、日本語、structured output を検証する。
 - [ ] Service Worker / 未確認 Offscreen から LanguageModel を呼ばない。
 - 完了条件: 対応条件、最低Chrome、AI Host、fallback が証拠付きで一致する。
 
