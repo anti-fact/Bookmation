@@ -151,8 +151,8 @@ describe("AppHeader", () => {
     render(<AppHeader variant="settings" />)
 
     const settingsTitle = screen.getByText("Settings")
-    expect(settingsTitle.className).toContain("text-2xl")
-    expect(settingsTitle.className).toContain("sm:text-3xl")
+    expect(settingsTitle.className).toContain("text-xl")
+    expect(settingsTitle.className).toContain("sm:text-2xl")
     expect(screen.queryByRole("heading", { name: "Settings" })).toBeNull()
     const separator = screen.getByRole("separator")
     expect(separator.getAttribute("aria-orientation")).toBe("vertical")

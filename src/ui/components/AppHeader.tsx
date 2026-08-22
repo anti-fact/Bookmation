@@ -214,7 +214,7 @@ export const AppHeader = (props: AppHeaderProps) => {
               className="h-8 w-0.5 shrink-0 bg-bm-muted sm:h-12"
               role="separator"
             />
-            <p className="m-0 min-w-0 flex-1 truncate text-left text-2xl font-bold sm:text-3xl">
+            <p className="m-0 min-w-0 flex-1 truncate text-left text-xl font-bold sm:text-2xl">
               {props.settingsTitle ?? "Settings"}
             </p>
           </div>
