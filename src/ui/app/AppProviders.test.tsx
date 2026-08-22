@@ -30,8 +30,10 @@ describe("AppProviders", () => {
     const runtime: AppRuntime = {
       getScrollY: vi.fn(() => 0),
       kind: "web-preview",
+      observeIntersection: vi.fn(() => vi.fn()),
       scrollTo: vi.fn(),
-      setManualScrollRestoration: vi.fn(() => vi.fn())
+      setManualScrollRestoration: vi.fn(() => vi.fn()),
+      subscribeScroll: vi.fn(() => vi.fn())
     }
     const routeStore: HashRouteStore = {
       back: vi.fn(),

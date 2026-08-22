@@ -35,6 +35,10 @@ describe("PopupApp", () => {
     render(<PopupApp port={port} />)
 
     expect(port.saveCurrentPage).not.toHaveBeenCalled()
+    const popup = screen.getByRole("main")
+    expect(popup.className).toContain("rounded-bm-control")
+    expect(popup.className).toContain("border-[3px]")
+    expect(popup.className).toContain("border-bm-ink")
     const logo = screen.getByRole("img", { name: "Bookmation" })
     expect(logo.className).toContain("mx-auto")
     expect(logo.className).toContain("block")

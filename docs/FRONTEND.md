@@ -1,6 +1,6 @@
 # フロントエンド設計
 
-- 状態: 設計決定・UI-01 primitive／Web component sheet、UI-02 App Shell／hash route／共通header、UI-03 popup／shortcut／保存状態を実装済み
+- 状態: 設計決定・UI-01 primitive／Web component sheet、UI-02 App Shell／hash route／共通header、UI-03 popup／shortcut／保存状態、UI-04 Bookmark LIST／GRIDを実装済み
 - 更新日: 2026-08-22
 - 採用: Plasmo + React + TypeScript + Radix Primitives + Tailwind CSS
 - 関連: [UI](./UI.md) / [設計](./DESIGN.md) / [要件](./REQUIREMENTS.md) / [実装ガイド](../FRONTEND_GUIDE.md) / [テスト](./TESTING.md)
@@ -15,9 +15,11 @@
 
 `chrome.runtime.onInstalled` のinstall時だけ拡張タブの `#/welcome` を開く。update時や通常起動で開かない。popupは `chrome.commands.getAll()` のallowlistだけを表示し、空の割当は `未割り当て` とする。
 
-UI-03ではproduction popupを薄いentryとし、`PopupApp`へ`PopupPort`を注入する。Chrome adapterは2 commandの実キー取得、現在ページ保存message、`#/home`を開く操作、`chrome://extensions/shortcuts`への案内だけを担当する。画面は開いただけで保存せず、保存中／成功／重複／失敗を同じpopup内のlive regionへ残す。現行Service Workerの保存Applicationは未実装のため、実Bookmark保存と重複判定はTASK-004の接続後に完了する。
+UI-03ではproduction popupを薄いentryとし、`PopupApp`へ`PopupPort`を注入する。Chrome adapterは2 commandの実キー取得、現在ページ保存message、`#/home`を開く操作、`chrome://extensions/shortcuts`への案内だけを担当する。画面は開いただけで保存せず、保存中／成功／重複／失敗を同じpopup内のlive regionへ残す。popup本体は3pxのink外枠と8px角丸を持ち、Chromeの白いnative popup surfaceとの間に2pxの均一な余白を置く。現行Service Workerの保存Applicationは未実装のため、実Bookmark保存と重複判定はTASK-004の接続後に完了する。
 
 テスト用Webプレビューはproduction entryではない。本番と同じpage componentへfake Portを注入し、Chrome API、Repository、AI、Drive、camera等を置換する。UI-03 popupは `?view=popup&fixture=assigned` を入口に、割当済み／未割当、保存中／成功／重複／失敗、shortcut取得失敗を切り替える。fixture/debug UIを本番buildへ含めない。
+
+UI-04では`BookmarkListPage`へ`BookmarkListPort`を注入し、productionではIndexedDBのactive Bookmark／Label edgeと`chrome.storage.local`の表示形式設定へ接続した。最近追加、カテゴリ条件、タグ条件を`savedAt desc`でcursor取得し、GRID／LIST、カテゴリ常時表示、タグ展開、件数、追加読込、再試行、終端、トップへ戻るを同じ画面で扱う。Webプレビューは `?view=bookmarks&fixture=grid#/home` を入口に、GRID／LIST／空／1件／多数／読込中／初回失敗／追加失敗をfake Portで再現する。
 
 ## routes と一時状態
 
@@ -37,7 +39,7 @@ UI-03ではproduction popupを薄いentryとし、`PopupApp`へ`PopupPort`を注
 
 UI-02では上表の9 routeを型付きでparse／serializeし、Plasmo dashboard entryから共通App Shellへ接続した。`AppHeader`は `default`／`labels`／`settings` の3 variantを共有し、icon-only操作はaccessible name付きの`IconButton`とpointer／focusの両方で開く`Tooltip`を使う。route変更後はmain headingへscrollさせずにfocusし、ブラウザの戻る／進むではrouteごとのscroll位置を復元する。描画例外は`ErrorBoundary`のfallbackへ隔離する。
 
-この段階の各route本文はshell確認用であり、Bookmarkデータ、検索候補、AI dialog、カテゴリ・タグ管理、設定form等のfeature実装を含まない。通常Webプレビューはcomponent sheetを `http://127.0.0.1:4173/`、App Shellを `http://127.0.0.1:4173/?view=app-shell#/home` から確認する。実拡張のPlaywright E2E scriptと人間による実Chrome受入は未完了である。
+UI-04により`#/home`と`#/bookmarks?category=<id>`／`?tag=<id>`／`?category=<id>&tag=<id>`は実Bookmark一覧を描画する。複合条件はカテゴリとタグの積集合とし、toolbarから各条件を解除できる。他のroute本文は引き続きshell確認用であり、検索候補、AI dialog、カテゴリ・タグ管理、設定form等のfeature実装を含まない。通常Webプレビューはcomponent sheetを `http://127.0.0.1:4173/`、App Shellを `http://127.0.0.1:4173/?view=app-shell#/home`、Bookmark一覧fixtureを `http://127.0.0.1:4173/?view=bookmarks&fixture=grid#/home` から確認する。実拡張のPlaywright E2E scriptと人間による実Chrome受入は未完了である。
 
 ## コンポーネント境界
 
@@ -45,7 +47,7 @@ UI-02では上表の9 routeを型付きでparse／serializeし、Plasmo dashboar
 | -------------------------------- | -------------------------------------------------------------------------------------------------------- |
 | `WelcomePage`                    | 初回説明、開始、再開可能な初期設定、カテゴリテンプレートstepの進行                                       |
 | `CategoryTemplateStep`           | 同梱catalogの表示、未適用preview、利用者操作によるCategory作成。具体的な選択controlはISSUE-022で確定する |
-| `StickyBookmarkHeader`           | `SearchBox`、AI、件数、LIST / GRID、一覧・設定導線                                                       |
+| `BookmarkListToolbar`            | 現在位置、件数、LIST / GRID。App Headerの下に通常配置し追従させない                                      |
 | `BookmarkList` / `BookmarkItem`  | cursor描画、カテゴリ常時、タグdisclosure、編集                                                           |
 | `SearchBox`                      | 最大8件typeahead、検索ページ遷移                                                                         |
 | `SearchSuggestionList`           | カテゴリ・タグ上／Bookmark下のcombobox                                                                   |
@@ -126,6 +128,8 @@ Enterまたは検索ボタンで `#/search?q=<encoded>` へ遷移する。`Searc
 `ViewModeControl` は `LIST | GRID` のradio groupとする。弁当、列数設定、表示件数設定を持たない。GRID列数はresponsive CSSで決め、DOM順と見た目を一致させる。
 
 `BookmarkItem` はカテゴリを常時描画し、タグはbutton disclosureで開閉する。`IntersectionObserver` のsentinelはloading中の同cursor要求を拒否し、requestId照合、ID dedupe、失敗位置の再試行、終端解除を行う。追加後にフォーカスを移さない。
+
+UI-04ではこの一覧境界を実装済みである。表示形式は`chrome.storage.local`へ保存し、productionの`BookmarkListPort`はIndexedDBからactive Bookmarkとactive Label edgeを読んで表示用のカテゴリ／タグへ変換する。画像Blobの解決はTASK-010に残し、解決できない画像は外部URLへ接続せず同梱Bookmationロゴへ縮退する。カテゴリ・タグ一覧への導線はApp Headerの望遠鏡だけとし、secondary toolbarには重複buttonを置かず、画面scrollへ追従させない。検索候補と結果はUI-07、AI応答はUI-08、編集buttonから開くmodalはUI-05で実装する。
 
 ## ブックマーク編集とサイドビュー
 

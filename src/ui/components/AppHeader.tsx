@@ -7,7 +7,8 @@ import {
   Cross2Icon,
   GearIcon,
   MagicWandIcon,
-  MagnifyingGlassIcon
+  MagnifyingGlassIcon,
+  PlusIcon
 } from "@radix-ui/react-icons"
 import * as React from "react"
 import { Toggle as TogglePrimitive } from "radix-ui"
@@ -38,8 +39,10 @@ type SearchHeaderProps = {
 
 type DefaultHeaderProps = HeaderCommonProps &
   SearchHeaderProps & {
+    aiAccessibleLabel?: string
     aiIcon?: React.ReactNode
     onAiSearchClick?: () => void
+    onBookmarkAddClick?: () => void
     onSettingsClick?: () => void
     variant: "default"
   }
@@ -211,8 +214,8 @@ export const AppHeader = (props: AppHeaderProps) => {
               className="h-8 w-0.5 shrink-0 bg-bm-muted sm:h-12"
               role="separator"
             />
-            <p className="m-0 min-w-0 flex-1 truncate text-left text-2xl font-bold sm:text-4xl">
-              {props.settingsTitle ?? "設定"}
+            <p className="m-0 min-w-0 flex-1 truncate text-left text-2xl font-bold sm:text-3xl">
+              {props.settingsTitle ?? "Settings"}
             </p>
           </div>
         ) : (
@@ -225,8 +228,17 @@ export const AppHeader = (props: AppHeaderProps) => {
             className="flex max-w-full shrink-0 items-center gap-3 lg:ml-auto lg:gap-[1.125rem]"
             role="group"
           >
+            {props.onBookmarkAddClick ? (
+              <IconButton
+                label="ブックマークを追加"
+                onClick={props.onBookmarkAddClick}
+                shape="pill"
+              >
+                <PlusIcon className="size-6" />
+              </IconButton>
+            ) : null}
             <IconButton
-              label="AI検索を開く"
+              label={props.aiAccessibleLabel ?? "AI検索を開く"}
               onClick={props.onAiSearchClick}
               shape="pill"
             >

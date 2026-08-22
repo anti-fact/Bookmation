@@ -1,7 +1,7 @@
 # TASKS
 
 - 状態: 実装バックログ
-- 更新日: 2026-08-19
+- 更新日: 2026-08-22
 - 対象: P0実装と確定済みP1ワークパッケージ
 
 ## 運用
@@ -17,9 +17,9 @@
 | TASK-003 | JSONドキュメントデータ層              | Backlog | TASK-002                      | Bookmark / Label / Job が再読込後も残る                                        |
 | TASK-004 | popup・commands・保存・初回ホーム     | Backlog | TASK-003                      | 現在ページ／URLを保存し、初回と通常のホームを開ける                            |
 | TASK-014 | 初回カテゴリテンプレート              | Backlog | ISSUE-022、TASK-003、004、006 | 初回にテンプレート候補を提示し、利用者が適用したCategoryだけを安全に作成できる |
-| TASK-005 | Bookmark list UI                      | Backlog | TASK-002、003                 | 最近追加を LIST / GRID で探索・編集できる                                      |
+| TASK-005 | Bookmark list UI                      | 進行中  | TASK-002、003                 | 最近追加を LIST / GRID で探索・編集できる                                      |
 | TASK-006 | Full-screen Category / Tag UI         | Backlog | TASK-003、005                 | 親カテゴリ／子タグを作成・管理・選択できる                                     |
-| TASK-007 | Prompt API host spike                 | Backlog | TASK-002、ISSUE-001           | 対応条件と fallback が実証される                                               |
+| TASK-007 | Prompt API host spike                 | Done    | TASK-002、ISSUE-001           | 対応条件と fallback が実証される                                               |
 | TASK-008 | AI classification / settings          | Backlog | TASK-003、006、007            | 規則どおりタグを分類できる                                                     |
 | TASK-009 | Full-page search / AI assistant       | Backlog | TASK-003、006、007            | 最大8件の候補検索とAIへの検索・機能質問ができる                                |
 | TASK-010 | Security / media / permissions        | Backlog | TASK-002〜004                 | 最小権限と入力検証が成立する                                                   |
@@ -77,24 +77,25 @@
 ### TASK-014: 初回カテゴリテンプレート
 
 - [ ] ISSUE-022で候補名／件数、set構成、選択方式、初期選択、skip、名前編集、初回後の再表示、locale、catalog version、再適用と名前競合のUXを決定する。決定前に本番候補をhardcodeしない。
-- [ ] version付きのローカルCategory template catalogを定義し、remote fetchや実行コードを含めずbundleする。
+- [x] version付きのローカルCategory template catalogを定義し、remote fetchや実行コードを含めずbundleする。
 - [ ] 初回オンボーディングへtemplate stepを追加し、catalog表示だけではCategoryを作らない。途中終了時は既存のonboarding進捗から再開する。
-- [ ] 利用者の明示適用を通常のCategory作成use caseへ渡し、`origin=USER`、Normalizer、一意名、tombstone予約を維持する。AI用Category作成経路や `origin=TEMPLATE` を追加しない。
-- [ ] 複数候補の適用requestを冪等化し、応答消失後の再送、既存／tombstone同名、部分失敗、update／reloadでの意図しない再適用を扱う。
+- [x] 利用者の明示適用を通常のCategory作成use caseへ渡し、`origin=USER`、Normalizer、一意名、tombstone予約を維持する。AI用Category作成経路や `origin=TEMPLATE` を追加しない。
+- [x] 複数候補の適用requestを冪等化し、応答消失後の再送、既存／tombstone同名、部分失敗、update／reloadでの意図しない再適用を扱う。
 - [ ] 作成されたCategoryを通常の一覧・編集・削除から扱え、既存Categoryを自動改名・削除しない。
 - [ ] Webプレビュー、Playwright実拡張E2E、人間受入で未適用／適用中／成功／競合／再開状態を確認する。
 - 完了条件: ISSUE-022がDecidedになり、利用者操作前のCategory件数が変わらず、明示適用後だけ通常のUSER Categoryが重複なく作成され、update／reload／retryで再作成されない。
 
 ### TASK-005: Bookmark list UI
 
-- [ ] `savedAt desc` の最近追加とlabel条件一覧を実装する。
-- [ ] sticky headerに検索画面を開く入口、AI button、件数、LIST / GRID segmentを置く。
-- [ ] カテゴリを常時表示し、タグをclick / keyboard disclosure、pointer hover previewで表示する。
+- [x] `savedAt desc` の最近追加とlabel条件一覧を実装する。
+- [x] App Headerに検索画面を開く入口とカテゴリ・タグ一覧へ移動する望遠鏡、通常flowのtoolbarに件数とLIST / GRID segmentを置く。一覧への重複buttonを置かず、toolbarをscrollへ追従させない。検索候補／結果はUI-07、AI応答はUI-08で接続する。
+- [x] カテゴリを常時表示し、タグをclick / keyboard disclosure、pointer hover previewで表示する。
 - [ ] 全項目にedit buttonを置き、name、URL、Tagだけを変更できるmodalを実装する。Categoryは選択Tagの親から自動導出して読取表示する。
 - [ ] Tag入力中に既存候補を最大8件表示し、説明横の新規作成ボタンから同じmodal内のTag作成side viewへ移る。
 - [ ] Bookmark削除は確認画面を挟まずsoft-deleteする。削除後にUndo toast、復元ボタン、Undo用errorを表示しない。
-- [ ] cursor infinite scroll、追加失敗 retry、終端、back-to-top を実装する。
-- [ ] 弁当表示、列数設定、表示数変更プルダウン、右 sidebar がないことを確認する。
+- [x] cursor infinite scroll、追加失敗 retry、終端、back-to-top を実装する。
+- [x] 弁当表示、列数設定、表示数変更プルダウン、右 sidebar がないことを確認する。
+- 現在地: UI-04で一覧表示と閲覧操作を実装済み。編集buttonは配置済みだが、UI-05の編集modal、Tag入力、新規作成side view、削除は未実装である。
 - 完了条件: デザインシートに沿う LIST / GRID を keyboard で検索・閲覧・編集できる。
 
 ### TASK-006: Full-screen Category / Tag UI
@@ -116,9 +117,9 @@
 
 ### TASK-007: Prompt API host spike
 
-- [ ] [ISSUES.md](ISSUES.md) ISSUE-001 を公式仕様と実機で解決する。
-- [ ] 対応する top-level extension page で Prompt API を実行する。
-- [ ] availability、download、activation、日本語、structured output を検証する。
+- [x] [ISSUES.md](ISSUES.md) ISSUE-001 を公式仕様と実機で解決する。
+- [x] 対応する top-level extension page で Prompt API を実行する。
+- [x] availability、download、activation、日本語、structured output を検証する。
 - [ ] Service Worker / 未確認 Offscreen から LanguageModel を呼ばない。
 - 完了条件: 対応条件、最低Chrome、AI Host、fallback が証拠付きで一致する。
 
@@ -161,6 +162,8 @@
 - [x] UI-01のproduction tokenとButton／Dialog／Switch／Slider／SelectをVite component sheetで表示し、`ui:preview`／`ui:build`を実装する。
 - [x] UI-02のproduction App Shell、共通Header、型付きhash routeを全画面Web fixture `?view=app-shell#/home` で直接開けるようにする。
 - [x] 最終UI-02 tab bundle（SHA-256 `d69840b75916e63bb5f45dadbb1b84713608bc7b6984546c1986f8149dc8aa51`）をunpacked extensionとして一回限りでPlaywright確認し、見出しfocus、ブラウザBack＋scroll復元、直接指定fallback、320 px／768 px reflow、console errorなしを確認する。ただし再実行可能なrepository harness／CI／report／traceではない。
+- [x] UI-03のproduction popupを使うWeb fixtureで、shortcut割当済み／未割当、保存中／成功／重複／失敗、shortcut取得失敗を直接開けるようにする。
+- [x] UI-04のproduction Bookmark一覧を使うWeb fixture `?view=bookmarks&fixture=grid#/home` で、GRID／LIST／空／1件／多数／読込中／初回失敗／追加失敗を直接開けるようにする。
 - [ ] popup、ホーム、カテゴリ一覧、主要dialogと、空／通常／大量／エラー／権限拒否等の版管理fixtureを直接開けるようにする。
 - [ ] 初回ホーム、未適用／適用済み／競合／再開のCategory template step、検索候補0／8／9件以上、AI検索／機能質問、Unicode 15.1.0 vendored Normalizer asset＋hash、Tag作成／編集のCategory候補／side view／draft、親変更の0件／1件／多数Bookmark参照・revision競合・同request再送／別payload再利用拒否・rollback・AI再分類なし、Bookmark編集のTag-only入力、Category使用状況、Bookmark／Tagの確認なしdelete、Category警告付きcascade deleteと再分類、削除Undo経路なし、AI snapshot、設定境界値、URL単位SUPPRESSED、archive権限gate／履歴なしエラー／復元、Drive／QR／CSVをfixture化する。
 - [ ] `test:e2e`、`test:e2e:ui` scriptを実装する。実装済みの`ui:preview`／`ui:build`を含め、preview／fixture／debug UIを本番拡張成果物から除外する。

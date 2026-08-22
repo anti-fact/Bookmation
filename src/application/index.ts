@@ -14,3 +14,10 @@ export {
   hostnameFromUrl,
   type SaveBookmarkResult,
 } from "./save-bookmark"
+export {
+  applyCategoryTemplates,
+  getCategoryTemplateCatalog,
+  CategoryTemplateApplicationError,
+  type CategoryTemplateApplyReceipt,
+  type CategoryTemplateReceiptStore,
+} from "./category-templates"

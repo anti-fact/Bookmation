@@ -23,3 +23,4 @@ export type {
 
 export { openBookmationDatabase as openDatabase } from "./indexeddb/open-database"
 export { STORES, DB_NAME, DB_VERSION } from "./indexeddb/stores"
+export { ChromeCategoryTemplateReceiptStore } from "./chrome-category-template-receipts"

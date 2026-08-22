@@ -99,7 +99,7 @@ export function PopupView({
   const feedback = saveFeedback(saveState)
 
   return (
-    <main className="w-[22rem] max-w-full bg-bm-paper p-5 text-bm-ink">
+    <main className="w-[22rem] max-w-full overflow-hidden rounded-bm-control border-[3px] border-bm-ink bg-bm-paper p-5 text-bm-ink">
       <header>
         <h1 className="m-0">
           <img

@@ -1,6 +1,6 @@
 # テスト仕様
 
-- 状態: **確定要件・UI-01 component sheet／UI-02 App Shell／UI-03 popup fixture実装済み・拡張E2E基盤／人間受入未実装**
+- 状態: **確定要件・UI-01 component sheet／UI-02 App Shell／UI-03 popup／UI-04 Bookmark一覧fixture実装済み・拡張E2E基盤／人間受入未実装**
 - 更新日: 2026-08-22
 - 関連: [要件](REQUIREMENTS.md) / [制約](CONSTRAINTS.md) / [設計](DESIGN.md) / [フロントエンド](FRONTEND.md) / [セキュリティ](SECURITY.md) / [実装タスク](TASKS.md)
 
@@ -40,7 +40,7 @@ flowchart LR
 
 ## Webプレビューの確定仕様
 
-UI-01ではVite 7.3.6をrunnerとして採用し、semantic tokenとButton／Dialog／Switch／Slider／Selectをproduction codeから直接読み込むcomponent sheetを実装した。UI-02ではproductionのApp Shell、共通Header、型付きhash routeと同じcomponentを使う全画面shell fixtureを追加した。UI-03ではproductionの`PopupView`を共有し、`?view=popup&fixture=assigned`から割当済み／未割当、保存中／成功／重複／失敗、shortcut取得失敗を表示できる。Bookmark、Category／Tag、検索、設定等のfeature data／fake Adapterと以下の残りのfixture catalogは未実装であり、Web fixtureの存在はPlaywright拡張E2E基盤や実Bookmark保存の完了を意味しない。
+UI-01ではVite 7.3.6をrunnerとして採用し、semantic tokenとButton／Dialog／Switch／Slider／Selectをproduction codeから直接読み込むcomponent sheetを実装した。UI-02ではproductionのApp Shell、共通Header、型付きhash routeと同じcomponentを使う全画面shell fixtureを追加した。UI-03ではproductionの`PopupView`を共有し、`?view=popup&fixture=assigned`から割当済み／未割当、保存中／成功／重複／失敗、shortcut取得失敗を表示できる。UI-04ではproductionの`BookmarkListPage`とfake `BookmarkListPort`を共有し、`?view=bookmarks&fixture=grid#/home`からGRID／LIST／空／1件／多数／読込中／初回失敗／追加失敗を表示できる。Category／Tag管理、検索、設定等の残りのfeature data／fake Adapterとfixture catalogは未実装であり、Web fixtureの存在はPlaywright拡張E2E基盤、実Bookmark保存、画像Blob解決の完了を意味しない。
 
 ### 同じUIを使う
 
@@ -54,6 +54,7 @@ UI-01ではVite 7.3.6をrunnerとして採用し、semantic tokenとButton／Dia
 - `http://localhost:<port>/...` の通常Webページとしてブラウザから開けることを必須にする。
 - Viteの独立preview appを利用し、preview entryとfixture codeをPlasmo production entryから参照しない。通常Webページで確認できるという受入条件は変更しない。
 - UI-02の全画面shellは `?view=app-shell#/home` で開く。これはrouting、共通header、responsive shellを確認する入口であり、Bookmark等のfeature fixtureではない。
+- UI-04のBookmark一覧は `?view=bookmarks&fixture=grid#/home` で開く。`fixture`は`grid`／`list`／`empty`／`single`／`many`／`loading`／`initial-error`／`page-error`から選ぶ。
 - 対象画面とfixtureをURL、toolbar、または両方で明示的に切り替えられるようにし、同じURLで同じ初期状態を再現する。
 - popup相当は本番幅のframe内、dashboard相当はデスクトップ／狭幅／200%相当を確認できるviewportで表示する。
 - 画面上に `TEST PREVIEW` とfixture名を表示し、本番画面や実データと誤認させない。
@@ -193,15 +194,15 @@ URL、タイトル、検索文、履歴、token等の利用者データは証拠
 
 ## コマンド契約
 
-UI-01／UI-02でVitestのunit／component testを17 files／84 tests実装し、component sheetと全画面App Shell fixtureを追加した。Playwright関連scriptはまだ目標契約であり、一回限りのUI-02確認をリポジトリE2E基盤の成功として記録しない。
+UI-01からUI-04までのunit／component testと、component sheet、全画面App Shell、popup、Bookmark一覧のWeb fixtureを実装した。Playwright関連scriptはまだ目標契約であり、一回限りのUI-02確認やUI-04の手動Web確認をリポジトリE2E基盤の成功として記録しない。
 
-| command            | 目的                                     | 現在                                              |
-| ------------------ | ---------------------------------------- | ------------------------------------------------- |
-| `pnpm test`        | unit／component                          | 実装済み（17 files／84 tests、全featureは未実装） |
-| `pnpm ui:preview`  | 通常WebページのUIプレビューを起動        | 実装済み（component sheet／UI-02 App Shell）      |
-| `pnpm ui:build`    | レビュー可能な静的UIプレビューを生成     | 実装済み（`build/ui-preview`）                    |
-| `pnpm test:e2e`    | ビルド済み拡張機能のPlaywright E2E       | 未実装                                            |
-| `pnpm test:e2e:ui` | AIエージェント／人間が画面付きでデバッグ | 未実装                                            |
+| command            | 目的                                     | 現在                                                        |
+| ------------------ | ---------------------------------------- | ----------------------------------------------------------- |
+| `pnpm test`        | unit／component                          | 実装済み（UI-04 Bookmark一覧を含む、全featureは未実装）     |
+| `pnpm ui:preview`  | 通常WebページのUIプレビューを起動        | 実装済み（component sheet／App Shell／popup／Bookmark一覧） |
+| `pnpm ui:build`    | レビュー可能な静的UIプレビューを生成     | 実装済み（`build/ui-preview`）                              |
+| `pnpm test:e2e`    | ビルド済み拡張機能のPlaywright E2E       | 未実装                                                      |
+| `pnpm test:e2e:ui` | AIエージェント／人間が画面付きでデバッグ | 未実装                                                      |
 
 script名を変更する場合は、同じ変更で本書、`package.json`、[QUICKSTART.md](QUICKSTART.md)、CI、[WORKLOG.md](WORKLOG.md)を更新する。
 

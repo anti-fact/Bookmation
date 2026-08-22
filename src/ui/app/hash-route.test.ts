@@ -31,6 +31,17 @@ describe("parseHashRoute", () => {
       { kind: "bookmarks", filter: { kind: "tag", id: "tag-1" } }
     ],
     [
+      "#/bookmarks?category=category-1&tag=tag-1",
+      {
+        kind: "bookmarks",
+        filter: {
+          categoryId: "category-1",
+          kind: "category-tag",
+          tagId: "tag-1"
+        }
+      }
+    ],
+    [
       "#/search?q=%E6%97%A5%E6%9C%AC%E8%AA%9E+query",
       { kind: "search", query: "日本語 query" }
     ],
@@ -55,8 +66,8 @@ describe("parseHashRoute", () => {
     "#/bookmarks",
     "#/bookmarks?category=",
     "#/bookmarks?tag=+++",
-    "#/bookmarks?category=one&tag=two",
     "#/bookmarks?category=one&category=two",
+    "#/bookmarks?category=one&tag=two&extra=three",
     "#/bookmarks?folder=one",
     "#/search",
     "#/search?q=",
@@ -70,11 +81,11 @@ describe("parseHashRoute", () => {
   })
 
   it("does not mutate the supplied hash while parsing an invalid route", () => {
-    const hash = "#/bookmarks?category=one&tag=two"
+    const hash = "#/bookmarks?category=one&category=two"
 
     parseHashRoute(hash)
 
-    expect(hash).toBe("#/bookmarks?category=one&tag=two")
+    expect(hash).toBe("#/bookmarks?category=one&category=two")
   })
 })
 
@@ -87,6 +98,14 @@ describe("serializeHashRoute", () => {
       filter: { kind: "category", id: "仕事 & 資料" }
     },
     { kind: "bookmarks", filter: { kind: "tag", id: "調査/AI" } },
+    {
+      kind: "bookmarks",
+      filter: {
+        categoryId: "仕事 & 資料",
+        kind: "category-tag",
+        tagId: "調査/AI"
+      }
+    },
     { kind: "search", query: "日本語 query & notes" },
     { kind: "labels" },
     { kind: "settings", section: "general" },
@@ -123,6 +142,12 @@ describe("serializeHashRoute", () => {
         filter: { kind: "category", id: "  " }
       })
     ).toThrow("category id must not be empty")
+    expect(() =>
+      serializeHashRoute({
+        kind: "bookmarks",
+        filter: { categoryId: "資料", kind: "category-tag", tagId: "  " }
+      })
+    ).toThrow("tag id must not be empty")
     expect(() => serializeHashRoute({ kind: "search", query: "" })).toThrow(
       "search query must not be empty"
     )

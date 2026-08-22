@@ -1,0 +1,22 @@
+/*
+ * Chrome action popupの外形はブラウザ側の白いsurfaceであり、HTML側から
+ * 透明な角丸windowにはできません。白が角だけにはみ出して見えないよう、
+ * 2pxの均一な余白を取り、その内側へPopupViewの角丸枠を配置します。
+ */
+html,
+body,
+#__plasmo {
+  width: fit-content;
+  min-width: 0;
+  min-height: 0;
+  background: var(--bm-color-paper);
+}
+
+body {
+  padding: 2px;
+}
+
+#__plasmo {
+  overflow: hidden;
+  border-radius: var(--bm-radius-control);
+}

@@ -1,6 +1,6 @@
 # Bookmation フロントエンド実装ガイド
 
-- 状態: 実装手順。UI-01 primitive／Web component sheet、UI-02 App Shell／hash route／共通header、UI-03 popup／shortcut／保存状態を実装済み
+- 状態: 実装手順。UI-01 primitive／Web component sheet、UI-02 App Shell／hash route／共通header、UI-03 popup／shortcut／保存状態、UI-04 Bookmark LIST／GRIDを実装済み
 - 基準日: 2026-08-22
 - 対象: Radix Primitives + Plasmo 0.90.5 + React 18.3.1 + Tailwind CSS 3.4.17 + TypeScript 5.9.2
 - 関連: [要件](docs/REQUIREMENTS.md) / [UI設計](docs/UI.md) / [フロントエンド設計](docs/FRONTEND.md) / [テスト仕様](docs/TESTING.md)
@@ -481,8 +481,8 @@ UI-03ではこのphaseの画面、Chrome Port、Web fixture、component testを�
 
 ### Phase 4: Bookmark一覧を作る
 
-1. `BookmarkListPage`へsticky toolbarを置く。
-2. toolbarに統合keyword検索、AI入口、Bookmark件数、LIST／GRIDの`RadioGroup`を置く。
+1. `BookmarkListPage`へ通常flowのtoolbarを置く。App Headerの下へ表示するが、画面scrollには追従させない。
+2. App Headerに統合keyword検索とカテゴリ・タグ一覧へ移動する望遠鏡を置き、secondary toolbarに現在位置、Bookmark件数、LIST／GRIDの`RadioGroup`を置く。secondary toolbarへ重複する一覧buttonは置かない。
 3. GRIDは`BookmarkCard`、LISTは`BookmarkRow`へ同じview modelを渡す。
 4. Categoryは常時表示し、Tagは`Collapsible`で展開する。
 5. 各項目に編集buttonを置く。
@@ -494,6 +494,8 @@ UI-03ではこのphaseの画面、Chrome Port、Web fixture、component testを�
 page全体をRadix `ScrollArea`へ入れない。native document scrollを使うことでsticky header、browser search、無限scroll、back-to-topを予測可能にする。
 
 Tagはhover Tooltipだけで隠さない。pointer、touch、keyboardで同じ情報へ到達できる`Collapsible.Trigger`を必須経路にし、Tooltipは補助説明に限る。
+
+UI-04ではこのphaseを実装済みである。`BookmarkListPage`は`BookmarkListPort`だけへ依存し、production adapterがIndexedDBのBookmark／Label edgeと`chrome.storage.local`の表示形式へ接続する。secondary toolbarはApp Headerの下へ通常flowで配置し、画面scrollには追従させない。GRID／LIST、カテゴリ／タグ条件、cursor多重要求防止、requestId照合、ID重複除去、追加失敗の再試行、終端、back-to-topをcomponent testとWeb fixtureで確認する。カテゴリ・タグ一覧はApp Headerの望遠鏡から開き、secondary toolbarの重複buttonは削除した。編集はbuttonのみとし、UI-05／UI-07／UI-08へ責務を分離する。
 
 ### Phase 5: Bookmark編集と同一dialog内side viewを作る
 
@@ -675,9 +677,9 @@ Radixを導入しただけではBookmation全体のアクセシビリティは�
 
 [TESTING.md](docs/TESTING.md) のとおり、本番と同じReact componentを通常Webページで人間が確認できるようにする。preview専用の画面コピーを作らない。
 
-Vite 7.3.6をrunnerに固定し、`preview/ComponentSheet.tsx`がproduction tokenとprimitiveだけを読み込む通常Webページを実装した。`pnpm ui:preview`は `127.0.0.1:4173`、`pnpm ui:build`は `build/ui-preview`を使う。root URLはUI-01 component sheetを維持し、UI-02 App Shellは `http://127.0.0.1:4173/?view=app-shell#/home` でproduction componentを表示する。hashを上記9 routeへ差し替えてheader variant、focus、戻る／進むを確認できる。
+Vite 7.3.6をrunnerに固定し、`preview/ComponentSheet.tsx`がproduction tokenとprimitiveだけを読み込む通常Webページを実装した。`pnpm ui:preview`は `127.0.0.1:4173`、`pnpm ui:build`は `build/ui-preview`を使う。root URLはUI-01 component sheetを維持し、UI-02 App Shellは `http://127.0.0.1:4173/?view=app-shell#/home`、UI-04 Bookmark一覧は `http://127.0.0.1:4173/?view=bookmarks&fixture=grid#/home` でproduction componentを表示する。Bookmark fixtureは`grid`／`list`／`empty`／`single`／`many`／`loading`／`initial-error`／`page-error`をURLで切り替えられる。
 
-現時点のApp Shell fixtureはnavigation shellだけを対象とする。以下のPort／Adapter付きfeature fixture catalogとPlaywright拡張E2E環境はISSUE-018／TASK-013の残作業である。
+App Shell fixture自体はnavigation shellだけを対象とし、Bookmark一覧だけを別のfake `BookmarkListPort`付きfixtureとして追加した。カテゴリ・タグ管理、検索、設定等のfeature fixture catalogとPlaywright拡張E2E環境はISSUE-018／TASK-013の残作業である。
 
 ```tsx
 const previewPorts = createFakeUiPorts(fixture)
@@ -757,7 +759,7 @@ visual testは同一OS、browser、font、viewport、device scale factorで行�
 1. `UI-01`: Radix導入、token、primitive、component sheet preview
 2. `UI-02`: App shell、hash route、共通header、layout
 3. `UI-03`: popup、shortcut、保存状態
-4. `UI-04`: Bookmark GRID／LIST、sticky toolbar、無限scroll
+4. `UI-04`: Bookmark GRID／LIST、一覧toolbar、無限scroll
 5. `UI-05`: Bookmark編集、Tag／Category side view
 6. `UI-06`: Labels VIEW／MANAGE、Category／Tag作成・編集・削除
 7. `UI-07`: keyword combobox、full-page search
@@ -767,7 +769,7 @@ visual testは同一OS、browser、font、viewport、device scale factorで行�
 11. `UI-11`: reminder、import、QR／CSV／Drive状態
 12. `UI-12`: Web preview catalog、visual baseline、extension E2E
 
-UI-01からUI-03は実装済みである。UI-02のWebプレビューはApp Shellのroute／header／layout、UI-03のpopupプレビューは画面状態とPort境界だけを対象とし、保存Applicationの永続化やUI-04以降のfeature完成、UI-12の全fixture／E2E完了を示さない。
+UI-01からUI-04は実装済みである。UI-02のWebプレビューはApp Shellのroute／header／layout、UI-03のpopupプレビューは画面状態とPort境界、UI-04のBookmarkプレビューは一覧の表示・追加読込・失敗状態だけを対象とする。保存Application、Bookmark編集、検索／AI、画像Blob解決、UI-12の全fixture／E2E完了を示さない。
 
 各PRはtokenやprimitiveを勝手に複製せず、必要な共通変更を先行PRへ戻す。画面PRで新しい色やradiusが必要になったら、Figma上の役割を確認してtoken PRとしてレビューする。
 

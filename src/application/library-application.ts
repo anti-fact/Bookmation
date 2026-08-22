@@ -1,8 +1,14 @@
 import { LocalDataLayer } from "~/adapters"
+import { CATEGORY_TEMPLATE_CATALOG } from "~/catalogs/category-templates"
 import type { ExtensionMessageResponse } from "~/extension/messages"
 import { isDomainError } from "~/domain"
 
 import { handleClassificationJobMessage } from "./classification-job-application"
+import {
+  applyCategoryTemplates,
+  getCategoryTemplateCatalog,
+  type CategoryTemplateReceiptStore,
+} from "./category-templates"
 import type { ExtensionMessageApplication } from "./extension-message-application"
 
 function record(value: unknown): Record<string, unknown> | null {
@@ -23,6 +29,7 @@ function invalid(requestId: string): ExtensionMessageResponse {
 /** BE-04/05 actionをChrome境界からApplicationへ集約する。 */
 export function createLibraryApplication(
   save: ExtensionMessageApplication,
+  categoryTemplateReceipts: CategoryTemplateReceiptStore,
 ): ExtensionMessageApplication {
   return {
     async handle(request): Promise<ExtensionMessageResponse> {
@@ -33,6 +40,55 @@ export function createLibraryApplication(
     if (!payload) return invalid(request.requestId)
     const layer = await LocalDataLayer.open()
     try {
+      if (request.action === "get-category-template-catalog") {
+        const catalog = getCategoryTemplateCatalog(CATEGORY_TEMPLATE_CATALOG)
+        return {
+          requestId: request.requestId,
+          ok: true,
+          data: {
+            version: catalog.version,
+            locale: catalog.locale,
+            templates: catalog.templates.map((template) => ({
+              id: template.id,
+              name: template.name,
+              setId: template.setId,
+            })),
+          },
+        }
+      }
+      if (
+        request.action === "apply-category-templates" &&
+        typeof payload.catalogVersion === "string" &&
+        typeof payload.requestId === "string" &&
+        Array.isArray(payload.templateIds) &&
+        payload.templateIds.every((id) => typeof id === "string")
+      ) {
+        const receipt = await applyCategoryTemplates(
+          {
+            catalogVersion: payload.catalogVersion,
+            templateIds: payload.templateIds,
+            requestId: payload.requestId,
+          },
+          {
+            catalog: CATEGORY_TEMPLATE_CATALOG,
+            repository: layer,
+            receipts: categoryTemplateReceipts,
+          },
+        )
+        return {
+          requestId: request.requestId,
+          ok: true,
+          data: {
+            requestId: receipt.requestId,
+            results: receipt.results.map((result) => ({
+              templateId: result.templateId,
+              status: result.status,
+              categoryId: result.categoryId ?? null,
+              errorCode: result.errorCode ?? null,
+            })),
+          },
+        }
+      }
       if (request.action === "create-category" && typeof payload.name === "string") {
         const category = await layer.createCategory({
           id: crypto.randomUUID(),

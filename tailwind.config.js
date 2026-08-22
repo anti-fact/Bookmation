@@ -23,6 +23,7 @@ module.exports = {
         }
       },
       borderRadius: {
+        "bm-control": "var(--bm-radius-control)",
         "bm-field": "var(--bm-radius-field)",
         "bm-switch": "var(--bm-radius-switch)",
         "bm-dialog": "var(--bm-radius-dialog)",
