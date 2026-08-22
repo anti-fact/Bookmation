@@ -21,12 +21,14 @@ export type BookmarkListLabel = {
 
 export type BookmarkListItem = {
   categories: BookmarkListLabel[]
-  faviconUrl: string | null
+  /** 拡張機能内 Blob または同梱ロゴのみ。外部 https URL は含めない。 */
+  faviconSrc: string
   id: string
   savedAt: number
   siteName: string | null
   tags: BookmarkListLabel[]
-  thumbnailUrl: string | null
+  /** 拡張機能内 Blob または同梱ロゴのみ。外部 https URL は含めない。 */
+  thumbnailSrc: string
   title: string
   url: string
 }

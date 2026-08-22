@@ -1,4 +1,5 @@
 import { LocalDataLayer } from "~/adapters"
+import { safeLogError } from "~/adapters/security/log-redaction"
 import { CATEGORY_TEMPLATE_CATALOG } from "~/catalogs/category-templates"
 import type { ExtensionMessageResponse } from "~/extension/messages"
 import { isDomainError } from "~/domain"
@@ -197,9 +198,9 @@ export function createLibraryApplication(
       return { requestId: request.requestId, ok: false, error: { code: "ACTION_NOT_AVAILABLE" } }
     } catch (error: unknown) {
       if (isDomainError(error)) {
-        console.error("[Bookmation] Library action failed:", error.code, error.message)
+        safeLogError("Library action rejected", error)
       } else {
-        console.error("[Bookmation] Library action failed:", error)
+        safeLogError("Library action failed", error)
       }
       return { requestId: request.requestId, ok: false, error: { code: "INTERNAL_ERROR" } }
     } finally { await layer.close() }

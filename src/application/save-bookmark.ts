@@ -2,6 +2,9 @@ import type {
   LocalDataLayerPort,
   SaveBookmarkWithJobResult,
 } from "~/ports/repositories"
+import { resolveBookmarkTitle } from "~/domain"
+
+import { hostnameFromUrl } from "./save-bookmark-hostname"
 
 export interface SaveBookmarkResult {
   bookmarkId: string
@@ -53,20 +56,10 @@ export class SaveBookmarkUseCase {
 }
 
 function pickTitle(title: string, rawUrl: string): string {
-  const trimmed = title.trim()
-  if (trimmed.length > 0) {
-    return trimmed
-  }
-  return hostnameFromUrl(rawUrl)
+  return resolveBookmarkTitle(title, hostnameFromUrl(rawUrl))
 }
 
-export function hostnameFromUrl(rawUrl: string): string {
-  try {
-    return new URL(rawUrl).hostname
-  } catch {
-    return rawUrl
-  }
-}
+export { hostnameFromUrl } from "./save-bookmark-hostname"
 
 function toSaveBookmarkResult(
   result: SaveBookmarkWithJobResult,

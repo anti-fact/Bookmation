@@ -1,4 +1,5 @@
 import { applyFaviconUrlFetch, applyUrlMetadataFetch } from "~/adapters/metadata/page-metadata"
+import { safeLogWarning } from "~/adapters/security/log-redaction"
 import type { LocalDataLayerPort } from "~/ports/repositories"
 import type { SaveBookmarkResult } from "~/application/save-bookmark"
 
@@ -38,7 +39,7 @@ export function scheduleBookmarkMetadataFetch(
         })
       }
     } catch (error: unknown) {
-      console.warn("[Bookmation] Metadata fetch failed:", error)
+      safeLogWarning("Metadata fetch", error instanceof Error ? error.message : "failed")
     }
   }
 

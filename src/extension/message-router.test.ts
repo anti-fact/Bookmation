@@ -65,6 +65,27 @@ describe("extension message protocol", () => {
     }
     expect(parseExtensionMessage(request)).toBeNull()
   })
+
+  it("rejects dangerous object keys in payload", () => {
+    const request = {
+      ...listRequest(),
+      payload: { constructor: { polluted: true } },
+    }
+    expect(parseExtensionMessage(request)).toBeNull()
+  })
+
+  it("rejects deeply nested payload objects", () => {
+    let payload: Record<string, unknown> = { leaf: true }
+    for (let index = 0; index < 10; index += 1) {
+      payload = { nested: payload }
+    }
+    expect(
+      parseExtensionMessage({
+        ...listRequest(),
+        payload,
+      }),
+    ).toBeNull()
+  })
 })
 
 describe("extension message router", () => {

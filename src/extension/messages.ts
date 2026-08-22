@@ -1,4 +1,5 @@
 import type { JsonValue } from "~/domain"
+import { jsonValueWithinBounds, MAX_MESSAGE_JSON_DEPTH } from "~/domain/security"
 
 /** Service Worker と拡張ページ間で交換する protocol version。 */
 export const EXTENSION_MESSAGE_SCHEMA_VERSION = 1 as const
@@ -144,20 +145,7 @@ export function isExtensionMessageAction(value: unknown): value is ExtensionMess
 }
 
 function isJsonValue(value: unknown): value is JsonValue {
-  if (value === null || typeof value === "string" || typeof value === "boolean") {
-    return true
-  }
-  if (typeof value === "number") {
-    return Number.isFinite(value)
-  }
-  if (Array.isArray(value)) {
-    return value.every(isJsonValue)
-  }
-  if (typeof value !== "object") {
-    return false
-  }
-
-  return Object.values(value as Record<string, unknown>).every(isJsonValue)
+  return jsonValueWithinBounds(value, MAX_MESSAGE_JSON_DEPTH)
 }
 
 function isPlainRecord(value: unknown): value is Record<string, unknown> {

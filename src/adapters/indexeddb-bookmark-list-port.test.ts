@@ -186,4 +186,54 @@ describe("IndexedDbBookmarkListPort", () => {
     expect(await port.getViewMode()).toBe("LIST")
     expect(storage.set).toHaveBeenCalledWith({ bookmarkListViewMode: "LIST" })
   })
+
+  it("resolves blob-backed image sources without exposing external URLs", async () => {
+    const blobId = crypto.randomUUID()
+    const pngBase64 =
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+    const binary = atob(pngBase64)
+    const bytes = new Uint8Array(binary.length)
+    for (let index = 0; index < binary.length; index += 1) {
+      bytes[index] = binary.charCodeAt(index)
+    }
+
+    await layer.putBlobRecord({
+      id: blobId,
+      kind: "THUMBNAIL",
+      mimeType: "image/png",
+      byteLength: bytes.byteLength,
+      width: 1,
+      height: 1,
+      data: new Blob([bytes], { type: "image/png" }),
+      contentHash: "test-hash",
+    })
+
+    const saved = await layer.saveBookmarkWithJob({
+      creationRequestId: uuid(),
+      id: uuid(),
+      jobId: uuid(),
+      rawUrl: "https://blob.example/article",
+      thumbnailBlobId: blobId,
+      title: "Blob 付き",
+    })
+
+    const port = createIndexedDbBookmarkListPort({
+      openDataLayer: async () => layer,
+      storage: createStorage(),
+    })
+    const page = await port.loadPage({
+      cursor: null,
+      filter: { kind: "recent" },
+      requestId: "blob-request",
+    })
+
+    const item = page.items.find((entry) => entry.id === saved.bookmark.id)
+    expect(item).toBeDefined()
+    expect(
+      item?.thumbnailSrc.startsWith("blob:") || item?.thumbnailSrc.startsWith("data:"),
+    ).toBe(true)
+    expect(item?.faviconSrc).toContain("icon.png")
+    expect(item?.thumbnailSrc).not.toContain("blob.example")
+    expect(item?.faviconSrc).not.toContain("blob.example")
+  })
 })

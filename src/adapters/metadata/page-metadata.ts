@@ -1,15 +1,11 @@
 import type { LocalDataLayerPort } from "~/ports/repositories"
+import {
+  MAX_FAVICON_BYTES,
+  MAX_HTML_FETCH_BYTES,
+  MAX_THUMBNAIL_BYTES,
+} from "~/domain/security"
 
-const MAX_HTML_BYTES = 512_000
-const MAX_IMAGE_BYTES = 512_000
-const ALLOWED_IMAGE_MIME = new Set([
-  "image/png",
-  "image/jpeg",
-  "image/webp",
-  "image/gif",
-  "image/x-icon",
-  "image/vnd.microsoft.icon",
-])
+import { validateImageBytes } from "../blob/validated-image-blob"
 
 export interface ParsedPageMetadata {
   title: string | null
@@ -62,33 +58,39 @@ async function fetchText(url: string): Promise<string | null> {
     return null
   }
   const buffer = await response.arrayBuffer()
-  if (buffer.byteLength > MAX_HTML_BYTES) {
+  if (buffer.byteLength > MAX_HTML_FETCH_BYTES) {
     return null
   }
   return new TextDecoder("utf-8", { fatal: false }).decode(buffer)
 }
 
-async function fetchImageBlob(url: string): Promise<Blob | null> {
+async function fetchValidatedImage(url: string, maxBytes: number) {
   const response = await fetch(url, { redirect: "follow" })
   if (!response.ok) {
     return null
   }
   const mimeType = response.headers.get("content-type")?.split(";")[0]?.trim() ?? ""
-  if (!ALLOWED_IMAGE_MIME.has(mimeType)) {
-    return null
-  }
   const buffer = await response.arrayBuffer()
-  if (buffer.byteLength === 0 || buffer.byteLength > MAX_IMAGE_BYTES) {
-    return null
-  }
-  return new Blob([buffer], { type: mimeType })
+  return validateImageBytes(buffer, mimeType, maxBytes)
 }
 
-async function sha256Hex(data: ArrayBuffer): Promise<string> {
-  const digest = await crypto.subtle.digest("SHA-256", data)
-  return [...new Uint8Array(digest)]
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("")
+async function storeValidatedImage(
+  data: LocalDataLayerPort,
+  validated: NonNullable<Awaited<ReturnType<typeof fetchValidatedImage>>>,
+  kind: "THUMBNAIL" | "FAVICON",
+): Promise<string> {
+  const id = crypto.randomUUID()
+  await data.putBlobRecord({
+    id,
+    kind,
+    mimeType: validated.mimeType,
+    byteLength: validated.byteLength,
+    width: validated.width,
+    height: validated.height,
+    data: validated.blob,
+    contentHash: validated.contentHash,
+  })
+  return id
 }
 
 export async function applyUrlMetadataFetch(
@@ -120,35 +122,17 @@ export async function applyUrlMetadataFetch(
   }
 
   if (faviconUrl) {
-    const blob = await fetchImageBlob(faviconUrl)
-    if (blob) {
-      const buffer = await blob.arrayBuffer()
-      faviconBlobId = crypto.randomUUID()
-      await data.putBlobRecord({
-        id: faviconBlobId,
-        kind: "FAVICON",
-        mimeType: blob.type,
-        byteLength: buffer.byteLength,
-        data: blob,
-        contentHash: await sha256Hex(buffer),
-      })
+    const validated = await fetchValidatedImage(faviconUrl, MAX_FAVICON_BYTES)
+    if (validated) {
+      faviconBlobId = await storeValidatedImage(data, validated, "FAVICON")
     }
   }
 
   let thumbnailBlobId: string | null = null
   if (input.fetchThumbnail && parsed.thumbnailUrl) {
-    const blob = await fetchImageBlob(parsed.thumbnailUrl)
-    if (blob) {
-      const buffer = await blob.arrayBuffer()
-      thumbnailBlobId = crypto.randomUUID()
-      await data.putBlobRecord({
-        id: thumbnailBlobId,
-        kind: "THUMBNAIL",
-        mimeType: blob.type,
-        byteLength: buffer.byteLength,
-        data: blob,
-        contentHash: await sha256Hex(buffer),
-      })
+    const validated = await fetchValidatedImage(parsed.thumbnailUrl, MAX_THUMBNAIL_BYTES)
+    if (validated) {
+      thumbnailBlobId = await storeValidatedImage(data, validated, "THUMBNAIL")
     }
   }
 
@@ -173,18 +157,9 @@ export async function applyFaviconUrlFetch(
   },
 ): Promise<void> {
   let faviconBlobId: string | null = null
-  const blob = await fetchImageBlob(input.faviconUrl)
-  if (blob) {
-    const buffer = await blob.arrayBuffer()
-    faviconBlobId = crypto.randomUUID()
-    await data.putBlobRecord({
-      id: faviconBlobId,
-      kind: "FAVICON",
-      mimeType: blob.type,
-      byteLength: buffer.byteLength,
-      data: blob,
-      contentHash: await sha256Hex(buffer),
-    })
+  const faviconValidated = await fetchValidatedImage(input.faviconUrl, MAX_FAVICON_BYTES)
+  if (faviconValidated) {
+    faviconBlobId = await storeValidatedImage(data, faviconValidated, "FAVICON")
   }
 
   let thumbnailBlobId: string | null = null
@@ -193,18 +168,12 @@ export async function applyFaviconUrlFetch(
     if (html) {
       const parsed = parsePageMetadata(html, input.pageUrl)
       if (parsed.thumbnailUrl) {
-        const thumbBlob = await fetchImageBlob(parsed.thumbnailUrl)
-        if (thumbBlob) {
-          const buffer = await thumbBlob.arrayBuffer()
-          thumbnailBlobId = crypto.randomUUID()
-          await data.putBlobRecord({
-            id: thumbnailBlobId,
-            kind: "THUMBNAIL",
-            mimeType: thumbBlob.type,
-            byteLength: buffer.byteLength,
-            data: thumbBlob,
-            contentHash: await sha256Hex(buffer),
-          })
+        const thumbValidated = await fetchValidatedImage(
+          parsed.thumbnailUrl,
+          MAX_THUMBNAIL_BYTES,
+        )
+        if (thumbValidated) {
+          thumbnailBlobId = await storeValidatedImage(data, thumbValidated, "THUMBNAIL")
         }
       }
     }

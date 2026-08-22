@@ -13,15 +13,17 @@ import type {
   BookmarkListPort
 } from "./bookmark-list-port"
 
+const bundledLogo = "chrome-extension://test/assets/icon.png"
+
 function bookmark(id: string, savedAt: number): BookmarkListItem {
   return {
     categories: [{ id: "category-development", name: "開発" }],
-    faviconUrl: null,
+    faviconSrc: bundledLogo,
     id,
     savedAt,
     siteName: "example.com",
     tags: [{ id: "tag-typescript", name: "TypeScript" }],
-    thumbnailUrl: null,
+    thumbnailSrc: bundledLogo,
     title: `記事 ${id}`,
     url: `https://example.com/${id}`
   }

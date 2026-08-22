@@ -33,6 +33,7 @@ Bookmation は、閲覧中のページまたは指定URLを専用ストアへ保
 | [2026-08-22-task-003-local-data-layer.md](plans/2026-08-22-task-003-local-data-layer.md) | TASK-003 / BE-02 ローカルデータ層（IndexedDB・Repository）Plan |
 | [2026-08-22-task-004-save-ui-requirements.md](plans/2026-08-22-task-004-save-ui-requirements.md) | TASK-004 / BE-03・BE-04 保存 UI・commands・URL 指定保存 要件定義 |
 | [2026-08-22-be-06-classification-job.md](plans/2026-08-22-be-06-classification-job.md) | BE-06 永続 AI 分類 Job（claim / lease / 再送制御）Execution Plan |
+| [2026-08-23-be-10-security-hardening.md](plans/2026-08-23-be-10-security-hardening.md) | BE-10 / TASK-010 権限・入力・Blob 安全化 Execution Plan |
 | [TASKS.md](TASKS.md) | チームで分担する実装ワークパッケージ、依存関係、完了条件 |
 | [TODO.md](TODO.md) | 1 PR 程度で完了できる小規模タスク |
 | [ISSUES.md](ISSUES.md) | 未決定事項・プロダクト上の問題 |

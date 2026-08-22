@@ -1,7 +1,7 @@
 # Bookmation バックエンド実装タスク
 
-- 状態: 実装前バックログ
-- 更新日: 2026-08-17
+- 状態: 実装中バックログ
+- 更新日: 2026-08-23
 - 対象: Chrome拡張機能内のDomain、Application、JSON document、IndexedDB、Manifest V3 Service Worker、AI Host、Chrome API、Google Driveアダプター
 - 対象外: React画面の見た目、独自リモートサーバー、外部LLMへの自動fallback
 - 正本: [バックエンド設計](docs/BACKEND.md) / [DBスキーマ](docs/DB-SCHEMA.md) / [セキュリティ](docs/SECURITY.md) / [要件](docs/REQUIREMENTS.md)
@@ -90,11 +90,11 @@ flowchart TD
 | BE-04 | 現在ページ・URL保存 | 完了 | GreenTea / 🐳 | BE-02、BE-03 | AIなしでもBookmarkを保存できる |
 | BE-05 | 編集・親子Label・一覧Query | 進行中 | GreenTea | BE-02、BE-03 | 編集、削除、親カテゴリ／子タグ管理、候補・一覧取得ができる |
 | BE-19 | 初回Category template適用 | 進行中 | 未定 | ISSUE-022、BE-03、BE-05 | 利用者が明示適用したtemplate Categoryだけを通常規則で重複なく作成できる |
-| BE-06 | 永続AI Job | 未着手 | 未定 | BE-03、BE-04 | workerやAI Hostが止まっても分類要求を失わない |
+| BE-06 | 永続AI Job | 完了 | 未定 | BE-03、BE-04 | workerやAI Hostが止まっても分類要求を失わない |
 | BE-07 | Prompt API Hostスパイク | 進行中 | みやけ | BE-00、BE-03 | 対応環境とAI実行場所を実証できる |
 | BE-08 | AI分類と結果適用 | 未着手 | 未定 | BE-05〜BE-07 | カテゴリ／タグ規則どおり分類し、失敗時も保存を守る |
 | BE-09 | Keyword検索・AIアシスタント | 未着手 | 未定 | BE-02、BE-05、BE-07 | 最大8件の候補と検索／機能説明を返せる |
-| BE-10 | 権限・入力・Blob安全化 | 未着手 | 未定 | BE-03、BE-04 | 最小権限で危険入力と外部画像追跡を防げる |
+| BE-10 | 権限・入力・Blob安全化 | 完了 | 未定 | BE-03、BE-04 | 最小権限で危険入力と外部画像追跡を防げる |
 | BE-11 | 中断復旧とMigration | 未着手 | 未定 | BE-06、BE-08、BE-09 | 更新・再送・途中停止から安全に回復できる |
 | BE-12 | 統合テストとフロント引き渡し | 未着手 | 未定 | BE-04、BE-05、BE-08〜BE-11 | P0の一連操作を再現し、UIから利用できる |
 | BE-13 | 訪問日数閾値と保存リマインダー | 未着手 | 未定 | BE-03、BE-04、BE-10、BE-12 | 期間内の訪問日数とURL別resetに従い、確認したURLだけを保存できる |
@@ -271,17 +271,19 @@ sequenceDiagram
 
 目的: Service WorkerやAI Hostが終了しても分類状態を失わない。
 
-- [ ] `PENDING / RUNNING / SUCCEEDED / FAILED / NEEDS_REVIEW / CANCELED` を実装する。
-- [ ] Job claimを条件付き更新し、executor、attempt、lease期限、bookmark revisionを記録する。
-- [ ] 期限切れRUNNINGを上限付きでPENDINGへ戻す。
-- [ ] input fingerprintで成功済み結果の再適用を防ぐ。
-- [ ] Job作成時に `{ granularity, maxNewTags }` をdiscriminated snapshotとして固定し、`0→0 / 1→1 / 2→2 / 3→4 / 4→6` 以外の組合せを保存・実行しない。
-- [ ] AI提案の `creationRequestId = jobId:proposalKey` を安定生成する。
-- [ ] UIがJob状態を照会・再試行・取消できる契約を作る。
+- [x] `PENDING / RUNNING / SUCCEEDED / FAILED / NEEDS_REVIEW / CANCELED` を実装する。
+- [x] Job claimを条件付き更新し、executor、attempt、lease期限、bookmark revisionを記録する。
+- [x] 期限切れRUNNINGを上限付きでPENDINGへ戻す。
+- [x] input fingerprintで成功済み結果の再適用を防ぐ。
+- [x] Job作成時に `{ granularity, maxNewTags }` を discriminated snapshotとして固定し、`0→0 / 1→1 / 2→2 / 3→4 / 4→6` 以外の組合せを保存・実行しない。
+- [x] AI提案の `creationRequestId = jobId:proposalKey` を安定生成する（helper と契約。Tag 作成本体は BE-08）。
+- [x] UIがJob状態を照会・再試行・取消できる契約を作る。
 
 成果物: Job Repository、claim/apply/retry use case、時計Port、再送テスト。
 
 完了条件: worker停止、Host終了、lease競合、結果二重送信、古いrevisionでデータが重複・上書きされない。
+
+完了メモ: 2026-08-23。PR [#66](https://github.com/anti-fact/Bookmation/pull/66) マージ済み。`classification-job-ops.ts`、message handlers（claim / apply / get / retry / cancel）、SW 起動時 stale 回収、fake-indexeddb テスト 15 件。apply は Tag 適用を BE-08 に委譲し Job 終端と Bookmark `classificationState` 更新まで。実機で claim → apply `SUCCEEDED` を確認。Plan: [docs/plans/2026-08-22-be-06-classification-job.md](docs/plans/2026-08-22-be-06-classification-job.md)。
 
 ### BE-07 Prompt API Hostスパイク
 
@@ -343,16 +345,20 @@ sequenceDiagram
 
 目的: 保存・表示・AI境界で利用者データと権限を守る。
 
-- [ ] 初期権限を `storage`、`activeTab`、commands中心にレビューする。
-- [ ] title、URL、Label名、message、JSON document、AI出力を未信頼入力として長さ・型・scheme検証する。
-- [ ] 保存時の `og:image` を第一候補として、MIME、byte数、寸法、content hashを検証してlocal Blob化する。取得・検証・保存に失敗した場合は外部URLを参照せず同梱ロゴへ縮退する。
-- [ ] 一覧表示のたびに外部画像URLへ接続しない。
-- [ ] URL、title、Label名、AI queryを通常ログへ出さない。
-- [ ] CSP、remote code禁止、権限拒否時fallbackをテストする。
+Plan: [docs/plans/2026-08-23-be-10-security-hardening.md](docs/plans/2026-08-23-be-10-security-hardening.md)（TASK-010 と同一スコープ）。
+
+- [x] 初期権限を `storage`、`activeTab`、commands中心にレビューする。
+- [x] title、URL、Label名、message、JSON document、AI出力を未信頼入力として長さ・型・scheme検証する（AI 出力本体は BE-08）。
+- [x] 保存時の `og:image` を第一候補として、MIME、byte数、寸法、content hashを検証してlocal Blob化する。取得・検証・保存に失敗した場合は外部URLを参照せず同梱ロゴへ縮退する。
+- [x] 一覧表示のたびに外部画像URLへ接続しない。
+- [x] URL、title、Label名、AI queryを通常ログへ出さない。
+- [x] CSP、remote code禁止、権限拒否時fallbackをテストする（Manifest 自動検証。手動権限レビューは WORKLOG へ）。
 
 成果物: security validator、Blob adapter、permission表、ログredaction、テスト。
 
 完了条件: [SECURITY.md](docs/SECURITY.md) のP0確認を自動テストと手動権限レビューで満たす。
+
+完了メモ: 2026-08-23。PR 作成予定。`src/domain/security/`、validated image Blob、`faviconSrc`/`thumbnailSrc` 一覧契約、log redaction、manifest テスト。292 テストパス、`pnpm build` 成功。手動: Dashboard 一覧スクロール時 DevTools Network に保存元サイトへの画像リクエストなしを確認。Plan: [docs/plans/2026-08-23-be-10-security-hardening.md](docs/plans/2026-08-23-be-10-security-hardening.md)。
 
 ### BE-11 中断復旧とMigration
 
