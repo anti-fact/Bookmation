@@ -55,6 +55,29 @@ describe("LocalDataLayer", () => {
       expect(loaded?.revision).toBe(1)
     })
 
+    it("returns duplicate when normalized URL already exists", async () => {
+      const url = "https://example.com/dup-test"
+      const first = await layer.saveBookmarkWithJob({
+        id: uuid(),
+        rawUrl: url,
+        title: "First",
+        creationRequestId: uuid(),
+        jobId: uuid(),
+      })
+      expect(first.duplicate).toBe(false)
+
+      const second = await layer.saveBookmarkWithJob({
+        id: uuid(),
+        rawUrl: url,
+        title: "Second",
+        creationRequestId: uuid(),
+        jobId: uuid(),
+      })
+      expect(second.duplicate).toBe(true)
+      expect(second.bookmark.id).toBe(first.bookmark.id)
+      expect(second.job).toBeNull()
+    })
+
     it("validates schemaVersion through repository helpers", async () => {
       const { assertPersistableDocument } = await import("./document-validation")
       expect(() =>
@@ -142,7 +165,7 @@ describe("LocalDataLayer", () => {
         jobId: uuid(),
       })
 
-      expect(second.job.id).toBe(first.job.id)
+      expect(second.job!.id).toBe(first.job!.id)
       expect(second.bookmark.id).toBe(first.bookmark.id)
 
       const jobs = await layer.rawDb.getAll(STORES.classificationJobs)

@@ -3,5 +3,13 @@ export {
   successResponse,
   type ExtensionMessageApplication,
 } from "./extension-message-application"
-export { createBookmarkSaveApplication, type TabReader } from "./save-bookmark"
 export { createLibraryApplication } from "./library-application"
+export {
+  createSaveBookmarkMessageApplication,
+  resetSaveBookmarkDataLayerCache,
+} from "./save-bookmark-message-application"
+export {
+  SaveBookmarkUseCase,
+  hostnameFromUrl,
+  type SaveBookmarkResult,
+} from "./save-bookmark"

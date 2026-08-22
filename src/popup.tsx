@@ -8,7 +8,8 @@ import "./style.css"
 const popupPort = createChromePopupPort({
   commands: chrome.commands,
   runtime: chrome.runtime,
-  tabs: chrome.tabs
+  tabs: chrome.tabs,
+  windows: chrome.windows,
 })
 
 function saveCurrentPage() {

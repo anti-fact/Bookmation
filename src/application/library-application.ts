@@ -1,8 +1,7 @@
-import type { ExtensionMessageResponse } from "~/extension/messages"
 import { LocalDataLayer } from "~/adapters"
+import type { ExtensionMessageResponse } from "~/extension/messages"
 
 import type { ExtensionMessageApplication } from "./extension-message-application"
-import { createBookmarkSaveApplication, type TabReader } from "./save-bookmark"
 
 function record(value: unknown): Record<string, unknown> | null {
   return value !== null && typeof value === "object" && !Array.isArray(value)
@@ -20,8 +19,9 @@ function invalid(requestId: string): ExtensionMessageResponse {
 }
 
 /** BE-04/05 actionをChrome境界からApplicationへ集約する。 */
-export function createLibraryApplication(tabReader: TabReader): ExtensionMessageApplication {
-  const save = createBookmarkSaveApplication(tabReader)
+export function createLibraryApplication(
+  save: ExtensionMessageApplication,
+): ExtensionMessageApplication {
   return {
     async handle(request): Promise<ExtensionMessageResponse> {
       if (request.action === "save-current-tab" || request.action === "save-bookmark-by-url") {
@@ -125,9 +125,10 @@ export function createLibraryApplication(tabReader: TabReader): ExtensionMessage
       }
       if (request.action === "list-bookmarks") {
         const cursor = isCursor(payload.cursor) ? payload.cursor : null
-        const result = typeof payload.labelId === "string" ? await layer.listBookmarksByLabel(payload.labelId, cursor) : await layer.listRecentBookmarks(cursor)
+        const limit = typeof payload.limit === "number" ? payload.limit : undefined
+        const result = typeof payload.labelId === "string" ? await layer.listBookmarksByLabel(payload.labelId, cursor, limit) : await layer.listRecentBookmarks(cursor, limit)
         const totalCount = "totalCount" in result && typeof result.totalCount === "number" ? result.totalCount : result.items.length
-        return { requestId: request.requestId, ok: true, data: { items: result.items.map((item) => ({ id: item.id, title: item.title, url: item.normalizedUrl, revision: item.revision })), nextCursor: result.nextCursor ? { savedAt: result.nextCursor.savedAt, id: result.nextCursor.id } : null, totalCount } }
+        return { requestId: request.requestId, ok: true, data: { items: result.items.map((item) => ({ id: item.id, title: item.title, normalizedUrl: item.normalizedUrl, savedAt: item.savedAt, revision: item.revision })), nextCursor: result.nextCursor ? { savedAt: result.nextCursor.savedAt, id: result.nextCursor.id } : null, totalCount } }
       }
       return { requestId: request.requestId, ok: false, error: { code: "ACTION_NOT_AVAILABLE" } }
     } catch { return { requestId: request.requestId, ok: false, error: { code: "INTERNAL_ERROR" } } } finally { await layer.close() }

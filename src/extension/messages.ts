@@ -30,6 +30,23 @@ export const EXTENSION_MESSAGE_ACTION_ALLOWLIST: readonly ExtensionMessageAction
 
 export type ExtensionMessageSource = "popup" | "dashboard" | "ai-host"
 
+export type SaveCurrentTabPayload = Readonly<{
+  rawUrl?: string
+  title?: string
+  faviconUrl?: string | null
+}>
+
+export type SaveBookmarkByUrlPayload = Readonly<{
+  url: string
+  title?: string
+}>
+
+export type ListBookmarksPayload = Readonly<{
+  limit?: number
+  labelId?: string
+  cursor?: Readonly<{ savedAt: number; id: string }>
+}>
+
 type MessageRequest<
   Action extends ExtensionMessageAction,
   Source extends ExtensionMessageSource,
@@ -48,11 +65,15 @@ type MessageRequest<
  * Chrome boundary の版、送信元、JSON性、サイズだけを検証する。
  */
 export type ExtensionMessageRequest =
-  | MessageRequest<"save-current-tab", "popup", Record<never, never>>
-  | MessageRequest<"save-bookmark-by-url", "popup" | "dashboard", { url: string; title?: string }>
+  | MessageRequest<"save-current-tab", "popup", SaveCurrentTabPayload>
+  | MessageRequest<
+      "save-bookmark-by-url",
+      "popup" | "dashboard",
+      SaveBookmarkByUrlPayload
+    >
   | MessageRequest<"update-bookmark", "dashboard", JsonValue>
   | MessageRequest<"delete-bookmark", "dashboard", JsonValue>
-  | MessageRequest<"list-bookmarks", "dashboard", JsonValue>
+  | MessageRequest<"list-bookmarks", "dashboard", ListBookmarksPayload>
   | MessageRequest<"create-category", "dashboard", JsonValue>
   | MessageRequest<"create-tag", "dashboard", JsonValue>
   | MessageRequest<"update-tag", "dashboard", JsonValue>

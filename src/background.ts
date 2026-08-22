@@ -1,4 +1,5 @@
 import { createLibraryApplication } from "~application"
+import { createSaveBookmarkMessageApplication } from "~application/save-bookmark-message-application"
 import { handleExtensionCommand } from "~extension/command-handlers"
 import { isExtensionCommand } from "~extension/commands"
 import { initializeOnInstall } from "~extension/install-handler"
@@ -6,7 +7,12 @@ import { createExtensionMessageRouter } from "~extension/message-router"
 
 const messageRouter = createExtensionMessageRouter(
   chrome.runtime.id,
-  createLibraryApplication(chrome.tabs),
+  createLibraryApplication(
+    createSaveBookmarkMessageApplication({
+      action: chrome.action,
+      tabs: chrome.tabs,
+    }),
+  ),
 )
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -28,13 +34,18 @@ chrome.commands.onCommand.addListener((command) => {
     return
   }
 
-  void handleExtensionCommand(command, chrome.runtime, chrome.tabs, async () => {
-    await messageRouter.handle({ schemaVersion: 1, requestId: crypto.randomUUID(), source: "popup", action: "save-current-tab", payload: {} }, { id: chrome.runtime.id, url: chrome.runtime.getURL("background.js") })
-  }).catch(
-    (error: unknown) => {
-      console.error("[Bookmation] Command handler failed:", command, error)
-    }
-  )
+  void handleExtensionCommand(
+    command,
+    chrome.runtime,
+    chrome.tabs,
+    chrome.windows,
+    {
+      action: chrome.action,
+      tabs: chrome.tabs,
+    },
+  ).catch((error: unknown) => {
+    console.error("[Bookmation] Command handler failed:", command, error)
+  })
 })
 
 export {}
