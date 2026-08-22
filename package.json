@@ -13,7 +13,9 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "ui:preview": "vite --config vite.preview.config.mjs",
-    "ui:build": "vite build --config vite.preview.config.mjs"
+    "ui:build": "vite build --config vite.preview.config.mjs",
+    "pr:create": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/create-pr.ps1",
+    "push:pr": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/push-pr.ps1"
   },
   "dependencies": {
     "@radix-ui/react-icons": "1.3.2",
