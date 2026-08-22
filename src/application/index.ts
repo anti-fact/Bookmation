@@ -4,6 +4,7 @@ export {
   type ExtensionMessageApplication,
 } from "./extension-message-application"
 export { createLibraryApplication } from "./library-application"
+export { handleClassificationJobMessage } from "./classification-job-application"
 export {
   createSaveBookmarkMessageApplication,
   resetSaveBookmarkDataLayerCache,

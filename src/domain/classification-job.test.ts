@@ -6,8 +6,15 @@ import {
   assertClassificationPolicyValid,
   assertValidStateTransition,
   policyFromGranularity,
-} from "~/domain/classification-job"
+  proposalCreationRequestId,
+} from "~/domain"
 import { DomainErrorCode } from "~/domain/errors"
+
+describe("proposalCreationRequestId", () => {
+  it("builds jobId:proposalKey", () => {
+    expect(proposalCreationRequestId("job-1", "tag-a")).toBe("job-1:tag-a")
+  })
+})
 
 describe("assertClassificationPolicyValid", () => {
   describe("有効な 5 種の組み合わせ", () => {
@@ -78,6 +85,10 @@ describe("assertValidStateTransition", () => {
 
   it("PENDING → CANCELED は有効", () => {
     expect(() => assertValidStateTransition("PENDING", "CANCELED")).not.toThrow()
+  })
+
+  it("RUNNING → PENDING (lease recovery) は有効", () => {
+    expect(() => assertValidStateTransition("RUNNING", "PENDING")).not.toThrow()
   })
 
   it("RUNNING → SUCCEEDED は有効", () => {

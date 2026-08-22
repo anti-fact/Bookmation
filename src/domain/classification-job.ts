@@ -16,6 +16,7 @@ import { DomainError, DomainErrorCode } from "./errors"
 // ClassificationJobRecord 型定義
 // ---------------------------------------------------------------------------
 
+/** @deprecated BE-01 簡略型。永続 Job は PersistedClassificationJobRecord を正本とする。 */
 export interface ClassificationJobRecord {
   readonly schemaVersion: number
   readonly id: Id
@@ -122,7 +123,7 @@ export function assertClassificationJobInvariants(record: ClassificationJobRecor
 
 const VALID_TRANSITIONS: Readonly<Record<ClassificationState, ReadonlyArray<ClassificationState>>> = {
   PENDING: ["RUNNING", "CANCELED"],
-  RUNNING: ["SUCCEEDED", "FAILED", "NEEDS_REVIEW", "CANCELED"],
+  RUNNING: ["SUCCEEDED", "FAILED", "NEEDS_REVIEW", "CANCELED", "PENDING"],
   SUCCEEDED: [],
   FAILED: ["PENDING"], // retry
   NEEDS_REVIEW: ["PENDING"], // manual re-trigger

@@ -1,5 +1,6 @@
 import { createLibraryApplication } from "~application"
 import { createSaveBookmarkMessageApplication } from "~application/save-bookmark-message-application"
+import { LocalDataLayer } from "~/adapters"
 import { handleExtensionCommand } from "~extension/command-handlers"
 import { isExtensionCommand } from "~extension/commands"
 import { initializeOnInstall } from "~extension/install-handler"
@@ -14,6 +15,21 @@ const messageRouter = createExtensionMessageRouter(
     }),
   ),
 )
+
+void LocalDataLayer.open()
+  .then(async (layer) => {
+    try {
+      const recovered = await layer.recoverStaleClassificationJobs()
+      if (recovered > 0) {
+        console.info(`[Bookmation] Recovered ${recovered} stale classification job(s)`)
+      }
+    } finally {
+      await layer.close()
+    }
+  })
+  .catch((error: unknown) => {
+    console.error("[Bookmation] Classification job recovery failed:", error)
+  })
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   void messageRouter.handle(message, sender).then(sendResponse)
