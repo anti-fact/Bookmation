@@ -17,6 +17,8 @@ export const EXTENSION_MESSAGE_ACTIONS = {
   DELETE_CATEGORY_CASCADE: "delete-category-cascade",
   GET_CATEGORY_EDIT_DETAIL: "get-category-edit-detail",
   LIST_LABEL_CANDIDATES: "list-label-candidates",
+  GET_CATEGORY_TEMPLATE_CATALOG: "get-category-template-catalog",
+  APPLY_CATEGORY_TEMPLATES: "apply-category-templates",
   CLAIM_CLASSIFICATION_JOB: "claim-classification-job",
   APPLY_CLASSIFICATION_RESULT: "apply-classification-result",
   SEARCH_LIBRARY: "search-library",
@@ -81,6 +83,8 @@ export type ExtensionMessageRequest =
   | MessageRequest<"delete-category-cascade", "dashboard", JsonValue>
   | MessageRequest<"get-category-edit-detail", "dashboard", JsonValue>
   | MessageRequest<"list-label-candidates", "dashboard", JsonValue>
+  | MessageRequest<"get-category-template-catalog", "dashboard", Record<never, never>>
+  | MessageRequest<"apply-category-templates", "dashboard", JsonValue>
   | MessageRequest<"claim-classification-job", "ai-host", JsonValue>
   | MessageRequest<"apply-classification-result", "ai-host", JsonValue>
   | MessageRequest<"search-library", "dashboard" | "ai-host", JsonValue>

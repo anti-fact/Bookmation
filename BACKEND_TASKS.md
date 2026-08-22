@@ -89,7 +89,7 @@ flowchart TD
 | BE-03 | Message契約とService Worker | 完了 | GreenTea | BE-01 | popup、dashboard、workerが安全に連携できる |
 | BE-04 | 現在ページ・URL保存 | 完了 | GreenTea / 🐳 | BE-02、BE-03 | AIなしでもBookmarkを保存できる |
 | BE-05 | 編集・親子Label・一覧Query | 進行中 | GreenTea | BE-02、BE-03 | 編集、削除、親カテゴリ／子タグ管理、候補・一覧取得ができる |
-| BE-19 | 初回Category template適用 | 未着手 | 未定 | ISSUE-022、BE-03、BE-05 | 利用者が明示適用したtemplate Categoryだけを通常規則で重複なく作成できる |
+| BE-19 | 初回Category template適用 | 進行中 | 未定 | ISSUE-022、BE-03、BE-05 | 利用者が明示適用したtemplate Categoryだけを通常規則で重複なく作成できる |
 | BE-06 | 永続AI Job | 未着手 | 未定 | BE-03、BE-04 | workerやAI Hostが止まっても分類要求を失わない |
 | BE-07 | Prompt API Hostスパイク | 進行中 | みやけ | BE-00、BE-03 | 対応環境とAI実行場所を実証できる |
 | BE-08 | AI分類と結果適用 | 未着手 | 未定 | BE-05〜BE-07 | カテゴリ／タグ規則どおり分類し、失敗時も保存を守る |
@@ -256,11 +256,11 @@ sequenceDiagram
 目的: 初回利用者へCategory templateを提示し、明示適用されたものだけを既存のCategory不変条件で作成する。
 
 - [ ] ISSUE-022をDecidedにし、catalogの候補名／件数、set、選択、初期選択、skip、再表示、locale、version、再適用、競合UXを固定する。決定前に本番catalogをhardcodeしない。
-- [ ] template catalogをversion付き・実行コードなしのlocal assetとして定義し、外部取得やIndexedDB seedにしない。
-- [ ] `GetCategoryTemplateCatalog` はcatalog versionと表示候補を返すだけとし、Labelを書き込まない。
-- [ ] `ApplyCategoryTemplates` は利用者が明示した候補、catalog version、安定requestIdを受け、各候補をBE-05のCreateCategoryへ渡す。Categoryは `origin=USER` のままにし、TEMPLATE originやAI Category作成経路を追加しない。
-- [ ] Normalizer、一意名、tombstone予約、creationRequestIdを再検証し、既存／削除済み同名と部分失敗を利用者が判断できる項目別結果にする。transaction単位はISSUE-022で決定する。
-- [ ] 同request再送は同じ結果へ収束し、別payloadでの再利用、update／reload／onboarding再開による無断再適用を拒否する。
+- [x] template catalogをversion付き・実行コードなしのlocal assetとして定義し、外部取得やIndexedDB seedにしない。
+- [x] `GetCategoryTemplateCatalog` はcatalog versionと表示候補を返すだけとし、Labelを書き込まない。
+- [x] `ApplyCategoryTemplates` は利用者が明示した候補、catalog version、安定requestIdを受け、各候補をBE-05のCreateCategoryへ渡す。Categoryは `origin=USER` のままにし、TEMPLATE originやAI Category作成経路を追加しない。
+- [x] Normalizer、一意名、tombstone予約、creationRequestIdを再検証し、既存／削除済み同名と部分失敗を利用者が判断できる項目別結果にする。transaction単位はISSUE-022で決定する。
+- [x] 同request再送は同じ結果へ収束し、別payloadでの再利用、update／reload／onboarding再開による無断再適用を拒否する。
 - [ ] catalog versionとonboarding stepの保持形式をISSUE-022の決定後にLocalSettings schemaへ追加し、旧settingsを非破壊移行する。
 
 成果物: Category template catalog schema／asset、取得・適用use case、onboarding進捗、競合・再送fixture。
