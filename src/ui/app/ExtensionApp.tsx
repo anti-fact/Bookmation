@@ -399,7 +399,7 @@ function RouteBody({
         <p className="m-0 break-all text-sm leading-6 text-bm-muted-text">
           入力されたURL: <code>{route.attemptedHash || "（空）"}</code>
         </p>
-        <div className="mt-5 flex justify-end">
+        <div className="mt-5 flex justify-start">
           <Button onClick={() => navigate({ kind: "home" })} variant="outline">
             ホームへ移動
           </Button>

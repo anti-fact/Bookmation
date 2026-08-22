@@ -341,7 +341,8 @@ describe("ExtensionApp", () => {
     expect(store.navigate).not.toHaveBeenCalled()
 
     const homeButton = screen.getByRole("button", { name: "ホームへ移動" })
-    expect(homeButton.parentElement?.className).toContain("justify-end")
+    expect(homeButton.parentElement?.className).toContain("justify-start")
+    expect(homeButton.parentElement?.className).not.toContain("justify-end")
     expect(homeButton.className).toContain("bg-bm-paper")
     expect(homeButton.className).toContain("text-bm-ink")
     expect(homeButton.className).toContain("hover:bg-bm-accent")
