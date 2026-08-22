@@ -213,7 +213,7 @@ export const AppHeader = (props: AppHeaderProps) => {
               role="separator"
             />
             <p className="m-0 min-w-0 flex-1 truncate text-left text-2xl font-bold sm:text-3xl">
-              {props.settingsTitle ?? "設定"}
+              {props.settingsTitle ?? "Settings"}
             </p>
           </div>
         ) : (
