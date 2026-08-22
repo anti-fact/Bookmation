@@ -84,7 +84,7 @@ flowchart TD
 | ID | タスク | 状態 | 担当 | 主な依存 | 利用者に届く成果 |
 | --- | --- | --- | --- | --- | --- |
 | BE-00 | 開発基盤とバックエンドPlan | 完了 | T-taku | なし | チームが同じコマンドで実装を開始できる |
-| BE-01 | Domain型と不変条件 | 未着手 | 未定 | BE-00 | 不正なBookmark・Label・AI結果を共通規則で拒否できる |
+| BE-01 | Domain型と不変条件 | 完了 | AI Agent | BE-00 | 不正なBookmark・Label・AI結果を共通規則で拒否できる |
 | BE-02 | IndexedDBとRepository | 未着手 | 未定 | BE-01 | 再読込後もデータが残り、一覧をカーソル取得できる |
 | BE-03 | Message契約とService Worker | 未着手 | 未定 | BE-01 | popup、dashboard、workerが安全に連携できる |
 | BE-04 | 現在ページ・URL保存 | 未着手 | 未定 | BE-02、BE-03 | AIなしでもBookmarkを保存できる |
@@ -151,21 +151,23 @@ sequenceDiagram
 
 目的: UI、DB、AIのどの入口でも同じ業務ルールを適用する。
 
-- [ ] Bookmark、Label、BookmarkLabel、ClassificationJob、LocalSettingsの型を定義する。
-- [ ] Blob以外の全永続型を `schemaVersion` 付きJSON documentにし、read/write schema検証を定義する。
-- [ ] URL、ID、revision、時刻、正規化名、カーソルを値オブジェクトまたは検証関数にする。
-- [ ] `LabelNormalizer v1` 用にUnicode 15.1.0のNFKC、`White_Space`、`Default_Ignorable_Code_Point`、`CaseFolding.txt` status C＋Fをprojectへvendoringする生成処理を作る。runtime ICU／端末Unicode版を参照せず、生成assetのhashを実装時に固定して `normalizerVersion` と検証する。
-- [ ] 有効カテゴリの `categoryUniqueName`、有効タグの `tagUniqueName` を各namespaceでglobal uniqueにし、カテゴリの `origin=USER` を保証する。
-- [ ] active TAGにはactive CATEGORYの親IDを必須とし、親子は2階層より深くならないよう検証する。tombstone TAGだけはdeleted親参照を許す。
-- [ ] TAGの親CATEGORY変更を管理モードの利用者向け更新commandとして定義し、AI／Import／同期競合の暗黙処理からは呼べないようにする。
-- [ ] 同一Bookmarkへ複数TAGを付与し、CATEGORY集合をその親から自動導出する。BookmarkからCATEGORYだけを直接更新する入力は拒否する。
-- [ ] `LocalSettings` へ初回ホーム完了状態、`frequentVisitReminderEnabled`、`frequentVisitWindow`、既定nullの `frequentVisitDayThreshold`、既定falseの `autoArchiveEnabled`、既定30のarchive日数、端末固有の `contextMenuBookmarkEnabled`、AI細分化度 `0`〜`4` を型付きで定義する。旧回数閾値は日数へ暗黙移行せず、設定を未完了・reminder無効へ戻す。旧settingsでarchive toggleが欠ける場合はfalse、archive日数が欠損／不正なら30へ移す。右クリック設定はfield欠損を `true` へ移行し、boolean以外を `false` へ縮退する。
-- [ ] エラーコードと、UIに見せる安全なメッセージへの変換規則を定義する。
-- [ ] AI由来のunknown入力をDomain型へ直接castしない検証境界を作る。
+- [x] Bookmark、Label、BookmarkLabel、ClassificationJob、LocalSettingsの型を定義する。
+- [x] Blob以外の全永続型を `schemaVersion` 付きJSON documentにし、read/write schema検証を定義する。
+- [x] URL、ID、revision、時刻、正規化名、カーソルを値オブジェクトまたは検証関数にする。
+- [x] `LabelNormalizer v1` 用にUnicode 15.1.0のNFKC、`White_Space`、`Default_Ignorable_Code_Point`、`CaseFolding.txt` status C＋Fをprojectへvendoringする生成処理を作る。runtime ICU／端末Unicode版を参照せず、生成assetのhashを実装時に固定して `normalizerVersion` と検証する。
+- [x] 有効カテゴリの `categoryUniqueName`、有効タグの `tagUniqueName` を各namespaceでglobal uniqueにし、カテゴリの `origin=USER` を保証する。
+- [x] active TAGにはactive CATEGORYの親IDを必須とし、親子は2階層より深くならないよう検証する。tombstone TAGだけはdeleted親参照を許す。
+- [x] TAGの親CATEGORY変更を管理モードの利用者向け更新commandとして定義し、AI／Import／同期競合の暗黙処理からは呼べないようにする。
+- [x] 同一Bookmarkへ複数TAGを付与し、CATEGORY集合をその親から自動導出する。BookmarkからCATEGORYだけを直接更新する入力は拒否する。
+- [x] `LocalSettings` へ初回ホーム完了状態、`frequentVisitReminderEnabled`、`frequentVisitWindow`、既定nullの `frequentVisitDayThreshold`、既定falseの `autoArchiveEnabled`、既定30のarchive日数、端末固有の `contextMenuBookmarkEnabled`、AI細分化度 `0`〜`4` を型付きで定義する。旧回数閾値は日数へ暗黙移行せず、設定を未完了・reminder無効へ戻す。旧settingsでarchive toggleが欠ける場合はfalse、archive日数が欠損／不正なら30へ移す。右クリック設定はfield欠損を `true` へ移行し、boolean以外を `false` へ縮退する。
+- [x] エラーコードと、UIに見せる安全なメッセージへの変換規則を定義する。
+- [x] AI由来のunknown入力をDomain型へ直接castしない検証境界を作る。
 
 成果物: Domain型、validator、error型、単体テストfixture。
 
 完了条件: Normalizer v1のUnicode境界、カテゴリ／タグ同名競合、tombstone予約、親カテゴリ欠落、Tag／選択親の古いrevision、AI／ImportからのTag親変更、AIのカテゴリ作成、設定不正値、危険URL、上限超過を単体テストで拒否できる。
+
+完了メモ: 2026-08-22。`src/domain/` 配下に全型・値オブジェクト・Normalizer v1（Unicode 15.1.0 vendored）・各エンティティ不変条件・AI境界・エラーコードを実装。単体テスト89件含む全173テストパス確認済み。
 
 ### BE-02 IndexedDBとRepository
 

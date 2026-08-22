@@ -48,6 +48,9 @@ importers:
       '@types/react-dom':
         specifier: 18.3.7
         version: 18.3.7(@types/react@18.3.23)
+      '@unicode/unicode-15.1.0':
+        specifier: ^1.6.17
+        version: 1.6.17
       '@vitejs/plugin-react':
         specifier: 5.1.4
         version: 5.1.4(vite@7.3.6(@types/node@22.17.2)(jiti@1.21.7)(less@4.9.0)(lightningcss@1.33.0)(sass@1.102.0)(yaml@2.9.0))
@@ -2803,6 +2806,9 @@ packages:
   '@typescript-eslint/visitor-keys@8.39.1':
     resolution: {integrity: sha512-W8FQi6kEh2e8zVhQ0eeRnxdvIoOkAp/CPAahcNio6nO9dsIwb9b34z90KOlheoyuVf6LSOEdjlkxSkapNEc+4A==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
+
+  '@unicode/unicode-15.1.0@1.6.17':
+    resolution: {integrity: sha512-vhIA4YCwefqQomvbsdkMXVjlTr3OPg99UlRlz04yK6pr2VCrbIA4+4HEbmwx2b92zMwprNGh8Zb6gqf4hE3YXQ==}
 
   '@vitejs/plugin-react@5.1.4':
     resolution: {integrity: sha512-VIcFLdRi/VYRU8OL/puL7QXMYafHmqOnwTZY50U1JPlCNj30PxCMx65c494b1K9be9hX83KVt0+gTEwTWLqToA==}
@@ -7927,6 +7933,8 @@ snapshots:
     dependencies:
       '@typescript-eslint/types': 8.39.1
       eslint-visitor-keys: 4.2.1
+
+  '@unicode/unicode-15.1.0@1.6.17': {}
 
   '@vitejs/plugin-react@5.1.4(vite@7.3.6(@types/node@22.17.2)(jiti@1.21.7)(less@4.9.0)(lightningcss@1.33.0)(sass@1.102.0)(yaml@2.9.0))':
     dependencies:

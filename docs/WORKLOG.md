@@ -715,6 +715,57 @@ UI-01のtokenとRadix wrapperを土台に、Bookmation全画面で再利用す�
 - Playwrightのrepository管理script、CI、report／trace保存、証拠manifest、人間による実Chrome最終受入は未実装／未実施である。今回の一回限りのAI実拡張確認は、その恒常的な受入gateを置き換えない。
 - Figmaとのpixel単位比較、200% zoom、screen reader、正式typographyの確定は未検証である。
 
+## 2026-08-22 — BE-01 Domain型と不変条件の実装
+
+### 目的
+
+UI、DB、AIの全入口で共通適用するDomain型、不変条件バリデーター、値オブジェクト、LabelNormalizer v1（Unicode 15.1.0 vendored asset）、およびAI境界・エラーコードを実装し、後続BEタスク（BE-02以降）の基盤を確立する。
+
+### 変更
+
+- `src/domain/types.ts`: `Id`, `EpochMs`, `EntityOrigin`, `LabelKind`, `ArchiveState`, `ClassificationState`, `FrequentVisitWindow`, `JsonValue`, `JsonDocumentEnvelope`, `ClassificationPolicySnapshot`, `UpdateTagCommand` の共通型を定義。
+- `src/domain/errors.ts`: `DomainErrorCode`（全23種）、`DomainError` クラス、UI向け安全メッセージ変換辞書 `SAFE_MESSAGES` / `toSafeMessage()` を定義。
+- `src/domain/value-objects/`:
+  - `id.ts`: UUID v4 形式検証
+  - `url.ts`: `http`/`https` スキーム限定、最大長2048文字、正規化形式
+  - `epoch-ms.ts`: 有限整数・非負値検証
+  - `revision.ts`: 非負整数検証、`nextRevision` ヘルパー
+  - `json-value.ts`: `undefined`, `BigInt`, 循環参照, 非有限数の拒否
+  - `cursor.ts`: 文字列・有限整数・深さ1配列のJSON round-trip可能カーソル検証
+  - `index.ts`: 公開エクスポート
+- `scripts/generate-unicode-data.mjs`: `@unicode/unicode-15.1.0` および Node.js 組み込み ICU（Unicode 15.1.0 対応）を用いて vendored TypeScript テーブルを自動生成するスクリプトを作成・実行。
+- `src/domain/normalizer/vendor/`:
+  - `white-space.ts`: `White_Space` 二分探索判定
+  - `default-ignorable.ts`: `Default_Ignorable_Code_Point` 判定
+  - `general-category.ts`: `Cs` (Surrogate) / `Cc` (Control) 判定
+  - `nfkc.ts`: 5914件の NFKD 展開テーブル、699ペアの正準合成テーブル、Non-starter 集合
+  - `case-folding.ts`: 1530件の CaseFolding status C+F マッピング
+  - `asset-sha256.ts`: `UNICODE_DATA_ASSET_SHA256` 定数
+- `src/domain/normalizer/label-normalizer.ts`: DB-SCHEMA.md 仕様に準拠した6段階正規化処理（Cs/DI 拒否 → NFKC → White_Space collapse/trim → Cc/Cs/DI 拒否 → CaseFold C+F → 最終検証）を実装。
+- `src/domain/label.ts`: `LabelRecord` 型、CATEGORY（`origin=USER`, `parentCategoryId=null`, `categoryUniqueName=normalizedName`）/ TAG（active 親必須, `tagUniqueName=normalizedName`）不変条件、同名競合チェック、親変更コマンド検証、物理GCブロック確認。
+- `src/domain/bookmark.ts`: `ActiveBookmarkRecord` / `ArchivedBookmarkRecord` 型、Category 直接更新拒否、Archived payload 最小性検証。
+- `src/domain/bookmark-label.ts`: `BookmarkLabelRecord` 型、confidence 検証（AI 割当時 0〜1、それ以外 null）、Category edge 直接操作拒否、重複防止。
+- `src/domain/classification-job.ts`: `ClassificationJobRecord` 型、5種の固定 policy snapshot 組み合わせ検証（0/0, 1/1, 2/2, 3/4, 4/6）、状態遷移検証。
+- `src/domain/local-settings.ts`: `LocalSettings` 型、バリデーター、migration 関数（旧 `frequentVisitThreshold` 回数は日数へ暗黙変換せず null にリセット、archive 既定 30、context menu 欠損 true / 不正値 false 縮退、AI 細分化 0〜4 縮退）。
+- `src/domain/schema-meta.ts`: `SchemaMetaRecord` 型、`unicodeDataAssetSha256` 整合性検証。
+- `src/domain/ai-boundary.ts`: AI 出力外形スキーマ解析 `parseAiClassificationResult()`、Category 作成禁止検証、候補外 Label ID 拒否検証。
+- `src/domain/index.ts`: Domain 層の公開 API 一元エクスポート。
+- `src/domain/**/*.test.ts`: 単体テスト 89 件を作成。
+
+### 検証
+
+- `pnpm typecheck`: 成功（エラー 0 件）。
+- `pnpm test`: 成功。全 22 テストファイル / 173 テストすべて pass（既存 UI テスト 84 件 + 新規 Domain テスト 89 件）。
+  - `src/domain/normalizer/label-normalizer.test.ts` (18 tests)
+  - `src/domain/label.test.ts` (21 tests)
+  - `src/domain/classification-job.test.ts` (20 tests)
+  - `src/domain/local-settings.test.ts` (18 tests)
+  - `src/domain/value-objects/url.test.ts` (12 tests)
+
+### 残課題
+
+- BE-02 (IndexedDB と Repository 実装): Domain 型・不変条件を利用して IndexedDB schema、ストア、インデックス、トランザクション境界、Repository を実装する。
+
 ## 追記テンプレート
 
 ```markdown
