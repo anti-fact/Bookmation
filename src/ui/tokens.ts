@@ -4,22 +4,36 @@
  */
 export const designTokens = {
   color: {
-    canvas: "#161616",
-    surface: "#1E1E1E",
-    muted: "#505050",
-    ink: "#EAEAEA",
+    paper: "#FFFFFF",
+    ink: "#1E1E1E",
     accent: "#B9D4EA",
+    panel: "#161616",
+    onPanel: "#EAEAEA",
+    muted: "#7A7A7A",
+    mutedText: "#505050",
+    controlMuted: "#505050",
     danger: "#C33232",
-    subtle: "#8A8484"
+    error: "#FF383C",
+    black: "#000000"
   },
   radius: {
-    sm: 4,
-    md: 8,
-    card: 14.5,
-    panel: 24
+    field: 4,
+    switch: 5,
+    control: 8,
+    dialog: 14,
+    chip: 14.5,
+    pill: 24
   },
   layout: {
-    cardMinWidthRem: 16,
-    stickyHeaderZIndex: 20
+    controlHeight: 48,
+    fieldHeight: 38,
+    switchWidth: 80,
+    switchHeight: 30,
+    sliderWidth: 140,
+    dialogMaxWidth: 818,
+    stickyHeaderZIndex: 20,
+    dialogZIndex: 50,
+    popoverZIndex: 55,
+    toastZIndex: 60
   }
 } as const

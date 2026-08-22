@@ -1,8 +1,16 @@
+import { fileURLToPath } from "node:url"
+
 import { defineConfig } from "vitest/config"
 
 export default defineConfig({
+  resolve: {
+    alias: {
+      "~": fileURLToPath(new URL("./src", import.meta.url))
+    }
+  },
   test: {
-    environment: "node",
-    include: ["src/**/*.test.ts"]
+    environment: "jsdom",
+    include: ["src/**/*.test.{ts,tsx}", "preview/**/*.test.tsx"],
+    setupFiles: ["./src/ui/test/setup.ts"]
   }
 })
