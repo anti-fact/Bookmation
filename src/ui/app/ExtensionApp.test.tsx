@@ -59,8 +59,10 @@ function createRuntime() {
   const runtime: AppRuntime = {
     getScrollY: () => scrollY,
     kind: "web-preview",
+    observeIntersection: vi.fn(() => vi.fn()),
     scrollTo: vi.fn(),
-    setManualScrollRestoration: vi.fn(() => restore)
+    setManualScrollRestoration: vi.fn(() => restore),
+    subscribeScroll: vi.fn(() => vi.fn())
   }
 
   return {
@@ -99,9 +101,13 @@ describe("ExtensionApp", () => {
         .variant
     ).toBe("default")
     expect(
-      screen.getByRole("button", { name: "AI検索を開く" }).querySelector("img")
-        ?.className
+      screen
+        .getByRole("button", { name: "カテゴリ・タグ一覧を開く" })
+        .querySelector("img")?.className
     ).toContain("size-[1.125rem]")
+    expect(
+      screen.queryByRole("button", { name: "カテゴリ・タグ一覧" })
+    ).toBeNull()
 
     fireEvent.click(screen.getByRole("button", { name: "設定を開く" }))
 
@@ -119,21 +125,35 @@ describe("ExtensionApp", () => {
     expect(generalLink.getAttribute("aria-current")).toBe("page")
     expect(generalLink.className).toContain("font-bold")
     expect(generalLink.className).toContain("text-bm-paper")
+    expect(generalLink.className).toContain("pl-8")
+    expect(generalLink.className).toContain("text-base")
+    expect(generalLink.className).toContain("sm:pl-10")
+    expect(generalLink.className).toContain("lg:pl-14")
+    expect(generalLink.className).toContain("lg:text-xl")
     expect(generalLink.className).toContain("focus-visible:ring-bm-paper")
     expect(generalLink.className).toContain("group")
     const settingsNavigation = screen.getByRole("navigation", {
       name: "設定メニュー"
     })
+    const settingsLayout = settingsNavigation.parentElement
+    expect(settingsLayout?.className).toContain(
+      "grid-cols-[clamp(7rem,28vw,13rem)_0.125rem_minmax(0,1fr)]"
+    )
+    expect(settingsLayout?.className).not.toContain("md:grid-cols")
+    const settingsMenu = settingsNavigation.querySelector("ul")
+    expect(settingsMenu?.className).toContain("flex-col")
+    expect(settingsMenu?.className).not.toContain("flex-wrap")
     expect(settingsNavigation.className).toContain("-ml-4")
     expect(settingsNavigation.className).toContain("lg:-ml-[4.5rem]")
     const [currentHoverHighlight, selectionHighlight] =
-      generalLink.querySelectorAll('[aria-hidden="true"]')
+      generalLink.querySelectorAll('span[aria-hidden="true"]')
     const sharedBackgroundClasses = [
       "absolute",
       "inset-y-0",
-      "right-0",
+      "-right-2",
       "w-screen",
-      "md:-right-6"
+      "sm:-right-4",
+      "lg:-right-6"
     ]
     for (const className of sharedBackgroundClasses) {
       expect(currentHoverHighlight?.className).toContain(className)
@@ -143,23 +163,36 @@ describe("ExtensionApp", () => {
     expect(currentHoverHighlight?.className).toContain(
       "group-hover:bg-bm-accent"
     )
-    expect(selectionHighlight?.className).toContain("right-0")
+    expect(selectionHighlight?.className).toContain("-right-2")
     expect(selectionHighlight?.className).toContain("w-screen")
     expect(selectionHighlight?.className).toContain("bg-bm-ink")
-    expect(selectionHighlight?.className).toContain("md:-right-6")
+    expect(selectionHighlight?.className).toContain("lg:-right-6")
     expect(selectionHighlight?.className).not.toContain(
       "group-hover:bg-bm-accent"
     )
     expect(selectionHighlight?.className).not.toContain("w-0.5")
     expect(selectionHighlight?.className).not.toContain("left-0")
     const archiveLink = screen.getByRole("link", { name: "アーカイブ" })
-    const hoverHighlight = archiveLink.querySelector('[aria-hidden="true"]')
+    const hoverHighlight = archiveLink.querySelector(
+      'span[aria-hidden="true"]'
+    )
     for (const className of sharedBackgroundClasses) {
       expect(hoverHighlight?.className).toContain(className)
     }
     expect(hoverHighlight?.className).toContain("bg-transparent")
     expect(hoverHighlight?.className).toContain("group-hover:bg-bm-accent")
     expect(hoverHighlight?.className).not.toContain("bg-bm-ink")
+    expect(generalLink.querySelector("span.relative")?.className).toContain(
+      "gap-3"
+    )
+    for (const sectionName of ["一般", "アーカイブ", "共有"]) {
+      const settingsIcon = screen
+        .getByRole("link", { name: sectionName })
+        .querySelector("svg")
+      expect(settingsIcon?.getAttribute("aria-hidden")).toBe("true")
+      expect(settingsIcon?.getAttribute("class")).toContain("size-4")
+      expect(settingsIcon?.getAttribute("class")).toContain("shrink-0")
+    }
     expect(screen.queryByRole("button", { name: "一般" })).toBeNull()
     expect(
       screen.getByRole("banner", { name: "アプリケーションヘッダー" }).dataset
@@ -169,8 +202,14 @@ describe("ExtensionApp", () => {
       name: "設定メニューと設定内容の区切り"
     })
     expect(settingsSeparator.getAttribute("aria-orientation")).toBe("vertical")
-    expect(settingsSeparator.className).toContain("md:block")
+    expect(settingsSeparator.className).toContain("block")
+    expect(settingsSeparator.className).not.toContain("hidden")
     expect(settingsSeparator.className).toContain("bg-bm-muted")
+    const settingsContent = screen.getByRole("region", {
+      name: "一般設定の内容"
+    })
+    expect(settingsContent.className).toContain("min-w-0")
+    expect(settingsContent.className).toContain("overflow-x-auto")
   })
 
   it("renders all header variants from one AppHeader component", () => {
@@ -282,7 +321,7 @@ describe("ExtensionApp", () => {
 
   it("keeps malformed URLs visible until the user chooses recovery", () => {
     const { store } = renderApp({
-      attemptedHash: "#/bookmarks?category=one&tag=two",
+      attemptedHash: "#/bookmarks?category=one&category=two",
       kind: "not-found",
       reason: "invalid-query"
     })
@@ -304,12 +343,38 @@ describe("ExtensionApp", () => {
     expect(store.navigate).toHaveBeenCalledWith({ kind: "home" })
   })
 
-  it("announces unavailable feature slots without changing route", () => {
+  it("opens the category and tag list from the telescope button", () => {
     const { store } = renderApp({ kind: "home" })
 
-    fireEvent.click(screen.getByRole("button", { name: "AI検索を開く" }))
+    fireEvent.click(
+      screen.getByRole("button", { name: "カテゴリ・タグ一覧を開く" })
+    )
+    expect(store.navigate).toHaveBeenCalledWith({ kind: "labels" })
+  })
+
+  it("returns home when the last bookmark filter is removed", () => {
+    const { store } = renderApp({
+      filter: { id: "tag-typescript", kind: "tag" },
+      kind: "bookmarks"
+    })
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "「tag-typescript」の絞り込みを解除"
+      })
+    )
+    expect(store.navigate).toHaveBeenCalledWith({ kind: "home" })
+    expect(
+      screen.getByRole("heading", { name: "最近追加したブックマーク" })
+    ).not.toBeNull()
+  })
+
+  it("announces unavailable search without changing route", () => {
+    const { store } = renderApp({ kind: "home" })
+
+    fireEvent.click(screen.getByRole("button", { name: "検索を開く" }))
     expect(screen.getByRole("status").textContent).toContain(
-      "AI検索は現在準備中です"
+      "検索入力と候補は現在準備中です"
     )
     expect(store.navigate).not.toHaveBeenCalled()
   })

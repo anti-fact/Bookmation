@@ -11,8 +11,10 @@ export type AppRuntimeKind = "extension" | "web-preview"
 export type AppRuntime = {
   getScrollY: () => number
   kind: AppRuntimeKind
+  observeIntersection: (target: Element, onIntersect: () => void) => () => void
   scrollTo: (top: number) => void
   setManualScrollRestoration: () => () => void
+  subscribeScroll: (listener: () => void) => () => void
 }
 
 // Window API を小さな共通インターフェースで包み、画面から実行環境の違いを隠します。
@@ -23,6 +25,22 @@ export function createBrowserAppRuntime(
   return {
     getScrollY: () => browserWindow.scrollY,
     kind,
+    observeIntersection: (target, onIntersect) => {
+      if (typeof IntersectionObserver === "undefined") {
+        return () => undefined
+      }
+
+      const observer = new IntersectionObserver(
+        (entries) => {
+          if (entries.some((entry) => entry.isIntersecting)) {
+            onIntersect()
+          }
+        },
+        { rootMargin: "240px 0px" }
+      )
+      observer.observe(target)
+      return () => observer.disconnect()
+    },
     scrollTo: (top) => browserWindow.scrollTo({ behavior: "auto", top }),
     setManualScrollRestoration: () => {
       const previous = browserWindow.history.scrollRestoration
@@ -31,6 +49,10 @@ export function createBrowserAppRuntime(
       return () => {
         browserWindow.history.scrollRestoration = previous
       }
+    },
+    subscribeScroll: (listener) => {
+      browserWindow.addEventListener("scroll", listener, { passive: true })
+      return () => browserWindow.removeEventListener("scroll", listener)
     }
   }
 }

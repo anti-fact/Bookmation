@@ -55,7 +55,13 @@ function errorMessage(response: ExtensionMessageResponse): string {
   }
 }
 
-export function HomeSavePanel() {
+export function HomeSavePanel({
+  onSaved,
+  showRecent = true,
+}: {
+  onSaved?: () => void
+  showRecent?: boolean
+}) {
   const [rawUrl, setRawUrl] = React.useState("")
   const [title, setTitle] = React.useState("")
   const [status, setStatus] = React.useState<string | null>(null)
@@ -71,10 +77,13 @@ export function HomeSavePanel() {
   }, [])
 
   React.useEffect(() => {
+    if (!showRecent) {
+      return
+    }
     void loadRecent().catch(() => {
       setRecent([])
     })
-  }, [loadRecent])
+  }, [loadRecent, showRecent])
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault()
@@ -97,7 +106,10 @@ export function HomeSavePanel() {
         setRawUrl("")
         setTitle("")
       }
-      await loadRecent()
+      onSaved?.()
+      if (showRecent) {
+        await loadRecent()
+      }
     } catch (error: unknown) {
       setStatus(error instanceof Error ? error.message : "保存に失敗しました")
     } finally {
@@ -148,28 +160,30 @@ export function HomeSavePanel() {
         ) : null}
       </form>
 
-      <section aria-label="最近追加したブックマーク">
-        <h2 className="m-0 text-sm font-semibold">最近追加</h2>
-        {recent.length === 0 ? (
-          <p className="mt-2 text-xs text-bm-muted-text">
-            まだブックマークがありません。
-          </p>
-        ) : (
-          <ul className="mt-2 space-y-2">
-            {recent.map((item) => (
-              <li
-                key={item.id}
-                className="rounded border border-bm-muted px-3 py-2 text-xs"
-              >
-                <p className="m-0 font-medium text-bm-ink">{item.title}</p>
-                <p className="m-0 mt-1 truncate text-bm-muted-text">
-                  {item.normalizedUrl}
-                </p>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+      {showRecent ? (
+        <section aria-label="最近追加したブックマーク">
+          <h2 className="m-0 text-sm font-semibold">最近追加</h2>
+          {recent.length === 0 ? (
+            <p className="mt-2 text-xs text-bm-muted-text">
+              まだブックマークがありません。
+            </p>
+          ) : (
+            <ul className="mt-2 space-y-2">
+              {recent.map((item) => (
+                <li
+                  key={item.id}
+                  className="rounded border border-bm-muted px-3 py-2 text-xs"
+                >
+                  <p className="m-0 font-medium text-bm-ink">{item.title}</p>
+                  <p className="m-0 mt-1 truncate text-bm-muted-text">
+                    {item.normalizedUrl}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      ) : null}
     </div>
   )
 }

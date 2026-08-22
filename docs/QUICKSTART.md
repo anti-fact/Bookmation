@@ -75,7 +75,7 @@ pnpm ui:build
 プレビューの入口は次のとおりである。
 
 - `http://127.0.0.1:4173/` — UI-01 component sheet。
-- `http://127.0.0.1:4173/?view=app-shell#/home` — UI-02 App Shell。hashは `#/welcome`、`#/home`、`#/bookmarks?category=<id>`、`#/bookmarks?tag=<id>`、`#/search?q=<query>`、`#/labels`、`#/settings/general`、`#/settings/archive`、`#/settings/share` に差し替えられる。
+- `http://127.0.0.1:4173/?view=app-shell#/home` — UI-02 App Shell。hashは `#/welcome`、`#/home`、`#/bookmarks?category=<id>`、`#/bookmarks?tag=<id>`、`#/bookmarks?category=<id>&tag=<id>`、`#/search?q=<query>`、`#/labels`、`#/settings/general`、`#/settings/archive`、`#/settings/share` に差し替えられる。
 
 App Shell fixtureはroute、共通header、layout、focus／scroll復元、error fallbackの確認用である。初回ホームの機能、Bookmark一覧データ、フルページ検索、AI入力ポップアップ、カテゴリ・タグ管理、設定、archive、共有のfeature fixtureはまだない。`pnpm test:e2e` と `pnpm test:e2e:ui` のscriptも現時点では存在せず、Playwright拡張機能E2Eと人間による実Chrome受入は未完了である。
 

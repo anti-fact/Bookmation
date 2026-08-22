@@ -119,7 +119,7 @@ export function PopupFixture() {
         </nav>
       </header>
 
-      <div className="mx-auto w-fit max-w-full overflow-hidden rounded-bm-dialog border-2 border-bm-border shadow-bm-floating">
+      <div className="mx-auto w-fit max-w-full shadow-bm-floating">
         <PopupView
           onChangeShortcuts={() => undefined}
           onOpenHome={() => undefined}

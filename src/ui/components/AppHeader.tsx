@@ -38,6 +38,7 @@ type SearchHeaderProps = {
 
 type DefaultHeaderProps = HeaderCommonProps &
   SearchHeaderProps & {
+    aiAccessibleLabel?: string
     aiIcon?: React.ReactNode
     onAiSearchClick?: () => void
     onSettingsClick?: () => void
@@ -226,7 +227,7 @@ export const AppHeader = (props: AppHeaderProps) => {
             role="group"
           >
             <IconButton
-              label="AI検索を開く"
+              label={props.aiAccessibleLabel ?? "AI検索を開く"}
               onClick={props.onAiSearchClick}
               shape="pill"
             >
