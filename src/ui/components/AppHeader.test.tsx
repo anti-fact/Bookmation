@@ -135,7 +135,9 @@ describe("AppHeader", () => {
   it("renders the settings title and close control without a search entry", () => {
     render(<AppHeader variant="settings" />)
 
-    expect(screen.getByText("設定")).toBeTruthy()
+    const settingsTitle = screen.getByText("設定")
+    expect(settingsTitle.className).toContain("text-2xl")
+    expect(settingsTitle.className).toContain("sm:text-3xl")
     expect(screen.queryByRole("heading", { name: "設定" })).toBeNull()
     const separator = screen.getByRole("separator")
     expect(separator.getAttribute("aria-orientation")).toBe("vertical")
