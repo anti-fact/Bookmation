@@ -186,24 +186,6 @@ function SaveUrlForm() {
   </form>
 }
 
-// UI-02では画面遷移の骨組みを実装し、後続機能の領域はプレースホルダーにします。
-function RouteBody({ navigate, route }: RouteBodyProps) {
-  if (route.kind === "welcome") {
-    return (
-      <div className="grid max-w-2xl gap-4 rounded-bm-dialog border-2 border-bm-border bg-bm-paper p-5 shadow-bm-header sm:p-8">
-        <img
-          alt="Bookmation"
-          className="h-auto w-[9.9375rem]"
-          height={48}
-          src={bookmationLogo}
-          width={159}
-        />
-        <p className="m-0 text-sm leading-6 text-bm-muted-text">
-          保存したページをカテゴリとタグで整理し、あとから見つけ直せます。
-        </p>
-        <div>
-          <Button onClick={() => navigate({ kind: "home" })} variant="solid">
-            ホームを開く
 type WelcomeScreenProps = {
   description: string
   heading: string

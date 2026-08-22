@@ -88,7 +88,7 @@ flowchart TD
 | BE-02 | IndexedDBとRepository | 完了 | 🐳 | BE-01 | 再読込後もデータが残り、一覧をカーソル取得できる |
 | BE-03 | Message契約とService Worker | 完了 | GreenTea | BE-01 | popup、dashboard、workerが安全に連携できる |
 | BE-04 | 現在ページ・URL保存 | 進行中 | GreenTea | BE-02、BE-03 | AIなしでもBookmarkを保存できる |
-| BE-05 | 編集・親子Label・一覧Query | 未着手 | 未定 | BE-02、BE-03 | 編集、削除、親カテゴリ／子タグ管理、候補・一覧取得ができる |
+| BE-05 | 編集・親子Label・一覧Query | 進行中 | 未定 | BE-02、BE-03 | 編集、削除、親カテゴリ／子タグ管理、候補・一覧取得ができる |
 | BE-19 | 初回Category template適用 | 未着手 | 未定 | ISSUE-022、BE-03、BE-05 | 利用者が明示適用したtemplate Categoryだけを通常規則で重複なく作成できる |
 | BE-06 | 永続AI Job | 未着手 | 未定 | BE-03、BE-04 | workerやAI Hostが止まっても分類要求を失わない |
 | BE-07 | Prompt API Hostスパイク | 進行中 | 未定 | BE-00、BE-03 | 対応環境とAI実行場所を実証できる |
@@ -227,24 +227,24 @@ sequenceDiagram
 
 目的: UIがBookmarkとカテゴリ／タグを安全に管理・表示できる契約を揃える。
 
-- [ ] Bookmarkの名前、URL、複数Tagだけをrevision付きで更新し、Category edgeをTagの親から同じtransaction内で自動導出する。Bookmark更新payloadのCategory直接指定は拒否する。
-- [ ] Bookmark／Tagの削除は確認済みflagを要求せず、`deletedAt` とrevisionを更新するsoft-deleteとして原子的に実装する。
-- [ ] 削除Undo用のoperation、期限、error code、復元commandを作らない。同じ削除requestの再送は冪等に扱う。
+- [x] Bookmarkの名前、URL、複数Tagだけをrevision付きで更新し、Category edgeをTagの親から同じtransaction内で自動導出する。Bookmark更新payloadのCategory直接指定は拒否する。
+- [x] Bookmark／Tagの削除は確認済みflagを要求せず、`deletedAt` とrevisionを更新するsoft-deleteとして原子的に実装する。
+- [x] 削除Undo用のoperation、期限、error code、復元commandを作らない。同じ削除requestの再送は冪等に扱う。
 - [ ] Bookmark削除では関連・Blobを表示対象から外し、tombstoneと同期安全性を保った物理回収境界を定義する。
 - [ ] カテゴリ作成・改名時に正規化名競合を返し、既存カテゴリを選べる情報を返す。
-- [ ] タグ作成時はactiveな既存親カテゴリIDを必須とする。Category keyword入力には一致度の高いactive候補を最大8件返し、自由入力文字列だけでは作成しない。作成use caseは既存Tag IDの選択／関連付けを受理せず、親をまたぐ場合も正規化名競合を返して新規IDを作らない。
+- [x] タグ作成時はactiveな既存親カテゴリIDを必須とする。Category keyword入力には一致度の高いactive候補を最大8件返し、自由入力文字列だけでは作成しない。作成use caseは既存Tag IDの選択／関連付けを受理せず、親をまたぐ場合も正規化名競合を返して新規IDを作らない。
 - [ ] カテゴリ／タグの名前競合時はtombstoneを含む既存IDと状態を返す。有効なら元画面で選択し、削除済みなら物理回収まで別名だけを許して別ID作成を拒否する。
 - [ ] tombstone Tagからdeleted親への参照を物理回収まで保持し、子Tag tombstoneが残る親Categoryの先行回収を拒否する。
 - [ ] タグ編集responseに現在の親Category ID／revisionを返し、名前と親Categoryを更新できるようにする。保存時はTagと選択先Categoryのexpected revision、およびsubmit開始時に1回発行して同一retryで再利用する `tag-update:<UUID>` requestIdを必須とし、Tag名のglobal uniqueを親変更前後で維持する。
-- [ ] タグ入力とTag作成／編集の親Category入力向けに、keyword一致度、親カテゴリ、由来、利用件数を持つactive候補を最大8件返す。
+- [x] タグ入力とTag作成／編集の親Category入力向けに、keyword一致度、親カテゴリ、由来、利用件数を持つactive候補を最大8件返す。
 - [ ] Tag編集からのCategory新規作成を別の冪等requestとして扱い、元のTag編集draftを保存せず保持できるresponseを返す。作成したCategory ID／revisionを再検証して親候補として選べるようにする。
-- [ ] Tag親変更では参照する全active Bookmarkの残存active Tag親集合へCategory edgeを完全一致させ、Bookmark revisionとSearchDocumentを更新する。`tagMutationReceipts` へ `UpdateTagResult { tagId, resultTagRevision, affectedBookmarkCount }` を保存し、同request再送で同じ結果を返す。1件でも競合・失敗すれば全件rollbackし、AI再分類Jobを作らない。
-- [ ] `GetCategoryEditDetail` で、activeな使用中TagのID・実名一覧と件数、配下Tagを1件以上持つ関連Bookmarkのunique件数、Category／全物理子Tag／影響edge・Bookmarkのrevisionを含むcanonicalな `impactFingerprint` を返す。件数、一覧、fingerprintは同じsnapshotから生成する。
+- [x] Tag親変更では参照する全active Bookmarkの残存active Tag親集合へCategory edgeを完全一致させ、Bookmark revisionとSearchDocumentを更新する。`tagMutationReceipts` へ `UpdateTagResult { tagId, resultTagRevision, affectedBookmarkCount }` を保存し、同request再送で同じ結果を返す。1件でも競合・失敗すれば全件rollbackし、AI再分類Jobを作らない。
+- [x] `GetCategoryEditDetail` で、activeな使用中TagのID・実名一覧と件数、配下Tagを1件以上持つ関連Bookmarkのunique件数、Category／全物理子Tag／影響edge・Bookmarkのrevisionを含むcanonicalな `impactFingerprint` を返す。件数、一覧、fingerprintは同じsnapshotから生成する。
 - [ ] 作成modalを閉じるまで複数作成できるよう、各requestを一意キーで独立かつ冪等に処理する。
 - [ ] `DeleteCategoryCascade` はCategory編集detailを使った警告を利用者が確認した後だけ呼び、category ID、expected revision、`expectedImpactFingerprint`、`category-delete:<UUID>` requestId、`warningAcknowledged=true` を必須とする。Tag更新の `tag-update:` とnamespaceを分け、requestIdを1つのCategoryだけへ結び付ける。同一Categoryの完了済み再送はrevision／fingerprint検証前にno-op成功、別Categoryでの再利用は拒否する。新規requestでrevisionまたは影響集合が変わっていれば削除せず最新detailで再確認を求める。
 - [ ] `DeleteCategoryCascade` はCategory、物理的に存在する全子Tag、関連edgeを1 transactionでcascade soft-deleteし、影響Bookmark本体を保持したまま各Bookmarkの再分類Jobを `PENDING` で冪等作成する。成功response消失後の同一command再送でもJob、Outbox、BookmarkRevisionを増やさない。分類失敗はBookmarkを削除せず `NEEDS_REVIEW` と手動分類へ送る。
-- [ ] 最近追加、labelId条件、Label／Bookmark候補、総件数、読込済み件数を取得する。
-- [ ] 無限スクロール用cursorで同じIDを二重返却しない。
+- [x] 最近追加、labelId条件、Label／Bookmark候補、総件数、読込済み件数を取得する。
+- [x] 無限スクロール用cursorで同じIDを二重返却しない。
 - [ ] 手動アーカイブと復元を削除とは別の状態変更として実装する。
 
 成果物: Bookmark/Label CRUD use case、soft-delete契約、一覧Query、cursor page、件数契約。

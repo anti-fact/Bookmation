@@ -1,4 +1,4 @@
-import { createBookmarkSaveApplication } from "~application"
+import { createLibraryApplication } from "~application"
 import { handleExtensionCommand } from "~extension/command-handlers"
 import { isExtensionCommand } from "~extension/commands"
 import { initializeOnInstall } from "~extension/install-handler"
@@ -6,7 +6,7 @@ import { createExtensionMessageRouter } from "~extension/message-router"
 
 const messageRouter = createExtensionMessageRouter(
   chrome.runtime.id,
-  createBookmarkSaveApplication(chrome.tabs),
+  createLibraryApplication(chrome.tabs),
 )
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {

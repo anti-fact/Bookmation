@@ -190,6 +190,61 @@ describe("LocalDataLayer", () => {
     })
   })
 
+  describe("BE-05: soft delete visibility", () => {
+    it("removes a soft-deleted bookmark and its edges from active queries", async () => {
+      const bookmarkId = uuid()
+      await layer.saveBookmarkWithJob({ id: bookmarkId, rawUrl: "https://delete.example/", title: "Delete", creationRequestId: uuid(), jobId: uuid() })
+      const bookmark = (await layer.getBookmark(bookmarkId))!
+      await layer.softDeleteBookmark(bookmarkId, bookmark.revision)
+      await layer.softDeleteBookmark(bookmarkId, bookmark.revision)
+
+      expect(await layer.getBookmark(bookmarkId)).toBeUndefined()
+      expect((await layer.listRecentBookmarks(null)).items).toHaveLength(0)
+    })
+
+    it("removes a deleted tag and derives bookmark categories again", async () => {
+      const bookmarkId = uuid()
+      await layer.saveBookmarkWithJob({ id: bookmarkId, rawUrl: "https://tag-delete.example/", title: "Tag", creationRequestId: uuid(), jobId: uuid() })
+      const category = await layer.createCategory({ id: uuid(), name: "Category", creationRequestId: uuid() })
+      const tag = await layer.createTag({ id: uuid(), name: "Tag", parentCategoryId: category.id, expectedParentRevision: category.revision, creationRequestId: uuid() })
+      await layer.assignTagEdge({ bookmarkId, tagId: tag.id, expectedBookmarkRevision: (await layer.getBookmark(bookmarkId))!.revision })
+      await layer.softDeleteTag(tag.id, tag.revision)
+      await layer.softDeleteTag(tag.id, tag.revision)
+
+      expect((await layer.getLabel(tag.id))?.deletedAt).not.toBeNull()
+      const edges = await layer.rawDb.getAllFromIndex(STORES.bookmarkLabels, "byBookmark", bookmarkId)
+      expect(edges.filter((edge) => edge.deletedAt === null)).toHaveLength(0)
+    })
+  })
+
+  describe("BE-05: bookmark edit", () => {
+    it("updates only title, URL, and tag edges while deriving category edges", async () => {
+      const bookmarkId = uuid()
+      await layer.saveBookmarkWithJob({ id: bookmarkId, rawUrl: "https://before.example/", title: "Before", creationRequestId: uuid(), jobId: uuid() })
+      const category = await layer.createCategory({ id: uuid(), name: "Work", creationRequestId: uuid() })
+      const tag = await layer.createTag({ id: uuid(), name: "Docs", parentCategoryId: category.id, expectedParentRevision: category.revision, creationRequestId: uuid() })
+      const result = await layer.updateBookmark({ bookmarkId, expectedRevision: (await layer.getBookmark(bookmarkId))!.revision, rawUrl: "https://after.example/", title: "After", tagIds: [tag.id] })
+      expect(result.title).toBe("After")
+      expect(result.normalizedUrl).toBe("https://after.example/")
+      const edges = await layer.rawDb.getAllFromIndex(STORES.bookmarkLabels, "byBookmark", bookmarkId)
+      expect(edges.filter((edge) => edge.deletedAt === null).map((edge) => edge.labelId).sort()).toEqual([category.id, tag.id].sort())
+    })
+  })
+
+  describe("BE-05: label queries", () => {
+    it("returns active label candidates and label-filtered bookmarks", async () => {
+      const bookmarkId = uuid()
+      await layer.saveBookmarkWithJob({ id: bookmarkId, rawUrl: "https://query.example/", title: "Query", creationRequestId: uuid(), jobId: uuid() })
+      const category = await layer.createCategory({ id: uuid(), name: "Research", creationRequestId: uuid() })
+      const tag = await layer.createTag({ id: uuid(), name: "Reading", parentCategoryId: category.id, expectedParentRevision: category.revision, creationRequestId: uuid() })
+      await layer.assignTagEdge({ bookmarkId, tagId: tag.id, expectedBookmarkRevision: (await layer.getBookmark(bookmarkId))!.revision })
+      expect((await layer.listLabelCandidates("read", "TAG")).map((item) => item.id)).toEqual([tag.id])
+      const result = await layer.listBookmarksByLabel(tag.id, null)
+      expect(result.totalCount).toBe(1)
+      expect(result.items[0]?.id).toBe(bookmarkId)
+    })
+  })
+
   describe("M4: UpdateTag", () => {
     async function seedTagGraph() {
       const bookmarkId = uuid()

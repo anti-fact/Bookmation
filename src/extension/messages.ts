@@ -14,6 +14,9 @@ export const EXTENSION_MESSAGE_ACTIONS = {
   CREATE_TAG: "create-tag",
   UPDATE_TAG: "update-tag",
   DELETE_TAG: "delete-tag",
+  DELETE_CATEGORY_CASCADE: "delete-category-cascade",
+  GET_CATEGORY_EDIT_DETAIL: "get-category-edit-detail",
+  LIST_LABEL_CANDIDATES: "list-label-candidates",
   CLAIM_CLASSIFICATION_JOB: "claim-classification-job",
   APPLY_CLASSIFICATION_RESULT: "apply-classification-result",
   SEARCH_LIBRARY: "search-library",
@@ -45,7 +48,7 @@ type MessageRequest<
  * Chrome boundary の版、送信元、JSON性、サイズだけを検証する。
  */
 export type ExtensionMessageRequest =
-  | MessageRequest<"save-current-tab", "popup", { }>
+  | MessageRequest<"save-current-tab", "popup", Record<never, never>>
   | MessageRequest<"save-bookmark-by-url", "popup" | "dashboard", { url: string; title?: string }>
   | MessageRequest<"update-bookmark", "dashboard", JsonValue>
   | MessageRequest<"delete-bookmark", "dashboard", JsonValue>
@@ -54,6 +57,9 @@ export type ExtensionMessageRequest =
   | MessageRequest<"create-tag", "dashboard", JsonValue>
   | MessageRequest<"update-tag", "dashboard", JsonValue>
   | MessageRequest<"delete-tag", "dashboard", JsonValue>
+  | MessageRequest<"delete-category-cascade", "dashboard", JsonValue>
+  | MessageRequest<"get-category-edit-detail", "dashboard", JsonValue>
+  | MessageRequest<"list-label-candidates", "dashboard", JsonValue>
   | MessageRequest<"claim-classification-job", "ai-host", JsonValue>
   | MessageRequest<"apply-classification-result", "ai-host", JsonValue>
   | MessageRequest<"search-library", "dashboard" | "ai-host", JsonValue>

@@ -41,11 +41,13 @@ export interface AssignTagEdgeInput {
   tagId: string
   expectedBookmarkRevision: number
 }
+export interface UpdateBookmarkInput { bookmarkId: string; expectedRevision: number; title: string; rawUrl: string; tagIds: readonly string[] }
 
 export interface ListRecentBookmarksResult {
   items: PersistedActiveBookmarkRecord[]
   nextCursor: BookmarkCursor | null
 }
+export interface LabelCandidate { id: string; name: string; kind: "CATEGORY" | "TAG"; parentCategoryId: string | null; revision: number; origin: string; usageCount: number }
 
 export interface DeleteCategoryCascadeResult {
   alreadyCompleted: boolean
@@ -62,9 +64,12 @@ export interface LocalDataLayerPort {
   createCategory(input: CreateCategoryInput): Promise<PersistedLabelRecord>
   createTag(input: CreateTagInput): Promise<PersistedLabelRecord>
   assignTagEdge(input: AssignTagEdgeInput): Promise<unknown>
+  updateBookmark(input: UpdateBookmarkInput): Promise<PersistedActiveBookmarkRecord>
   updateTag(command: UpdateTagCommand): Promise<UpdateTagResult>
   deleteCategoryCascade(command: DeleteCategoryCascadeCommand): Promise<DeleteCategoryCascadeResult>
   listRecentBookmarks(cursor: BookmarkCursor | null, limit?: number): Promise<ListRecentBookmarksResult>
+  listBookmarksByLabel(labelId: string, cursor: BookmarkCursor | null, limit?: number): Promise<ListRecentBookmarksResult & { totalCount: number }>
+  listLabelCandidates(keyword: string, kind?: "CATEGORY" | "TAG", limit?: number): Promise<LabelCandidate[]>
   softDeleteBookmark(bookmarkId: string, expectedRevision: number): Promise<void>
   softDeleteTag(tagId: string, expectedRevision: number): Promise<void>
   getCategoryEditDetail(categoryId: string): Promise<{
