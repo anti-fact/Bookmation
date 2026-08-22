@@ -34,7 +34,7 @@
 | ユースケース | 入力 | 結果 |
 | --- | --- | --- |
 | SaveCurrentTab | URL、タイトル、ファビコン、任意サムネイル | 保存済みBookmarkと分類Job |
-| SaveBookmarkByUrl | ユーザーが入力したURL、任意タイトル | 保存済みBookmarkと分類Job |
+| SaveBookmarkByUrl | ユーザーが入力したURL、任意タイトル（fetch タイトル / ホスト名は非同期更新可） | 保存済みBookmarkと分類Job |
 | OpenDashboardHome | popupまたはショートカットの要求 | 最近追加したBookmarkを表示する拡張機能ページ |
 | OpenOnboardingAfterInstall | runtime.onInstalledのinstall理由 | 初回だけ表示する拡張機能内ウェルカムページ |
 | GetCategoryTemplateCatalog | 同梱catalog version、locale | 初回用Category候補。具体的なsetはISSUE-022で決定する |
@@ -143,7 +143,13 @@ Bookmark保存には2つの入力経路を設け、同じ検証・正規化ユ�
 - ファビコンURLまたは取得済みBlob
 - ユーザー設定で有効な場合のサムネイル
 
-URL指定で保存する場合はURLと任意タイトルを受け取る。`http` / `https` 等の許可スキーム、文字数、構文、正規化結果を検証し、ページメタデータ取得のために広いhost permissionや暗黙の外部fetchを追加しない。取得できないタイトルは検証済みhost名等の安全な代替表示にする。
+URL指定で保存する場合はURLと任意タイトルを受け取る。`http:` / `https:` だけを許可し、文字数、構文、正規化結果を検証する。タイトル優先順位は **ユーザー入力（あれば） → fetch タイトル → ホスト名** とする。保存時の手入力タイトルは任意であり、dashboard / 編集 modal では常に編集できる。
+
+URL が valid なら、メタデータ取得の成否に関わらず Bookmark と ClassificationJob を先に同一トランザクションで保存する。favicon / thumbnail と、title fetch が未完了の場合の title 更新は、保存成功後に非同期 Job として後追いする。後追い失敗時は faviconBlobId / thumbnailBlobId を null のままにし、一覧はプレースホルダー表示とする。
+
+URL 指定保存専用のメタデータ fetch は、Manifest の `host_permissions: ["https://*/*", "http://*/*"]` を使い、対象 URL へ HTTP GET する。HTML から `<title>`、favicon link、`og:image` / `twitter:image` 等を parse し、画像は Blob 化して IndexedDB の blobs Store へ保存する。一覧描画で外部画像 URL を直接参照しない。
+
+現在タブ保存（popup / ショートカット）は `activeTab` 由来の `tab.title` / `tab.favIconUrl` を優先し、上記 fetch 経路は URL 指定保存専用とする。画像 MIME、最大サイズ、リサイズ、`thumbnailEnabled` 既定、fetch 失敗時 UI は ISSUE-002 / TASK-010 で詰める。
 
 ページ本文をAIへ渡すことはMVPの既定動作にしない。分類精度のため本文が必要になった場合は、取得範囲、保存有無、権限、プライバシー表示を別途設計する。
 
@@ -364,15 +370,15 @@ AI Hostがclaimしたときにpendingからrunningへ条件付き更新し、att
 
 ## Chrome権限
 
-P0の初期候補は storage と activeTab である。commandsはManifest宣言として「現在タブを保存」「ホームを開く」の2ショートカットを定義する。IndexedDB自体に拡張権限は不要である。
+P0の初期候補は storage、activeTab、host_permissions である。host_permissions は `https://*/*` と `http://*/*` で、URL 指定保存のメタデータ fetch に限定する。commandsはManifest宣言として「現在タブを保存」「ホームを開く」の2ショートカットを定義する。IndexedDB自体に拡張権限は不要である。
 
 - P1の右クリック保存では `contextMenus`、定期判定では `alarms` を宣言する。
 - `history` は訪問リマインダー有効化時、または自動アーカイブtoggleのON操作時に、目的説明後に任意要求する。自動アーカイブは利用者gesture内で `permissions.contains()` と必要な `permissions.request()` を行い、許可成功後だけONへcommitする。拒否／取消時はOFFのままにし、`permissions.onRemoved` または実行前検査で取消を検出した時もOFFへ戻してscheduleを止める。
 - `notifications` は訪問リマインダーを有効化する時だけ要求し、アーカイブを理由に要求しない。
 - `bookmarks` は標準Bookmarkインポート開始時だけ要求し、読取専用のアダプターから作成・更新・削除メソッドを公開しない。
 - Google Drive接続では `identity` とOAuth設定を追加する。同一アカウント同期は `drive.appdata`、所有権のある別アカウントとの共有は通常Drive file用の `drive.file` を初期候補とし、実装する経路に必要なscopeだけを接続時に要求する。
-- scripting、tabs、広いhost_permissionsは必要性を技術スパイクで実証してから追加する。
-- サムネイル取得がactiveTabだけで成立するかを検証し、不足する場合は機能縮小を先に検討する。
+- scripting、tabs は必要性を技術スパイクで実証してから追加する。現在タブ保存の title / favicon は `activeTab` を優先し、URL 指定保存の fetch とは経路を分ける。
+- 現在タブのサムネイル取得が `activeTab` だけで成立するかを検証し、不足する場合は機能縮小を先に検討する。URL 指定保存の thumbnail は HTML parse 由来の `og:image` 等を後追い fetch する。
 
 正確な権限は実装・Chrome公式仕様確認後に確定する。詳細は [セキュリティ](./SECURITY.md#最小権限) を参照する。
 
