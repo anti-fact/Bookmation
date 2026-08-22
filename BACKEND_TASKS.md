@@ -341,7 +341,7 @@ sequenceDiagram
 
 - [ ] 初期権限を `storage`、`activeTab`、commands中心にレビューする。
 - [ ] title、URL、Label名、message、JSON document、AI出力を未信頼入力として長さ・型・scheme検証する。
-- [ ] favicon/thumbnailのMIME、byte数、寸法、content hashを検証してlocal Blob化する。
+- [ ] 保存時の `og:image` を第一候補として、MIME、byte数、寸法、content hashを検証してlocal Blob化する。取得・検証・保存に失敗した場合は外部URLを参照せず同梱ロゴへ縮退する。
 - [ ] 一覧表示のたびに外部画像URLへ接続しない。
 - [ ] URL、title、Label名、AI queryを通常ログへ出さない。
 - [ ] CSP、remote code禁止、権限拒否時fallbackをテストする。

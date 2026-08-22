@@ -104,7 +104,7 @@
 - responsive grid の breakpoint とカード最小幅
 - 無限スクロールの page size、preload距離、仮想化閾値
 - AI検索応答に含める種類別最大候補数、製品説明の正本データ、評価dataset
-- サムネイル取得方式と容量上限
+- 保存時は `og:image` を第一候補として取得し、失敗時は同梱のBookmationロゴ画像へ縮退する。取得済み画像は検証済みlocal Blobだけを一覧で参照し、容量上限と削除方針はTASK-010で実装する
 - 訪問判定の初期期間、回答せず閉じた通知の再表示規則、SUPPRESSED URLの管理／再許可UI
 - 最終訪問日時が存在しないBookmarkの再確認UI
 - QR encoder別の実効容量、任意暗号化、CSVの長期互換性
