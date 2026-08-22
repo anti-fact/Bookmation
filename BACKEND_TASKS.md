@@ -84,7 +84,7 @@ flowchart TD
 | ID | タスク | 状態 | 担当 | 主な依存 | 利用者に届く成果 |
 | --- | --- | --- | --- | --- | --- |
 | BE-00 | 開発基盤とバックエンドPlan | 完了 | T-taku | なし | チームが同じコマンドで実装を開始できる |
-| BE-01 | Domain型と不変条件 | 完了 | AI Agent | BE-00 | 不正なBookmark・Label・AI結果を共通規則で拒否できる |
+| BE-01 | Domain型と不変条件 | 完了 | GreenTea | BE-00 | 不正なBookmark・Label・AI結果を共通規則で拒否できる |
 | BE-02 | IndexedDBとRepository | 未着手 | 未定 | BE-01 | 再読込後もデータが残り、一覧をカーソル取得できる |
 | BE-03 | Message契約とService Worker | 未着手 | 未定 | BE-01 | popup、dashboard、workerが安全に連携できる |
 | BE-04 | 現在ページ・URL保存 | 未着手 | 未定 | BE-02、BE-03 | AIなしでもBookmarkを保存できる |

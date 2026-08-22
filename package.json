@@ -50,6 +50,14 @@
     "permissions": [
       "storage",
       "activeTab"
-    ]
+    ],
+    "commands": {
+      "save-current-page": {
+        "description": "現在のページをブックマーク"
+      },
+      "open-bookmation-home": {
+        "description": "Bookmation ホームを開く"
+      }
+    }
   }
 }
