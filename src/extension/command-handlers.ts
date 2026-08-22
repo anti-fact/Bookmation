@@ -1,31 +1,29 @@
-import { EXTENSION_COMMANDS, type ExtensionCommand } from "./commands"
 import {
-  buildDashboardUrl,
-  DASHBOARD_ENTRY,
-  DASHBOARD_HOME_ROUTE
-} from "./paths"
+  saveCurrentTabBookmark,
+  type SaveBookmarkMessageApplicationDeps,
+} from "~/application/save-bookmark-message-application"
+import { EXTENSION_COMMANDS, type ExtensionCommand } from "./commands"
+import { openOrFocusDashboardHome } from "./open-dashboard-tab"
 
 type CommandRuntime = Pick<typeof chrome.runtime, "getURL">
-type CommandTabs = Pick<typeof chrome.tabs, "create">
-type SaveCurrentPage = () => Promise<void>
+type CommandTabs = Pick<typeof chrome.tabs, "query" | "create" | "update">
+type CommandWindows = Pick<typeof chrome.windows, "update">
 
 export async function handleExtensionCommand(
   command: ExtensionCommand,
   runtime: CommandRuntime,
   tabs: CommandTabs,
-  saveCurrentPage?: SaveCurrentPage,
+  windows: CommandWindows,
+  saveDeps: SaveBookmarkMessageApplicationDeps,
 ): Promise<void> {
   switch (command) {
     case EXTENSION_COMMANDS.OPEN_BOOKMATION_HOME:
-      await tabs.create({
-        url: buildDashboardUrl(
-          runtime.getURL(DASHBOARD_ENTRY),
-          DASHBOARD_HOME_ROUTE
-        )
-      })
+      await openOrFocusDashboardHome(runtime, tabs, windows)
       return
     case EXTENSION_COMMANDS.SAVE_CURRENT_PAGE:
-      await saveCurrentPage?.()
+      await saveCurrentTabBookmark(saveDeps, {
+        creationRequestId: `command-save:${crypto.randomUUID()}`,
+      })
       return
   }
 }

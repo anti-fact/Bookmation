@@ -14,7 +14,12 @@ function createChromeApi(): PopupChromeApi {
       sendMessage: vi.fn()
     },
     tabs: {
-      create: vi.fn().mockResolvedValue(undefined)
+      create: vi.fn().mockResolvedValue(undefined),
+      query: vi.fn().mockResolvedValue([]),
+      update: vi.fn().mockResolvedValue(undefined)
+    },
+    windows: {
+      update: vi.fn().mockResolvedValue(undefined)
     }
   }
 }
@@ -38,6 +43,13 @@ describe("createChromePopupPort", () => {
 
   it("sends the typed popup request and decodes saved and duplicate results", async () => {
     const chromeApi = createChromeApi()
+    vi.mocked(chromeApi.tabs.query).mockImplementation(async () => [
+      {
+        url: "https://example.com/page",
+        title: "Example",
+        favIconUrl: "https://example.com/favicon.ico"
+      }
+    ])
     vi.mocked(chromeApi.runtime.sendMessage)
       .mockResolvedValueOnce({
         data: { duplicate: false },
@@ -54,7 +66,11 @@ describe("createChromePopupPort", () => {
     await expect(port.saveCurrentPage()).resolves.toEqual({ status: "saved" })
     expect(chromeApi.runtime.sendMessage).toHaveBeenNthCalledWith(1, {
       action: "save-current-tab",
-      payload: {},
+      payload: {
+        rawUrl: "https://example.com/page",
+        title: "Example",
+        faviconUrl: "https://example.com/favicon.ico"
+      },
       requestId: "popup-save:request-1",
       schemaVersion: 1,
       source: "popup"
@@ -89,6 +105,7 @@ describe("createChromePopupPort", () => {
 
   it("opens the dashboard home and Chrome shortcut settings in tabs", async () => {
     const chromeApi = createChromeApi()
+    vi.mocked(chromeApi.tabs.query).mockImplementation(async () => [])
     const port = createChromePopupPort(chromeApi)
 
     await port.openHome()

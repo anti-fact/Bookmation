@@ -80,11 +80,21 @@ export class DomainError extends Error {
   readonly code: DomainErrorCode
 
   constructor(code: DomainErrorCode, message?: string) {
-    // code を message の先頭に含め、toThrow(code) でマッチできるようにする
     super(message ? `${code}: ${message}` : code)
     this.name = "DomainError"
     this.code = code
   }
+}
+
+export function isDomainError(error: unknown): error is DomainError {
+  if (error instanceof DomainError) {
+    return true
+  }
+  if (typeof error !== "object" || error === null) {
+    return false
+  }
+  const candidate = error as { name?: unknown; code?: unknown }
+  return candidate.name === "DomainError" && typeof candidate.code === "string"
 }
 
 // ---------------------------------------------------------------------------

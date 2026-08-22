@@ -3,11 +3,7 @@ import {
   type ExtensionMessageResponse
 } from "~/extension/messages"
 import { EXTENSION_COMMANDS, type ExtensionCommand } from "~/extension/commands"
-import {
-  buildDashboardUrl,
-  DASHBOARD_ENTRY,
-  DASHBOARD_HOME_ROUTE
-} from "~/extension/paths"
+import { openOrFocusDashboardHome } from "~/extension/open-dashboard-tab"
 import {
   PopupPortError,
   type PopupPort,
@@ -28,9 +24,8 @@ export type PopupChromeApi = Readonly<{
     getURL(path: string): string
     sendMessage(message: unknown): Promise<unknown>
   }
-  tabs: {
-    create(properties: { url: string }): Promise<unknown>
-  }
+  tabs: Pick<typeof chrome.tabs, "create" | "query" | "update">
+  windows: Pick<typeof chrome.windows, "update">
 }>
 
 const SHORTCUT_SETTINGS_URL = "chrome://extensions/shortcuts"
@@ -118,12 +113,11 @@ export function createChromePopupPort(
     },
 
     async openHome() {
-      await chromeApi.tabs.create({
-        url: buildDashboardUrl(
-          chromeApi.runtime.getURL(DASHBOARD_ENTRY),
-          DASHBOARD_HOME_ROUTE
-        )
-      })
+      await openOrFocusDashboardHome(
+        chromeApi.runtime,
+        chromeApi.tabs,
+        chromeApi.windows,
+      )
     },
 
     async openShortcutSettings() {
@@ -131,16 +125,28 @@ export function createChromePopupPort(
     },
 
     async saveCurrentPage() {
+      const [activeTab] = await chromeApi.tabs.query({
+        active: true,
+        currentWindow: true,
+      })
       const requestId = `popup-save:${createRequestId()}`
+      const payload =
+        activeTab?.url !== undefined
+          ? {
+              rawUrl: activeTab.url,
+              title: activeTab.title ?? "",
+              faviconUrl: activeTab.favIconUrl ?? null,
+            }
+          : {}
       const response = await chromeApi.runtime.sendMessage({
         action: "save-current-tab",
-        payload: {},
+        payload,
         requestId,
         schemaVersion: EXTENSION_MESSAGE_SCHEMA_VERSION,
-        source: "popup"
+        source: "popup",
       })
 
       return decodeMessageResponse(response, requestId)
-    }
+    },
   }
 }
