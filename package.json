@@ -31,6 +31,7 @@
     "@types/node": "22.17.2",
     "@types/react": "18.3.23",
     "@types/react-dom": "18.3.7",
+    "@unicode/unicode-15.1.0": "^1.6.17",
     "@vitejs/plugin-react": "5.1.4",
     "autoprefixer": "10.4.21",
     "eslint": "9.33.0",
