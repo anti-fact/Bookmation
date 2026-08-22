@@ -183,7 +183,8 @@ export function PromptApiTester() {
   }
 
   return (
-    <div className="space-y-4 rounded-lg border border-gray-200 bg-white p-6">
+    // 外側の設定内容sectionが持つpaddingをそのまま使い、他の設定説明と左端を揃えます。
+    <section aria-label="Prompt API スパイク設定" className="space-y-4">
       <div>
         <h2 className="font-semibold text-gray-900">Prompt API スパイク検証</h2>
         <p className="mt-1 text-sm text-gray-600">
@@ -266,6 +267,6 @@ export function PromptApiTester() {
           </div>
         </dl>
       </div>
-    </div>
+    </section>
   )
 }

@@ -210,6 +210,15 @@ describe("ExtensionApp", () => {
     })
     expect(settingsContent.className).toContain("min-w-0")
     expect(settingsContent.className).toContain("overflow-x-auto")
+    expect(settingsContent.className).toContain("p-3")
+    expect(settingsContent.className).toContain("sm:p-5")
+    expect(settingsContent.className).toContain("lg:p-8")
+    const promptApiSettings = screen.getByRole("region", {
+      name: "Prompt API スパイク設定"
+    })
+    expect(promptApiSettings.className).toContain("space-y-4")
+    expect(promptApiSettings.className).not.toContain("p-6")
+    expect(promptApiSettings.className).not.toContain("px-")
   })
 
   it("renders all header variants from one AppHeader component", () => {
