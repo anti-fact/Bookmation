@@ -30,6 +30,7 @@ Bookmation は、閲覧中のページまたは指定URLを専用ストアへ保
 | [BACKEND_TASKS.md](../BACKEND_TASKS.md) | バックエンド担当向けの依存フロー、実装順、成果物、完了条件 |
 | [PLANS.md](PLANS.md) | 長時間・複雑タスク用 Execution Plan の規約 |
 | [2026-08-16-dev-scaffold.md](plans/2026-08-16-dev-scaffold.md) | 開発基盤と最初の保存縦切り Plan |
+| [2026-08-22-task-003-local-data-layer.md](plans/2026-08-22-task-003-local-data-layer.md) | TASK-003 / BE-02 ローカルデータ層（IndexedDB・Repository）Plan |
 | [TASKS.md](TASKS.md) | チームで分担する実装ワークパッケージ、依存関係、完了条件 |
 | [TODO.md](TODO.md) | 1 PR 程度で完了できる小規模タスク |
 | [ISSUES.md](ISSUES.md) | 未決定事項・プロダクト上の問題 |
