@@ -1,5 +1,26 @@
+import { deferredExtensionMessageApplication } from "~application"
 import { handleExtensionCommand } from "~extension/command-handlers"
 import { isExtensionCommand } from "~extension/commands"
+import { initializeOnInstall } from "~extension/install-handler"
+import { createExtensionMessageRouter } from "~extension/message-router"
+
+const messageRouter = createExtensionMessageRouter(
+  chrome.runtime.id,
+  deferredExtensionMessageApplication,
+)
+
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  void messageRouter.handle(message, sender).then(sendResponse)
+  return true
+})
+
+chrome.runtime.onInstalled.addListener((details) => {
+  void initializeOnInstall(details.reason, chrome.storage.local, chrome.runtime, chrome.tabs).catch(
+    (error: unknown) => {
+      console.error("[Bookmation] Install initialization failed:", error)
+    },
+  )
+})
 
 chrome.commands.onCommand.addListener((command) => {
   if (!isExtensionCommand(command)) {

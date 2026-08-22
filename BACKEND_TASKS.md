@@ -194,17 +194,19 @@ sequenceDiagram
 
 目的: 拡張機能の各実行コンテキストを、型付きかつ再送可能な契約で接続する。
 
-- [ ] popup、dashboard、AI Host、Service Worker間のmessageをdiscriminated unionにする。
-- [ ] `schemaVersion`、`requestId`、送信元、action allowlist、payload上限を検証する。
-- [ ] 保存、編集、削除、一覧、Label、Job claim/result、検索のhandlerをApplicationへ委譲する。
-- [ ] `runtime.onInstalled` の `reason=INSTALL` のときだけ初回ホーム状態を冪等に初期化し、更新、Chrome更新、通常起動で上書きしない。
-- [ ] `save-current-page` と `open-bookmation-home` のcommand名をallowlist化する。
-- [ ] workerのglobal変数、timer、in-memory queueを正本にしない。
-- [ ] Service WorkerからLanguageModelを呼べない構造にする。
+- [x] popup、dashboard、AI Host、Service Worker間のmessageをdiscriminated unionにする。
+- [x] `schemaVersion`、`requestId`、送信元、action allowlist、payload上限を検証する。
+- [x] 保存、編集、削除、一覧、Label、Job claim/result、検索のhandlerをApplicationへ委譲する。
+- [x] `runtime.onInstalled` の `reason=INSTALL` のときだけ初回ホーム状態を冪等に初期化し、更新、Chrome更新、通常起動で上書きしない。
+- [x] `save-current-page` と `open-bookmation-home` のcommand名をallowlist化する。
+- [x] workerのglobal変数、timer、in-memory queueを正本にしない。
+- [x] Service WorkerからLanguageModelを呼べない構造にする。
 
 成果物: Message schema、router、handler、Chrome API adapter、契約テスト。
 
 完了条件: 未知action、不正sender、巨大payload、重複request、worker再起動を安全に処理できる。
+
+完了メモ: 2026-08-22。`src/extension/messages.ts` にversion付きdiscriminated unionと入力境界検証、`message-router.ts` に送信元検証とstateless router、`install-handler.ts` にINSTALL限定の初期化を実装。業務actionはApplication境界へ委譲し、BE-04以降でuse caseを注入する。契約テスト14件、型検査、変更範囲のlint、MV3 buildを確認済み。
 
 ### BE-04 現在ページ・URL保存
 
