@@ -3,14 +3,31 @@
  * 画面遷移時のフォーカスとスクロール位置を管理するアプリ本体です。
  */
 import * as React from "react"
+import {
+  ArchiveIcon,
+  GearIcon,
+  Share2Icon
+} from "@radix-ui/react-icons"
 
 import { AppHeader } from "~/ui/components/AppHeader"
 import { AppShell } from "~/ui/components/AppShell"
-import { Button } from "~/ui/primitives"
+import { BookmarkListPage } from "~/ui/features/bookmarks/BookmarkListPage"
+import {
+  emptyBookmarkListPort,
+  type BookmarkListPort
+} from "~/ui/features/bookmarks/bookmark-list-port"
+import {
+  Button,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle
+} from "~/ui/primitives"
 import { joinClassNames } from "~/ui/primitives/class-names"
 
 import { useAppRuntime, useHashRouteStore } from "./AppProviders"
-import { HomeSavePanel } from "./HomeSavePanel"
+import { BookmarkAddForm } from "./BookmarkAddForm"
 import { PromptApiTester } from "./PromptApiTester"
 import {
   getHashRouteKey,
@@ -40,9 +57,15 @@ const settingsLabels: Record<SettingsSection, string> = {
   share: "共有"
 }
 
+const settingsIcons = {
+  archive: ArchiveIcon,
+  general: GearIcon,
+  share: Share2Icon
+}
+
 // ホバーと継続選択で同じ領域を使い、背景色だけを各レイヤーで管理します。
 const settingsItemBackgroundClass =
-  "pointer-events-none absolute inset-y-0 right-0 w-screen md:-right-6"
+  "pointer-events-none absolute inset-y-0 -right-2 w-screen sm:-right-4 lg:-right-6"
 
 const welcomeDescription = [
   "Bookmationはブックマークを簡単に整理できる拡張機能です。",
@@ -63,14 +86,17 @@ function getRouteCopy(route: HashRoute): RouteCopy {
         eyebrow: "Home",
         heading: "最近追加したブックマーク"
       }
-    case "bookmarks":
+    case "bookmarks": {
+      const filterDescription =
+        route.filter.kind === "category-tag"
+          ? `カテゴリID「${route.filter.categoryId}」とタグID「${route.filter.tagId}」`
+          : `${route.filter.kind === "category" ? "カテゴリ" : "タグ"} ID「${route.filter.id}」`
       return {
-        description: `${
-          route.filter.kind === "category" ? "カテゴリ" : "タグ"
-        } ID「${route.filter.id}」で絞り込む一覧です。`,
+        description: `${filterDescription}で絞り込む一覧です。`,
         eyebrow: "Bookmarks",
         heading: "ブックマーク一覧"
       }
+    }
     case "search":
       return {
         description: `「${route.query}」のカテゴリ・タグ結果を上、ブックマーク結果を下に表示する画面です。`,
@@ -108,6 +134,7 @@ type NavigateRoute = (
 type RouteHeaderProps = {
   closeSurface: () => void
   navigate: NavigateRoute
+  onBookmarkAddClick: () => void
   onUnavailable: (message: string) => void
   route: HashRoute
 }
@@ -116,6 +143,7 @@ type RouteHeaderProps = {
 function RouteHeader({
   closeSurface,
   navigate,
+  onBookmarkAddClick,
   onUnavailable,
   route
 }: RouteHeaderProps) {
@@ -127,6 +155,26 @@ function RouteHeader({
   switch (route.kind) {
     case "home":
     case "bookmarks":
+      return (
+        <AppHeader
+          {...commonProps}
+          aiAccessibleLabel="カテゴリ・タグ一覧を開く"
+          aiIcon={
+            <span className="inline-flex size-6 items-center justify-center">
+              <img alt="" className="size-[1.125rem]" src={aiTelescopeIcon} />
+            </span>
+          }
+          onAiSearchClick={() => navigate({ kind: "labels" })}
+          onBookmarkAddClick={onBookmarkAddClick}
+          onSearchClick={() =>
+            onUnavailable("検索入力と候補は現在準備中です。")
+          }
+          onSettingsClick={() =>
+            navigate({ kind: "settings", section: "general" })
+          }
+          variant="default"
+        />
+      )
     case "search":
       return (
         <AppHeader
@@ -174,8 +222,13 @@ function RouteHeader({
 }
 
 type RouteBodyProps = {
+  bookmarkListRevision: number
+  bookmarkListPort: BookmarkListPort
+  headingRef: React.RefObject<HTMLHeadingElement>
   navigate: NavigateRoute
+  onUnavailable: (message: string) => void
   route: HashRoute
+  runtime: ReturnType<typeof useAppRuntime>
 }
 
 type WelcomeScreenProps = {
@@ -237,29 +290,34 @@ function WelcomeScreen({
 }
 
 // UI-02では画面遷移の骨組みを実装し、後続機能の領域はプレースホルダーにします。
-function RouteBody({ navigate, route }: RouteBodyProps) {
-  if (route.kind === "home") {
-    return <HomeSavePanel />
-  }
-
+function RouteBody({
+  bookmarkListRevision,
+  bookmarkListPort,
+  headingRef,
+  navigate,
+  onUnavailable,
+  route,
+  runtime
+}: RouteBodyProps) {
   if (route.kind === "settings") {
     return (
-      <div className="grid gap-6 md:grid-cols-[13rem_0.125rem_minmax(0,1fr)]">
+      <div className="grid grid-cols-[clamp(7rem,28vw,13rem)_0.125rem_minmax(0,1fr)] gap-2 sm:gap-4 lg:gap-6">
         <nav
           aria-label="設定メニュー"
           className="-ml-4 w-[calc(100%+1rem)] self-start sm:-ml-8 sm:w-[calc(100%+2rem)] lg:-ml-[4.5rem] lg:w-[calc(100%+4.5rem)] min-[1440px]:ml-[calc(-4.5rem-(100vw-90rem)/2)] min-[1440px]:w-[calc(100%+4.5rem+(100vw-90rem)/2)]"
         >
-          <ul className="m-0 flex list-none flex-wrap gap-1 p-0 md:flex-col">
+          <ul className="m-0 flex list-none flex-col gap-1 p-0">
             {(["general", "archive", "share"] as const).map((section) => {
               const current = route.section === section
               const destination = { kind: "settings", section } as const
+              const SettingsIcon = settingsIcons[section]
 
               return (
-                <li className="min-w-0 flex-1 md:flex-none" key={section}>
+                <li className="min-w-0 flex-none" key={section}>
                   <a
                     aria-current={current ? "page" : undefined}
                     className={joinClassNames(
-                      "group relative flex min-h-12 w-full items-center px-4 text-left text-sm no-underline outline-none transition-colors focus-visible:ring-2 focus-visible:ring-inset",
+                      "group relative flex min-h-12 w-full items-center whitespace-nowrap pl-8 pr-2 text-left text-base no-underline outline-none transition-colors focus-visible:ring-2 focus-visible:ring-inset sm:pl-10 sm:pr-4 sm:text-lg lg:pl-14 lg:text-xl",
                       current
                         ? "font-bold text-bm-paper focus-visible:ring-bm-paper"
                         : "font-medium text-bm-ink focus-visible:ring-bm-focus"
@@ -298,8 +356,12 @@ function RouteBody({ navigate, route }: RouteBodyProps) {
                         )}
                       />
                     )}
-                    <span className="relative truncate">
-                      {settingsLabels[section]}
+                    <span className="relative flex min-w-0 items-center gap-3">
+                      <SettingsIcon
+                        aria-hidden="true"
+                        className="size-4 shrink-0"
+                      />
+                      <span>{settingsLabels[section]}</span>
                     </span>
                   </a>
                 </li>
@@ -310,12 +372,12 @@ function RouteBody({ navigate, route }: RouteBodyProps) {
         <span
           aria-label="設定メニューと設定内容の区切り"
           aria-orientation="vertical"
-          className="hidden w-0.5 self-stretch bg-bm-muted md:block"
+          className="block w-0.5 self-stretch bg-bm-muted"
           role="separator"
         />
         <section
           aria-label={`${settingsLabels[route.section]}設定の内容`}
-          className="space-y-6 rounded-bm-dialog border-2 border-bm-border bg-bm-paper p-5 sm:p-8"
+          className="min-w-0 space-y-6 overflow-x-auto rounded-bm-dialog border-2 border-bm-border bg-bm-paper p-3 sm:p-5 lg:p-8"
         >
           {route.section === "general" && (
             <>
@@ -347,13 +409,38 @@ function RouteBody({ navigate, route }: RouteBodyProps) {
         <p className="m-0 break-all text-sm leading-6 text-bm-muted-text">
           入力されたURL: <code>{route.attemptedHash || "（空）"}</code>
         </p>
-        <div className="mt-5 flex justify-end">
+        <div className="mt-5 flex justify-start">
           <Button onClick={() => navigate({ kind: "home" })} variant="outline">
             ホームへ移動
           </Button>
         </div>
       </div>
     )
+  }
+
+  if (route.kind === "home" || route.kind === "bookmarks") {
+    const filter =
+      route.kind === "home" ? ({ kind: "recent" } as const) : route.filter
+    const bookmarkList = (
+      <BookmarkListPage
+        filter={filter}
+        headingRef={headingRef}
+        key={bookmarkListRevision}
+        onClearFilter={() => navigate({ kind: "home" })}
+        onEdit={(bookmarkId) =>
+          onUnavailable(
+            `ブックマーク「${bookmarkId}」の編集はUI-05で実装します。`
+          )
+        }
+        onNavigateToFilter={(nextFilter) =>
+          navigate({ filter: nextFilter, kind: "bookmarks" })
+        }
+        port={bookmarkListPort}
+        runtime={runtime}
+      />
+    )
+
+    return bookmarkList
   }
 
   return (
@@ -368,7 +455,11 @@ function RouteBody({ navigate, route }: RouteBodyProps) {
   )
 }
 
-export function ExtensionApp() {
+export function ExtensionApp({
+  bookmarkListPort = emptyBookmarkListPort
+}: {
+  bookmarkListPort?: BookmarkListPort
+}) {
   const routeStore = useHashRouteStore()
   const runtime = useAppRuntime()
   const route = React.useSyncExternalStore(
@@ -385,6 +476,8 @@ export function ExtensionApp() {
     { surface: "labels" | "settings" } | undefined
   >(undefined)
   const previousRouteKey = React.useRef(routeKey)
+  const [bookmarkAddOpen, setBookmarkAddOpen] = React.useState(false)
+  const [bookmarkListRevision, setBookmarkListRevision] = React.useState(0)
   const [notice, setNotice] = React.useState<string | null>(null)
 
   // ブラウザ標準とアプリ独自のスクロール復元が競合しないようにします。
@@ -484,30 +577,61 @@ export function ExtensionApp() {
   const tone = route.kind === "labels" ? "accent" : "paper"
 
   return (
-    <AppShell
-      description={copy.description}
-      eyebrow={copy.eyebrow}
-      header={
-        <RouteHeader
-          closeSurface={closeSurface}
+    <>
+      <AppShell
+        description={copy.description}
+        eyebrow={copy.eyebrow}
+        header={
+          <RouteHeader
+            closeSurface={closeSurface}
+            navigate={navigate}
+            onBookmarkAddClick={() => setBookmarkAddOpen(true)}
+            onUnavailable={setNotice}
+            route={route}
+          />
+        }
+        heading={copy.heading}
+        headingVisuallyHidden={
+          route.kind === "home" || route.kind === "bookmarks"
+        }
+        headingRef={headingRef}
+        tone={tone}
+      >
+        {notice ? (
+          <p
+            className="mb-4 mt-0 rounded-bm-field border-2 border-bm-border bg-bm-paper px-4 py-3 text-sm"
+            role="status"
+          >
+            {notice}
+          </p>
+        ) : null}
+        <RouteBody
+          bookmarkListPort={bookmarkListPort}
+          bookmarkListRevision={bookmarkListRevision}
+          headingRef={headingRef}
           navigate={navigate}
           onUnavailable={setNotice}
           route={route}
+          runtime={runtime}
         />
-      }
-      heading={copy.heading}
-      headingRef={headingRef}
-      tone={tone}
-    >
-      {notice ? (
-        <p
-          className="mb-4 mt-0 rounded-bm-field border-2 border-bm-border bg-bm-paper px-4 py-3 text-sm"
-          role="status"
-        >
-          {notice}
-        </p>
-      ) : null}
-      <RouteBody navigate={navigate} route={route} />
-    </AppShell>
+      </AppShell>
+      <Dialog onOpenChange={setBookmarkAddOpen} open={bookmarkAddOpen}>
+        <DialogContent closeLabel="ブックマーク追加を閉じる">
+          <DialogHeader>
+            <DialogTitle>ブックマークを追加</DialogTitle>
+            <DialogDescription>
+              http または https のURLを入力して保存します。
+            </DialogDescription>
+          </DialogHeader>
+          <BookmarkAddForm
+            onSaved={({ duplicate }) => {
+              if (duplicate) return
+              setBookmarkListRevision((revision) => revision + 1)
+              setBookmarkAddOpen(false)
+            }}
+          />
+        </DialogContent>
+      </Dialog>
+    </>
   )
 }

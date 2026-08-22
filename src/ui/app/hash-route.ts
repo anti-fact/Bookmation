@@ -2,6 +2,8 @@
  * URLのhashと画面状態を相互変換する唯一の場所です。
  * 不正なURLは自動修正せず、not-foundとして入力内容を保持します。
  */
+import type { BookmarkLabelFilter } from "~/ui/features/bookmarks/bookmark-list-port"
+
 export const SETTINGS_SECTIONS = ["general", "archive", "share"] as const
 
 export type SettingsSection = (typeof SETTINGS_SECTIONS)[number]
@@ -11,7 +13,7 @@ export type KnownHashRoute =
   | { kind: "home" }
   | {
       kind: "bookmarks"
-      filter: { kind: "category"; id: string } | { kind: "tag"; id: string }
+      filter: BookmarkLabelFilter
     }
   | { kind: "search"; query: string }
   | { kind: "labels" }
@@ -77,6 +79,46 @@ function parseSingleQueryParameter(
   return value.trim().length > 0 ? value : null
 }
 
+function parseBookmarkFilter(rawQuery: string): BookmarkLabelFilter | null {
+  try {
+    decodeURIComponent(rawQuery.replaceAll("+", " "))
+  } catch {
+    return null
+  }
+
+  const entries = Array.from(new URLSearchParams(rawQuery).entries())
+  if (entries.length < 1 || entries.length > 2) {
+    return null
+  }
+
+  const categoryValues = entries
+    .filter(([name]) => name === "category")
+    .map(([, value]) => value)
+  const tagValues = entries
+    .filter(([name]) => name === "tag")
+    .map(([, value]) => value)
+  if (
+    categoryValues.length > 1 ||
+    tagValues.length > 1 ||
+    categoryValues.length + tagValues.length !== entries.length
+  ) {
+    return null
+  }
+
+  const categoryId = categoryValues[0]?.trim()
+  const tagId = tagValues[0]?.trim()
+  if (categoryId && tagId) {
+    return { categoryId, kind: "category-tag", tagId }
+  }
+  if (categoryId) {
+    return { id: categoryId, kind: "category" }
+  }
+  if (tagId) {
+    return { id: tagId, kind: "tag" }
+  }
+  return null
+}
+
 function hasNoQuery(rawQuery: string | null): boolean {
   return rawQuery === null
 }
@@ -119,18 +161,10 @@ export function parseHashRoute(hash: string): HashRoute {
         return notFound(hash, "invalid-query")
       }
 
-      const categoryId = parseSingleQueryParameter(rawQuery, "category")
-      if (categoryId !== null) {
-        return {
-          kind: "bookmarks",
-          filter: { kind: "category", id: categoryId }
-        }
-      }
-
-      const tagId = parseSingleQueryParameter(rawQuery, "tag")
-      return tagId === null
+      const filter = parseBookmarkFilter(rawQuery)
+      return filter === null
         ? notFound(hash, "invalid-query")
-        : { kind: "bookmarks", filter: { kind: "tag", id: tagId } }
+        : { kind: "bookmarks", filter }
     }
     case "/search": {
       const query = parseSingleQueryParameter(rawQuery, "q")
@@ -165,10 +199,24 @@ export function serializeHashRoute(route: KnownHashRoute): string {
       return "#/home"
     case "bookmarks": {
       const params = new URLSearchParams()
-      params.set(
-        route.filter.kind,
-        requireNonEmptyRouteValue(route.filter.id, `${route.filter.kind} id`)
-      )
+      if (route.filter.kind === "category-tag") {
+        params.set(
+          "category",
+          requireNonEmptyRouteValue(route.filter.categoryId, "category id")
+        )
+        params.set(
+          "tag",
+          requireNonEmptyRouteValue(route.filter.tagId, "tag id")
+        )
+      } else {
+        params.set(
+          route.filter.kind,
+          requireNonEmptyRouteValue(
+            route.filter.id,
+            `${route.filter.kind} id`
+          )
+        )
+      }
       return `#/bookmarks?${params.toString()}`
     }
     case "search": {

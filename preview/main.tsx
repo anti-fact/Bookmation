@@ -4,6 +4,7 @@ import { createRoot } from "react-dom/client"
 import "~/style.css"
 
 import { AppShellFixture } from "./AppShellFixture"
+import { BookmarkListFixture } from "./BookmarkListFixture"
 import { ComponentSheet } from "./ComponentSheet"
 import { PopupFixture } from "./PopupFixture"
 
@@ -15,20 +16,27 @@ if (!rootElement) {
 
 const previewView = new URLSearchParams(window.location.search).get("view")
 
-if (previewView === "app-shell" && !window.location.hash) {
-  window.history.replaceState(null, "", "?view=app-shell#/home")
+if (
+  (previewView === "app-shell" || previewView === "bookmarks") &&
+  !window.location.hash
+) {
+  window.history.replaceState(null, "", `?view=${previewView}#/home`)
 }
 
 document.title =
-  previewView === "app-shell"
-    ? "Bookmation UI-02 App Shell preview"
-    : previewView === "popup"
-      ? "Bookmation UI-03 Popup preview"
-      : "Bookmation UI component sheet"
+  previewView === "bookmarks"
+    ? "Bookmation UI-04 Bookmark list preview"
+    : previewView === "app-shell"
+      ? "Bookmation UI-02 App Shell preview"
+      : previewView === "popup"
+        ? "Bookmation UI-03 Popup preview"
+        : "Bookmation UI component sheet"
 
 createRoot(rootElement).render(
   <React.StrictMode>
-    {previewView === "app-shell" ? (
+    {previewView === "bookmarks" ? (
+      <BookmarkListFixture />
+    ) : previewView === "app-shell" ? (
       <AppShellFixture />
     ) : previewView === "popup" ? (
       <PopupFixture />

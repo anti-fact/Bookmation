@@ -918,6 +918,8 @@ Chrome Prompt API v151 での型定義エラーを修正し、Availability チ�
 - Chrome adapterでallowlist済み2 commandのshortcut取得、現在ページ保存message、`#/home`表示、`chrome://extensions/shortcuts`表示を実装した。
 - popupを開いただけでは保存せず、保存結果をpopup内のlive regionへ残すようにした。
 - productionと同じ`PopupView`を使い、割当済み／未割当、保存中／成功／重複／失敗、shortcut取得失敗を切り替えるWeb fixtureを追加した。
+- popup本体の外周を3pxのink線と8px角丸に変更し、Web fixture側の重複する外枠を削除した。
+- `chrome.action.openPopup()`で実action popupを確認すると、透明化したHTML背景はChromeのnative popup surfaceで白へ合成された。このため透明化を撤回し、popup専用CSSで2pxの均一な白余白を設け、その内側へ角丸枠を配置して角だけがはみ出して見えない構成へ変更した。
 - 320px相当でも操作名とshortcutが重ならないよう、操作button内を縦配置にした。
 
 ### 検証
@@ -930,6 +932,7 @@ Chrome Prompt API v151 での型定義エラーを修正し、Availability チ�
 - `pnpm build`: 成功。
 - Web fixture: Chromiumで通常幅と320px幅を確認し、320pxで見つかった右端切れとbutton内の重なりを修正後、再確認した。
 - build済み拡張: 隔離したheadless Chromiumへ読み込み、`chrome-extension://eniieiddckicpmlijkhkglklehlgmpjd/popup.html`とService Worker targetの起動、未割当表示、表示欠けがないことを確認した。
+- 角丸外側: build済み拡張の`chrome.action.openPopup()`で、透明化CSSが実action popupへ適用されてもChromeのnative surfaceで白へ合成されることを確認した。HTMLからnative window形状は変更できないため、2pxの均一な白余白を持つinset枠へ切り替えた。
 - `pnpm lint`: 失敗。今回未変更のUnicode生成script、Domain import、Normalizer testに既存27件のerrorがあり、UI-03変更対象にはerrorなし。
 
 ### 残課題
@@ -963,6 +966,45 @@ Chrome Prompt API v151 での型定義エラーを修正し、Availability チ�
 - ISSUE-001の最低Chrome版を確定する。
 - モデル取得の実測時間・容量、非対応／取得失敗／セッション終了時のBE-04/BE-05 fallbackを実機で確認する。
 - `idb`依存解決と既存IndexedDB型エラーは別タスクで修正する。
+
+## 2026-08-22 — UI-04 Bookmark LIST／GRID・一覧toolbar・cursor追加読込
+
+### 目的
+
+`FRONTEND.md`のUI-04に従い、最近追加とカテゴリ／タグ条件のBookmark一覧を、productionデータ境界を持つLIST／GRID画面として実装する。Bookmark編集、keyword検索、AI応答は後続UIへ分離する。
+
+### 変更
+
+- `BookmarkListPage`と`BookmarkListPort`を追加し、最近追加、カテゴリ条件、タグ条件を同じ画面へ統合した。
+- カテゴリとタグの複合条件を型付きrouteとPortへ追加し、両方に一致するBookmarkだけを返す積集合検索を実装した。絞り込みリボンはhover／focus時に反転・減光して中央へ解除ボタンを表示し、片方の解除は単独条件、最後の解除はホームへ遷移する。
+- IndexedDB adapterでactive Bookmarkとactive Label edgeを`savedAt desc`のcursor pageへ変換し、カテゴリ／タグを表示用データへhydrateした。LIST／GRID設定は検証後に`chrome.storage.local`へ保存する。
+- Figma snapshotを基準に、App Header直下へ通常配置するsecondary toolbar、現在位置、読込済み／全件数、Radix `RadioGroup`のLIST／GRID切替を実装した。toolbarは画面scrollへ追従させず、カテゴリ・タグ一覧への導線はApp Headerの望遠鏡だけとして重複buttonを削除した。
+- responsiveな1／2／3列GRIDと密なLIST row、全項目の編集button、カテゴリ常時表示、Radix `Collapsible`とTooltipを使うタグ開閉、画像／favicon fallbackを追加した。
+- GRIDの編集buttonとグレーマスクはサムネイルhover／focus時だけ表示し、サムネイルとタイトルの両方を同じ外部URLへのリンクにした。カテゴリリボン型の小ラベルは左端を直角にした。
+- 初回loading／空／失敗、cursor追加loading／失敗再試行／終端、requestId照合、同cursor多重要求防止、ID重複除去、stale response破棄、IntersectionObserver sentinel、追加件数と終端のlive通知、トップへ戻るとheading focusを実装した。
+- 設定画面は解像度にかかわらずカテゴリ一覧・区切り線・説明の3列配置を維持し、カテゴリ一覧を右へ寄せた。一般／アーカイブ／共有には16pxの意味別iconを追加し、文字との間隔を12pxにした。
+- productionの`ExtensionApp`とtabs entryへadapterを接続し、Web previewへ`grid`／`list`／`empty`／`single`／`many`／`loading`／`initial-error`／`page-error`の版管理fixtureを追加した。
+- Radix `RadioGroup`／`Collapsible` wrapper、共通control radius token、adapter／一覧component／fixtureのテストを追加した。
+
+### 検証
+
+- 見た目の基準: オンラインFigma node `66:830`の再取得はStarter planのMCP呼出上限で失敗したため、repository内の`Bookmation.svg`（SHA-256 `d05997589696ff346f59f3850bfc3296bd5b6acbd3e518980421ff6e0533ea8b`）と`Bookmation_component.svg`（SHA-256 `f6c44b21deea9893c01f1f08c8b8556d1479b05f336dfb6cd70bd1ba0cce8f89`）を使用した。
+- `pnpm test`: 39 files／248 tests成功。
+- `pnpm typecheck`: 成功。
+- UI-04変更対象のESLint: 成功。
+- `pnpm ui:build`: 成功。
+- `pnpm build`: 成功。
+- `git diff --check`: 成功。
+- Web fixture: ChromiumでGRID 1440 px、LIST 1440 px、狭幅320 pxを確認した。GRID 3列、LIST row、通常flowのtoolbar、狭幅1列とcontrol折返しを確認した。
+- `pnpm lint`: 失敗。今回未変更のUnicode生成script、Domain import、Normalizer test、schema-metaに既存27件のerrorがあり、UI-04変更対象にはerrorなし。
+
+### 残課題
+
+- 編集buttonから開くBookmark編集／Tag作成side view／削除はUI-05で実装する。
+- toolbarのkeyword検索候補／結果はUI-07、AI応答はUI-08で実装する。
+- IndexedDBに保存したthumbnail／favicon Blobの画面用URL解決はTASK-010へ残し、現時点のproduction一覧は同梱ロゴ／iconへ縮退する。
+- repository管理されたPlaywright拡張E2Eと人間による実Chrome受入は未実施である。
+- 実装はbase commit `e770827`上の未commit差分であり、commit／pushは未実施である。
 
 ## 追記テンプレート
 

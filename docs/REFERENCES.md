@@ -21,6 +21,8 @@ UI behavior primitiveにRadix Primitivesを採用し、Plasmo／React／Tailwind
 
 UI-02では提示済みFigma URLを読み取り専用で参照し、default header `6:16`、カテゴリ・タグ一覧header `62:1093`、設定header `95:1140`、logo `39:593`を`get_design_context`で取得した。logoとAI iconはFigmaが返したassetを実装へ取り込み、Figma file自体は編集していない。カテゴリ・タグ一覧headerのFigma nodeにはAI検索操作がなかったが、最新の明示要件と [UI.md](UI.md)／[FRONTEND.md](FRONTEND.md) は同画面にもAI検索を要求するため、default headerと同じ外観のAI操作を追加した。これは見た目の正本を無制限に変更する判断ではなく、明示要件と挙動の正本がFigmaの省略を補う場合として記録する。
 
+UI-04ではオンライン正本のメイン画面node `66:830`を再取得しようとしたが、Figma Starter planのMCP呼出上限に達して取得できなかった。このためFigma fileを編集せず、上記SHA-256のrepository内正本snapshotにあるBookmark GRID／LISTを見た目の基準とした。オンライン正本を再取得できた時点で細部を再照合する。挙動は [FRONTEND.md](FRONTEND.md) のLIST／GRID、カテゴリ常時表示、タグ展開、cursor追加読込の確定仕様を優先した。
+
 ### 2026-08-18 の最新依頼
 
 自動Bookmarkリマインダーの判定を訪問回数から訪問日数へ変更した。同じcanonical URLへ同日に複数回アクセスしても1日と数える。集計期間は設定のプルダウンで `1週間`／`1ヶ月`／`1年` から選び、当日を含む直近7／30／365暦日として扱う。期間を変更するたび訪問日数入力を空にし、順に1〜7／1〜30／1〜365日の正整数へ制限する。有効な期間と日数がそろうまで判定を停止する。

@@ -12,6 +12,7 @@ describe("AppHeader", () => {
   it("renders the default header in logical keyboard focus order", async () => {
     const user = userEvent.setup()
     const callbacks = {
+      add: vi.fn(),
       ai: vi.fn(),
       home: vi.fn(),
       search: vi.fn(),
@@ -21,6 +22,7 @@ describe("AppHeader", () => {
     render(
       <AppHeader
         onAiSearchClick={callbacks.ai}
+        onBookmarkAddClick={callbacks.add}
         onLogoClick={callbacks.home}
         onSearchClick={callbacks.search}
         onSettingsClick={callbacks.settings}
@@ -42,6 +44,10 @@ describe("AppHeader", () => {
     )
     await user.tab()
     expect(document.activeElement).toBe(
+      screen.getByRole("button", { name: "ブックマークを追加" })
+    )
+    await user.tab()
+    expect(document.activeElement).toBe(
       screen.getByRole("button", { name: "AI検索を開く" })
     )
     await user.tab()
@@ -49,8 +55,17 @@ describe("AppHeader", () => {
       screen.getByRole("button", { name: "設定を開く" })
     )
 
+    const addButton = screen.getByRole("button", {
+      name: "ブックマークを追加"
+    })
+    expect(addButton.className).toContain("rounded-bm-pill")
+    expect(addButton.querySelector("svg")?.classList.contains("size-6")).toBe(
+      true
+    )
+    await user.click(addButton)
     await user.click(screen.getByRole("button", { name: "AI検索を開く" }))
     await user.click(screen.getByRole("button", { name: "設定を開く" }))
+    expect(callbacks.add).toHaveBeenCalledTimes(1)
     expect(callbacks.ai).toHaveBeenCalledTimes(1)
     expect(callbacks.settings).toHaveBeenCalledTimes(1)
   })
@@ -135,8 +150,10 @@ describe("AppHeader", () => {
   it("renders the settings title and close control without a search entry", () => {
     render(<AppHeader variant="settings" />)
 
-    expect(screen.getByText("設定")).toBeTruthy()
-    expect(screen.queryByRole("heading", { name: "設定" })).toBeNull()
+    const settingsTitle = screen.getByText("Settings")
+    expect(settingsTitle.className).toContain("text-2xl")
+    expect(settingsTitle.className).toContain("sm:text-3xl")
+    expect(screen.queryByRole("heading", { name: "Settings" })).toBeNull()
     const separator = screen.getByRole("separator")
     expect(separator.getAttribute("aria-orientation")).toBe("vertical")
     expect(separator.className).toContain("bg-bm-muted")

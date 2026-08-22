@@ -11,6 +11,7 @@ export type AppShellProps = React.PropsWithChildren<{
   eyebrow?: string
   header?: React.ReactNode
   heading: string
+  headingVisuallyHidden?: boolean
   headingRef?: React.Ref<HTMLHeadingElement>
   tone?: "accent" | "paper"
 }>
@@ -21,6 +22,7 @@ export function AppShell({
   eyebrow,
   header,
   heading,
+  headingVisuallyHidden = false,
   headingRef,
   tone = "paper"
 }: AppShellProps) {
@@ -37,7 +39,7 @@ export function AppShell({
         className="mx-auto w-full max-w-[90rem] px-4 pb-16 pt-8 sm:px-8 lg:px-[4.5rem] lg:pt-12"
         id="main-content"
       >
-        <header className="max-w-4xl">
+        <header className={headingVisuallyHidden ? "sr-only" : "max-w-4xl"}>
           {eyebrow ? (
             <p className="m-0 text-xs font-bold uppercase tracking-[0.18em] text-bm-muted-text">
               {eyebrow}
