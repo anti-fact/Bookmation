@@ -1,3 +1,4 @@
+// Radix Select を、ラベル・説明・選択肢込みで再利用できる入力部品にするファイルです。
 import {
   CheckIcon,
   ChevronDownIcon,
@@ -48,6 +49,7 @@ export const Select = React.forwardRef<
     },
     ref
   ) => {
+    // useId で画面内だけの一意な ID を作り、表示ラベルと説明を操作部分へ関連付けます。
     const generatedId = React.useId()
     const triggerId = id ?? `bm-select-${generatedId}`
     const labelId = `${triggerId}-label`
@@ -70,6 +72,7 @@ export const Select = React.forwardRef<
             {description}
           </p>
         ) : null}
+        {/* value があれば親が状態を管理し、defaultValue なら Radix が初期値以降を管理します。 */}
         <SelectPrimitive.Root
           defaultValue={defaultValue}
           disabled={disabled}
@@ -89,6 +92,7 @@ export const Select = React.forwardRef<
               <ChevronDownIcon className="size-4" />
             </SelectPrimitive.Icon>
           </SelectPrimitive.Trigger>
+          {/* 選択肢は Portal へ出し、親要素の overflow や重なり順で切れにくくします。 */}
           <SelectPrimitive.Portal>
             <SelectPrimitive.Content
               className="z-bm-popover min-w-[var(--radix-select-trigger-width)] overflow-hidden rounded-bm-field border-2 border-bm-border bg-bm-accent text-bm-ink shadow-bm-header"

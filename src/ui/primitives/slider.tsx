@@ -1,3 +1,4 @@
+// 数値を一つ選ぶ Radix Slider を、ラベル・現在値・目盛り付きで提供するファイルです。
 import * as React from "react"
 import { Slider as SliderPrimitive } from "radix-ui"
 
@@ -36,8 +37,11 @@ export const Slider = React.forwardRef<
     },
     ref
   ) => {
+    // ラベルをつまみに結び付けるため、コンポーネントごとに重複しない ID を作ります。
     const generatedId = React.useId()
     const labelId = `bm-slider-${generatedId}-label`
+
+    // value が渡された場合は親管理、未指定の場合はこの内部 state で値を管理します。
     const [uncontrolledValue, setUncontrolledValue] = React.useState(
       defaultValue ?? min
     )
@@ -49,6 +53,7 @@ export const Slider = React.forwardRef<
         )
       : []
 
+    // Radix は複数つまみに対応して配列を返すため、先頭の値だけを通常の number に変換します。
     const handleValueChange = ([nextValue]: number[]) => {
       if (value === undefined) {
         setUncontrolledValue(nextValue)
@@ -68,6 +73,7 @@ export const Slider = React.forwardRef<
           <span className="text-sm font-semibold" id={labelId}>
             {label}
           </span>
+          {/* キーボード操作による値の変化も、支援技術へ穏やかに通知します。 */}
           <output
             aria-live="polite"
             className="min-w-8 rounded-bm-field bg-bm-ink px-2 py-1 text-center text-xs font-semibold text-bm-paper"
@@ -97,6 +103,7 @@ export const Slider = React.forwardRef<
             className="block size-5 rounded-full border-2 border-bm-ink bg-bm-paper shadow-bm-control outline-none focus-visible:ring-2 focus-visible:ring-bm-focus focus-visible:ring-offset-2 focus-visible:ring-offset-bm-paper"
           />
         </SliderPrimitive.Root>
+        {/* 目盛りは補助的な見た目なので、読み上げ内容を重複させません。 */}
         {showMarks ? (
           <div
             aria-hidden="true"
