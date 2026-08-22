@@ -1,10 +1,8 @@
-import { EXTENSION_COMMANDS, type ExtensionCommand } from "./commands"
 import {
-  buildDashboardUrl,
-  DASHBOARD_ENTRY,
-  DASHBOARD_HOME_ROUTE,
-} from "./paths"
-import { saveCurrentTabFromCommand } from "./message-handler"
+  saveCurrentTabBookmark,
+  type SaveBookmarkMessageApplicationDeps,
+} from "~/application/save-bookmark-message-application"
+import { EXTENSION_COMMANDS, type ExtensionCommand } from "./commands"
 import { openOrFocusDashboardHome } from "./open-dashboard-tab"
 
 type CommandRuntime = Pick<typeof chrome.runtime, "getURL">
@@ -16,17 +14,16 @@ export async function handleExtensionCommand(
   runtime: CommandRuntime,
   tabs: CommandTabs,
   windows: CommandWindows,
+  saveDeps: SaveBookmarkMessageApplicationDeps,
 ): Promise<void> {
   switch (command) {
     case EXTENSION_COMMANDS.OPEN_BOOKMATION_HOME:
       await openOrFocusDashboardHome(runtime, tabs, windows)
       return
     case EXTENSION_COMMANDS.SAVE_CURRENT_PAGE:
-      await saveCurrentTabFromCommand()
+      await saveCurrentTabBookmark(saveDeps, {
+        creationRequestId: `command-save:${crypto.randomUUID()}`,
+      })
       return
   }
-}
-
-export function buildHomeUrl(runtime: CommandRuntime): string {
-  return buildDashboardUrl(runtime.getURL(DASHBOARD_ENTRY), DASHBOARD_HOME_ROUTE)
 }

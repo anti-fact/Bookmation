@@ -11,6 +11,7 @@ export const designTokens = {
     panel: "#161616",
     onPanel: "#EAEAEA",
     muted: "#7A7A7A",
+    placeholder: "rgb(122 122 122 / 60%)",
     mutedText: "#505050",
     controlMuted: "#505050",
     danger: "#C33232",

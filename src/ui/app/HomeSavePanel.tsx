@@ -1,21 +1,58 @@
 import * as React from "react"
 
 import {
-  MESSAGE_SCHEMA_VERSION,
-  type ExtensionResponse,
-  type ListRecentBookmarksResponse,
-  type SaveBookmarkResponse,
+  EXTENSION_MESSAGE_SCHEMA_VERSION,
+  type ExtensionMessageResponse,
 } from "~/extension/messages"
 import { Button } from "~/ui/primitives"
 
-async function sendMessage<T extends ExtensionResponse>(
+type RecentBookmarkItem = {
+  id: string
+  title: string
+  normalizedUrl: string
+  savedAt: number
+}
+
+type ListBookmarksData = {
+  items: RecentBookmarkItem[]
+}
+
+type SaveBookmarkData = {
+  duplicate: boolean
+  status: "saved" | "duplicate"
+}
+
+async function sendDashboardMessage(
+  action: "save-bookmark-by-url" | "list-bookmarks",
   payload: Record<string, unknown>,
-): Promise<T> {
-  const response = (await chrome.runtime.sendMessage(payload)) as T
+): Promise<ExtensionMessageResponse> {
+  const requestId = crypto.randomUUID()
+  const response = (await chrome.runtime.sendMessage({
+    schemaVersion: EXTENSION_MESSAGE_SCHEMA_VERSION,
+    action,
+    payload,
+    requestId,
+    source: "dashboard",
+  })) as ExtensionMessageResponse
+
   if (chrome.runtime.lastError) {
     throw new Error(chrome.runtime.lastError.message)
   }
   return response
+}
+
+function errorMessage(response: ExtensionMessageResponse): string {
+  if (response.ok) {
+    return "保存に失敗しました"
+  }
+  switch (response.error.code) {
+    case "INVALID_MESSAGE":
+      return "リクエスト形式が正しくありません"
+    case "ACTION_NOT_AVAILABLE":
+      return "現在この URL は保存できません"
+    default:
+      return "保存に失敗しました"
+  }
 }
 
 export function HomeSavePanel() {
@@ -23,19 +60,13 @@ export function HomeSavePanel() {
   const [title, setTitle] = React.useState("")
   const [status, setStatus] = React.useState<string | null>(null)
   const [isSaving, setIsSaving] = React.useState(false)
-  const [recent, setRecent] = React.useState<
-    ListRecentBookmarksResponse["items"]
-  >([])
+  const [recent, setRecent] = React.useState<RecentBookmarkItem[]>([])
 
   const loadRecent = React.useCallback(async () => {
-    const response = await sendMessage<ListRecentBookmarksResponse>({
-      schemaVersion: MESSAGE_SCHEMA_VERSION,
-      action: "LIST_RECENT_BOOKMARKS",
-      requestId: crypto.randomUUID(),
-      limit: 8,
-    })
+    const response = await sendDashboardMessage("list-bookmarks", { limit: 8 })
     if (response.ok) {
-      setRecent(response.items)
+      const data = response.data as ListBookmarksData
+      setRecent(Array.isArray(data.items) ? data.items : [])
     }
   }, [])
 
@@ -50,25 +81,19 @@ export function HomeSavePanel() {
     setIsSaving(true)
     setStatus(null)
     try {
-      const response = await sendMessage<SaveBookmarkResponse>({
-        schemaVersion: MESSAGE_SCHEMA_VERSION,
-        action: "SAVE_BOOKMARK_BY_URL",
-        requestId: crypto.randomUUID(),
-        rawUrl,
-        title: title.trim().length > 0 ? title : undefined,
+      const response = await sendDashboardMessage("save-bookmark-by-url", {
+        url: rawUrl,
+        ...(title.trim().length > 0 ? { title: title.trim() } : {}),
       })
       if (!response.ok) {
-        const message =
-          "message" in response && typeof response.message === "string"
-            ? response.message
-            : "保存に失敗しました"
-        setStatus(message)
+        setStatus(errorMessage(response))
         return
       }
-      setStatus(
-        response.duplicate ? "すでに保存されています" : "保存しました",
-      )
-      if (!response.duplicate) {
+
+      const data = response.data as SaveBookmarkData
+      const duplicate = data.duplicate === true || data.status === "duplicate"
+      setStatus(duplicate ? "すでに保存されています" : "保存しました")
+      if (!duplicate) {
         setRawUrl("")
         setTitle("")
       }

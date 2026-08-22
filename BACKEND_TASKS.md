@@ -85,8 +85,8 @@ flowchart TD
 | --- | --- | --- | --- | --- | --- |
 | BE-00 | 開発基盤とバックエンドPlan | 完了 | T-taku | なし | チームが同じコマンドで実装を開始できる |
 | BE-01 | Domain型と不変条件 | 完了 | GreenTea | BE-00 | 不正なBookmark・Label・AI結果を共通規則で拒否できる |
-| BE-02 | IndexedDBとRepository | 進行中 | 未定 | BE-01 | 再読込後もデータが残り、一覧をカーソル取得できる |
-| BE-03 | Message契約とService Worker | 進行中 | 未定 | BE-01 | popup、dashboard、workerが安全に連携できる |
+| BE-02 | IndexedDBとRepository | 完了 | 🐳 | BE-01 | 再読込後もデータが残り、一覧をカーソル取得できる |
+| BE-03 | Message契約とService Worker | 完了 | GreenTea | BE-01 | popup、dashboard、workerが安全に連携できる |
 | BE-04 | 現在ページ・URL保存 | 未着手 | 未定 | BE-02、BE-03 | AIなしでもBookmarkを保存できる |
 | BE-05 | 編集・親子Label・一覧Query | 未着手 | 未定 | BE-02、BE-03 | 編集、削除、親カテゴリ／子タグ管理、候補・一覧取得ができる |
 | BE-19 | 初回Category template適用 | 未着手 | 未定 | ISSUE-022、BE-03、BE-05 | 利用者が明示適用したtemplate Categoryだけを通常規則で重複なく作成できる |
@@ -194,17 +194,19 @@ sequenceDiagram
 
 目的: 拡張機能の各実行コンテキストを、型付きかつ再送可能な契約で接続する。
 
-- [ ] popup、dashboard、AI Host、Service Worker間のmessageをdiscriminated unionにする。
-- [ ] `schemaVersion`、`requestId`、送信元、action allowlist、payload上限を検証する。
-- [ ] 保存、編集、削除、一覧、Label、Job claim/result、検索のhandlerをApplicationへ委譲する。
-- [ ] `runtime.onInstalled` の `reason=INSTALL` のときだけ初回ホーム状態を冪等に初期化し、更新、Chrome更新、通常起動で上書きしない。
-- [ ] `save-current-page` と `open-bookmation-home` のcommand名をallowlist化する。
-- [ ] workerのglobal変数、timer、in-memory queueを正本にしない。
-- [ ] Service WorkerからLanguageModelを呼べない構造にする。
+- [x] popup、dashboard、AI Host、Service Worker間のmessageをdiscriminated unionにする。
+- [x] `schemaVersion`、`requestId`、送信元、action allowlist、payload上限を検証する。
+- [x] 保存、編集、削除、一覧、Label、Job claim/result、検索のhandlerをApplicationへ委譲する。
+- [x] `runtime.onInstalled` の `reason=INSTALL` のときだけ初回ホーム状態を冪等に初期化し、更新、Chrome更新、通常起動で上書きしない。
+- [x] `save-current-page` と `open-bookmation-home` のcommand名をallowlist化する。
+- [x] workerのglobal変数、timer、in-memory queueを正本にしない。
+- [x] Service WorkerからLanguageModelを呼べない構造にする。
 
 成果物: Message schema、router、handler、Chrome API adapter、契約テスト。
 
 完了条件: 未知action、不正sender、巨大payload、重複request、worker再起動を安全に処理できる。
+
+完了メモ: 2026-08-22。`src/extension/messages.ts` にversion付きdiscriminated unionと入力境界検証、`message-router.ts` に送信元検証とstateless router、`install-handler.ts` にINSTALL限定の初期化を実装。業務actionはApplication境界へ委譲し、BE-04以降でuse caseを注入する。契約テスト14件、型検査、変更範囲のlint、MV3 buildを確認済み。
 
 ### BE-04 現在ページ・URL保存
 
@@ -341,7 +343,7 @@ sequenceDiagram
 
 - [ ] 初期権限を `storage`、`activeTab`、commands中心にレビューする。
 - [ ] title、URL、Label名、message、JSON document、AI出力を未信頼入力として長さ・型・scheme検証する。
-- [ ] favicon/thumbnailのMIME、byte数、寸法、content hashを検証してlocal Blob化する。
+- [ ] 保存時の `og:image` を第一候補として、MIME、byte数、寸法、content hashを検証してlocal Blob化する。取得・検証・保存に失敗した場合は外部URLを参照せず同梱ロゴへ縮退する。
 - [ ] 一覧表示のたびに外部画像URLへ接続しない。
 - [ ] URL、title、Label名、AI queryを通常ログへ出さない。
 - [ ] CSP、remote code禁止、権限拒否時fallbackをテストする。

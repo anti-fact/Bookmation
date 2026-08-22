@@ -3,13 +3,21 @@
  * variantごとに利用できる操作を型で限定します。
  */
 import {
+  ChevronDownIcon,
   Cross2Icon,
   GearIcon,
   MagicWandIcon,
   MagnifyingGlassIcon
 } from "@radix-ui/react-icons"
 import * as React from "react"
+import { Toggle as TogglePrimitive } from "radix-ui"
 
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger
+} from "../primitives/dropdown-menu"
 import { IconButton } from "../primitives/icon-button"
 import { joinClassNames } from "../primitives/class-names"
 
@@ -38,11 +46,11 @@ type DefaultHeaderProps = HeaderCommonProps &
 
 type LabelsHeaderProps = HeaderCommonProps &
   SearchHeaderProps & {
-    aiIcon?: React.ReactNode
-    manageAction?: React.ReactNode
-    newAction?: React.ReactNode
-    onAiSearchClick?: () => void
+    manageIcon?: React.ReactNode
     onClose?: () => void
+    onCreateCategoryClick?: () => void
+    onCreateTagClick?: () => void
+    onManageClick?: () => void
     variant: "labels"
   }
 
@@ -118,7 +126,7 @@ const SearchEntry = ({
     </span>
     <span
       aria-hidden="true"
-      className="inline-flex size-[2.875rem] shrink-0 items-center justify-center bg-bm-ink text-bm-paper"
+      className="inline-flex h-full w-[2.875rem] shrink-0 items-center justify-center bg-bm-ink text-bm-paper self-center"
     >
       <MagnifyingGlassIcon className="size-6" />
     </span>
@@ -142,6 +150,36 @@ const SearchArea = ({
   </div>
 )
 
+const LabelsCreateMenu = ({
+  onCreateCategoryClick,
+  onCreateTagClick
+}: {
+  onCreateCategoryClick?: () => void
+  onCreateTagClick?: () => void
+}) => (
+  <DropdownMenu>
+    <DropdownMenuTrigger asChild>
+      <button
+        aria-label="新規作成メニュー"
+        className="group inline-flex h-[3.125rem] w-[9.1875rem] shrink-0 items-center justify-center gap-5 rounded-[5px] border-2 border-bm-ink bg-bm-accent text-xl font-bold text-bm-ink outline-none transition-colors hover:bg-bm-paper focus-visible:ring-2 focus-visible:ring-bm-focus focus-visible:ring-offset-2 focus-visible:ring-offset-bm-paper data-[state=open]:bg-bm-accent"
+        type="button"
+      >
+        <span>New</span>
+        <ChevronDownIcon className="size-5 transition-transform group-data-[state=open]:rotate-180" />
+      </button>
+    </DropdownMenuTrigger>
+    <DropdownMenuContent className="w-[9.1875rem]">
+      <DropdownMenuItem
+        className="border-b border-bm-border"
+        onSelect={onCreateCategoryClick}
+      >
+        Category
+      </DropdownMenuItem>
+      <DropdownMenuItem onSelect={onCreateTagClick}>Tag</DropdownMenuItem>
+    </DropdownMenuContent>
+  </DropdownMenu>
+)
+
 export const AppHeader = (props: AppHeaderProps) => {
   const logoAlt = props.logoAlt ?? "Bookmation"
 
@@ -160,16 +198,23 @@ export const AppHeader = (props: AppHeaderProps) => {
         className={joinClassNames(
           "flex min-h-[4.5rem] w-full flex-wrap items-center justify-between gap-x-3 gap-y-2 px-3 py-3 sm:px-6",
           props.variant === "labels"
-            ? "lg:min-h-[6.25rem] lg:flex-nowrap lg:gap-5 lg:px-[clamp(1.5rem,5vw,4.5rem)] lg:py-0"
-            : "md:min-h-[6.25rem] md:flex-nowrap md:gap-5 md:px-[clamp(1.5rem,5vw,4.5rem)] md:py-0"
+            ? "lg:min-h-[6.25rem] lg:flex-nowrap lg:justify-start lg:gap-[3rem] lg:px-[clamp(1.5rem,5vw,4.5rem)] lg:py-0"
+            : "md:min-h-[6.25rem] md:flex-nowrap md:gap-5 md:px-[clamp(1.5rem,5vw,4.5rem)] md:py-0 lg:justify-start lg:gap-[3rem]"
         )}
       >
         <Logo alt={logoAlt} onClick={props.onLogoClick} src={props.logoSrc} />
 
         {props.variant === "settings" ? (
-          <p className="m-0 min-w-0 flex-1 truncate text-center text-2xl font-bold sm:text-4xl">
-            {props.settingsTitle ?? "設定"}
-          </p>
+          <div className="ml-2 flex min-w-0 flex-1 items-center gap-4 sm:ml-0 sm:gap-6">
+            <span
+              aria-orientation="vertical"
+              className="h-8 w-0.5 shrink-0 bg-bm-muted sm:h-12"
+              role="separator"
+            />
+            <p className="m-0 min-w-0 flex-1 truncate text-left text-2xl font-bold sm:text-4xl">
+              {props.settingsTitle ?? "設定"}
+            </p>
+          </div>
         ) : (
           <SearchArea {...props} />
         )}
@@ -177,7 +222,7 @@ export const AppHeader = (props: AppHeaderProps) => {
         {props.variant === "default" ? (
           <div
             aria-label="ヘッダー操作"
-            className="flex max-w-full shrink-0 items-center gap-2 sm:gap-3"
+            className="flex max-w-full shrink-0 items-center gap-3 lg:ml-auto lg:gap-[1.125rem]"
             role="group"
           >
             <IconButton
@@ -200,25 +245,35 @@ export const AppHeader = (props: AppHeaderProps) => {
         {props.variant === "labels" ? (
           <div
             aria-label="カテゴリ・タグ操作"
-            className="flex max-w-full shrink-0 flex-wrap items-center justify-end gap-2 sm:gap-3"
+            className="flex max-w-full shrink-0 flex-wrap items-center justify-end gap-3 lg:ml-auto lg:gap-[3.125rem]"
             role="group"
           >
-            <IconButton
-              label="AI検索を開く"
-              onClick={props.onAiSearchClick}
-              shape="pill"
-            >
-              {props.aiIcon ?? <MagicWandIcon className="size-6" />}
-            </IconButton>
-            {props.newAction}
-            {props.manageAction}
-            <IconButton
-              label="カテゴリ・タグ一覧を閉じる"
-              onClick={props.onClose}
-              shape="pill"
-            >
-              <Cross2Icon className="size-6" />
-            </IconButton>
+            <LabelsCreateMenu
+              onCreateCategoryClick={props.onCreateCategoryClick}
+              onCreateTagClick={props.onCreateTagClick}
+            />
+            <div className="flex items-center gap-3 lg:gap-[1.125rem]">
+              {/* 継続する押下状態と aria-pressed は Radix Toggle に管理させます。 */}
+              <TogglePrimitive.Root asChild defaultPressed={false}>
+                <IconButton
+                  className="data-[state=on]:bg-bm-ink data-[state=on]:text-bm-paper data-[state=on]:hover:bg-bm-paper data-[state=on]:hover:text-bm-ink [&[data-state=on]_img]:invert [&[data-state=on]:hover_img]:invert-0"
+                  label="管理モードを切り替える"
+                  onClick={props.onManageClick}
+                  shape="pill"
+                  variant="accent"
+                >
+                  {props.manageIcon ?? <GearIcon className="size-6" />}
+                </IconButton>
+              </TogglePrimitive.Root>
+              <IconButton
+                label="カテゴリ・タグ一覧を閉じる"
+                onClick={props.onClose}
+                shape="pill"
+                variant="accent"
+              >
+                <Cross2Icon className="size-6" />
+              </IconButton>
+            </div>
           </div>
         ) : null}
 

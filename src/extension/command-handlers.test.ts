@@ -4,11 +4,21 @@ import { handleExtensionCommand } from "./command-handlers"
 import { EXTENSION_COMMANDS } from "./commands"
 import { DASHBOARD_ENTRY, DASHBOARD_HOME_ROUTE } from "./paths"
 
-vi.mock("./message-handler", () => ({
-  saveCurrentTabFromCommand: vi.fn().mockResolvedValue(undefined),
+vi.mock("~/application/save-bookmark-message-application", () => ({
+  saveCurrentTabBookmark: vi.fn().mockResolvedValue(undefined),
 }))
 
 describe("handleExtensionCommand", () => {
+  const mockSaveDeps = {
+    action: {
+      setBadgeBackgroundColor: vi.fn(),
+      setBadgeText: vi.fn(),
+    },
+    tabs: {
+      query: vi.fn(),
+    },
+  }
+
   it("focuses an existing home tab when open-bookmation-home is invoked", async () => {
     const create = vi.fn()
     const update = vi.fn().mockResolvedValue(undefined)
@@ -29,6 +39,7 @@ describe("handleExtensionCommand", () => {
       { getURL },
       { create, update, query },
       { update: windowsUpdate },
+      { ...mockSaveDeps, tabs: { query } },
     )
 
     expect(query).toHaveBeenCalled()
@@ -50,6 +61,7 @@ describe("handleExtensionCommand", () => {
       { getURL },
       { create, update, query },
       { update: vi.fn() },
+      { ...mockSaveDeps, tabs: { query } },
     )
 
     expect(getURL).toHaveBeenCalledWith(DASHBOARD_ENTRY)
@@ -59,15 +71,18 @@ describe("handleExtensionCommand", () => {
   })
 
   it("saves the current page for save-current-page", async () => {
-    const { saveCurrentTabFromCommand } = await import("./message-handler")
+    const { saveCurrentTabBookmark } = await import(
+      "~/application/save-bookmark-message-application"
+    )
 
     await handleExtensionCommand(
       EXTENSION_COMMANDS.SAVE_CURRENT_PAGE,
       { getURL: vi.fn() },
       { create: vi.fn(), update: vi.fn(), query: vi.fn() },
       { update: vi.fn() },
+      mockSaveDeps,
     )
 
-    expect(saveCurrentTabFromCommand).toHaveBeenCalled()
+    expect(saveCurrentTabBookmark).toHaveBeenCalled()
   })
 })

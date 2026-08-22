@@ -52,6 +52,12 @@ export function AppShellFixture() {
             ))}
             <a
               className="rounded-bm-field border border-bm-border bg-bm-panel px-2 py-1 text-bm-on-panel outline-none focus-visible:ring-2 focus-visible:ring-bm-focus"
+              href="?view=popup&fixture=assigned"
+            >
+              UI-03 popup
+            </a>
+            <a
+              className="rounded-bm-field border border-bm-border bg-bm-panel px-2 py-1 text-bm-on-panel outline-none focus-visible:ring-2 focus-visible:ring-bm-focus"
               href="?view=components"
             >
               UI-01 component sheet

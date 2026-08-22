@@ -21,7 +21,13 @@ export type {
 } from "./types"
 
 // --- エラー ---
-export { DomainError, DomainErrorCode, toSafeMessage, SAFE_MESSAGES } from "./errors"
+export {
+  DomainError,
+  DomainErrorCode,
+  isDomainError,
+  toSafeMessage,
+  SAFE_MESSAGES,
+} from "./errors"
 export type {} from "./errors"
 
 // --- 値オブジェクト ---

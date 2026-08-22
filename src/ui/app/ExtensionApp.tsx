@@ -7,12 +7,14 @@ import * as React from "react"
 import { AppHeader } from "~/ui/components/AppHeader"
 import { AppShell } from "~/ui/components/AppShell"
 import { Button } from "~/ui/primitives"
-import { PromptApiTester } from "./PromptApiTester"
-import { HomeSavePanel } from "./HomeSavePanel"
+import { joinClassNames } from "~/ui/primitives/class-names"
 
 import { useAppRuntime, useHashRouteStore } from "./AppProviders"
+import { HomeSavePanel } from "./HomeSavePanel"
+import { PromptApiTester } from "./PromptApiTester"
 import {
   getHashRouteKey,
+  serializeHashRoute,
   type HashRoute,
   type KnownHashRoute,
   type SettingsSection
@@ -21,7 +23,9 @@ import {
 // モジュール相対URLにすることで、ビルド時に画像を拡張機能へ同梱できます。
 const aiTelescopeIcon = new URL("../assets/ai-telescope.svg", import.meta.url)
   .href
-const bookmationLogo = new URL("../assets/bookmation-logo.png", import.meta.url)
+const bookmationLogo = new URL("../assets/bookmation-logo.svg", import.meta.url)
+  .href
+const manageWrenchIcon = new URL("../assets/manage-wrench.svg", import.meta.url)
   .href
 
 type RouteCopy = {
@@ -36,14 +40,21 @@ const settingsLabels: Record<SettingsSection, string> = {
   share: "共有"
 }
 
+// ホバーと継続選択で同じ領域を使い、背景色だけを各レイヤーで管理します。
+const settingsItemBackgroundClass =
+  "pointer-events-none absolute inset-y-0 right-0 w-screen md:-right-6"
+
+const welcomeDescription = [
+  "Bookmationはブックマークを簡単に整理できる拡張機能です。",
+  "かんたんな初期設定を終わらせて、さっそくはじめましょう。"
+] as const
+
 // ルートごとの見出しと説明を一か所へ集め、画面本体との表記ずれを防ぎます。
 function getRouteCopy(route: HashRoute): RouteCopy {
   switch (route.kind) {
     case "welcome":
       return {
-        description:
-          "保存したページをカテゴリとタグで整理し、あとから見つけ直せます。",
-        eyebrow: "Welcome",
+        description: welcomeDescription.join("\n"),
         heading: "Bookmationへようこそ"
       }
     case "home":
@@ -120,7 +131,11 @@ function RouteHeader({
       return (
         <AppHeader
           {...commonProps}
-          aiIcon={<img alt="" className="size-6" src={aiTelescopeIcon} />}
+          aiIcon={
+            <span className="inline-flex size-6 items-center justify-center">
+              <img alt="" className="size-[1.125rem]" src={aiTelescopeIcon} />
+            </span>
+          }
           onAiSearchClick={() => onUnavailable("AI検索は現在準備中です。")}
           onSearchClick={() =>
             onUnavailable("検索入力と候補は現在準備中です。")
@@ -135,26 +150,13 @@ function RouteHeader({
       return (
         <AppHeader
           {...commonProps}
-          aiIcon={<img alt="" className="size-6" src={aiTelescopeIcon} />}
-          manageAction={
-            <Button
-              className="min-w-[5.3125rem]"
-              onClick={() => onUnavailable("管理モードは現在準備中です。")}
-            >
-              管理
-            </Button>
-          }
-          newAction={
-            <Button
-              onClick={() =>
-                onUnavailable("カテゴリ・タグ作成は現在準備中です。")
-              }
-            >
-              新規作成
-            </Button>
-          }
-          onAiSearchClick={() => onUnavailable("AI検索は現在準備中です。")}
+          manageIcon={<img alt="" className="size-6" src={manageWrenchIcon} />}
           onClose={closeSurface}
+          onCreateCategoryClick={() =>
+            onUnavailable("カテゴリ作成は現在準備中です。")
+          }
+          onCreateTagClick={() => onUnavailable("タグ作成は現在準備中です。")}
+          onManageClick={() => onUnavailable("管理モードは現在準備中です。")}
           onSearchClick={() =>
             onUnavailable("検索入力と候補は現在準備中です。")
           }
@@ -176,56 +178,141 @@ type RouteBodyProps = {
   route: HashRoute
 }
 
+type WelcomeScreenProps = {
+  description: string
+  heading: string
+  headingRef: React.Ref<HTMLHeadingElement>
+  navigate: NavigateRoute
+}
+
+// Figma「メイン画面」の初期画面を、通常画面のヘッダーやカードから独立して再現します。
+function WelcomeScreen({
+  description,
+  heading,
+  headingRef,
+  navigate
+}: WelcomeScreenProps) {
+  return (
+    <div className="min-h-dvh overflow-x-clip bg-bm-paper text-bm-ink">
+      <main
+        className="mx-auto flex min-h-dvh w-full max-w-[90rem] items-center justify-center px-6 py-10 sm:px-10 sm:py-16"
+        id="main-content"
+      >
+        <section
+          aria-labelledby="welcome-heading"
+          className="flex w-full max-w-[52rem] flex-col items-center text-center"
+        >
+          <img
+            alt="Bookmation"
+            className="h-auto w-full max-w-[25rem]"
+            height={121}
+            src={bookmationLogo}
+            width={400}
+          />
+          <h1
+            className="mb-0 mt-8 scroll-mt-8 rounded-bm-field text-3xl font-normal leading-tight outline-none focus-visible:ring-2 focus-visible:ring-bm-focus focus-visible:ring-offset-4 sm:mt-7 sm:text-[2.5rem] sm:leading-[1.45]"
+            id="welcome-heading"
+            ref={headingRef}
+            tabIndex={-1}
+          >
+            {heading}
+          </h1>
+          <p className="mb-0 mt-6 text-base font-normal leading-7 sm:mt-11 sm:text-[1.75rem] sm:leading-[1.25]">
+            {description.split("\n").map((line) => (
+              <span className="block" key={line}>
+                {line}
+              </span>
+            ))}
+          </p>
+          <Button
+            className="mt-7 h-[5.1875rem] w-full max-w-[26.75rem] !rounded-none px-6 !font-normal sm:mt-9 sm:!text-[1.75rem]"
+            onClick={() => navigate({ kind: "home" })}
+          >
+            ここからはじめる
+          </Button>
+        </section>
+      </main>
+    </div>
+  )
+}
+
 // UI-02では画面遷移の骨組みを実装し、後続機能の領域はプレースホルダーにします。
 function RouteBody({ navigate, route }: RouteBodyProps) {
-  if (route.kind === "welcome") {
-    return (
-      <div className="grid max-w-2xl gap-4 rounded-bm-dialog border-2 border-bm-border bg-bm-paper p-5 shadow-bm-header sm:p-8">
-        <img
-          alt="Bookmation"
-          className="h-auto w-[9.9375rem]"
-          height={48}
-          src={bookmationLogo}
-          width={159}
-        />
-        <p className="m-0 text-sm leading-6 text-bm-muted-text">
-          保存したページをカテゴリとタグで整理し、あとから見つけ直せます。
-        </p>
-        <div>
-          <Button onClick={() => navigate({ kind: "home" })} variant="solid">
-            ホームを開く
-          </Button>
-        </div>
-      </div>
-    )
-  }
-
   if (route.kind === "home") {
     return <HomeSavePanel />
   }
 
   if (route.kind === "settings") {
     return (
-      <div className="grid gap-6 md:grid-cols-[13rem_minmax(0,1fr)]">
+      <div className="grid gap-6 md:grid-cols-[13rem_0.125rem_minmax(0,1fr)]">
         <nav
           aria-label="設定メニュー"
-          className="flex flex-wrap content-start gap-2 md:flex-col"
+          className="-ml-4 w-[calc(100%+1rem)] self-start sm:-ml-8 sm:w-[calc(100%+2rem)] lg:-ml-[4.5rem] lg:w-[calc(100%+4.5rem)] min-[1440px]:ml-[calc(-4.5rem-(100vw-90rem)/2)] min-[1440px]:w-[calc(100%+4.5rem+(100vw-90rem)/2)]"
         >
-          {(["general", "archive", "share"] as const).map((section) => (
-            <Button
-              aria-current={route.section === section ? "page" : undefined}
-              className="w-full justify-start"
-              key={section}
-              onClick={() =>
-                navigate({ kind: "settings", section }, { replace: true })
-              }
-              size="compact"
-              variant={route.section === section ? "solid" : "outline"}
-            >
-              {settingsLabels[section]}
-            </Button>
-          ))}
+          <ul className="m-0 flex list-none flex-wrap gap-1 p-0 md:flex-col">
+            {(["general", "archive", "share"] as const).map((section) => {
+              const current = route.section === section
+              const destination = { kind: "settings", section } as const
+
+              return (
+                <li className="min-w-0 flex-1 md:flex-none" key={section}>
+                  <a
+                    aria-current={current ? "page" : undefined}
+                    className={joinClassNames(
+                      "group relative flex min-h-12 w-full items-center px-4 text-left text-sm no-underline outline-none transition-colors focus-visible:ring-2 focus-visible:ring-inset",
+                      current
+                        ? "font-bold text-bm-paper focus-visible:ring-bm-paper"
+                        : "font-medium text-bm-ink focus-visible:ring-bm-focus"
+                    )}
+                    href={serializeHashRoute(destination)}
+                    onClick={(event) => {
+                      // 修飾キー付きクリックはリンク本来の動作を残し、通常クリックだけ型付きルートへ渡します。
+                      if (
+                        event.defaultPrevented ||
+                        event.button !== 0 ||
+                        event.metaKey ||
+                        event.ctrlKey ||
+                        event.shiftKey ||
+                        event.altKey
+                      ) {
+                        return
+                      }
+
+                      event.preventDefault()
+                      navigate(destination, { replace: true })
+                    }}
+                  >
+                    <span
+                      aria-hidden="true"
+                      className={joinClassNames(
+                        settingsItemBackgroundClass,
+                        "bg-transparent group-hover:bg-bm-accent"
+                      )}
+                    />
+                    {current && (
+                      <span
+                        aria-hidden="true"
+                        className={joinClassNames(
+                          settingsItemBackgroundClass,
+                          "bg-bm-ink"
+                        )}
+                      />
+                    )}
+                    <span className="relative truncate">
+                      {settingsLabels[section]}
+                    </span>
+                  </a>
+                </li>
+              )
+            })}
+          </ul>
         </nav>
+        <span
+          aria-label="設定メニューと設定内容の区切り"
+          aria-orientation="vertical"
+          className="hidden w-0.5 self-stretch bg-bm-muted md:block"
+          role="separator"
+        />
         <section
           aria-label={`${settingsLabels[route.section]}設定の内容`}
           className="space-y-6 rounded-bm-dialog border-2 border-bm-border bg-bm-paper p-5 sm:p-8"
@@ -260,13 +347,11 @@ function RouteBody({ navigate, route }: RouteBodyProps) {
         <p className="m-0 break-all text-sm leading-6 text-bm-muted-text">
           入力されたURL: <code>{route.attemptedHash || "（空）"}</code>
         </p>
-        <Button
-          className="mt-5"
-          onClick={() => navigate({ kind: "home" })}
-          variant="solid"
-        >
-          ホームへ移動
-        </Button>
+        <div className="mt-5 flex justify-end">
+          <Button onClick={() => navigate({ kind: "home" })} variant="outline">
+            ホームへ移動
+          </Button>
+        </div>
       </div>
     )
   }
@@ -384,8 +469,19 @@ export function ExtensionApp() {
   }, [navigate, route.kind, routeStore])
 
   const copy = getRouteCopy(route)
-  const tone =
-    route.kind === "labels" || route.kind === "welcome" ? "accent" : "paper"
+
+  if (route.kind === "welcome") {
+    return (
+      <WelcomeScreen
+        description={copy.description}
+        heading={copy.heading}
+        headingRef={headingRef}
+        navigate={navigate}
+      />
+    )
+  }
+
+  const tone = route.kind === "labels" ? "accent" : "paper"
 
   return (
     <AppShell

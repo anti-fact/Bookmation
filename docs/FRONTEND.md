@@ -1,7 +1,7 @@
 # フロントエンド設計
 
-- 状態: 設計決定・popup scaffold、UI-01 primitive／Web component sheet、UI-02 App Shell／hash route／共通headerを実装済み
-- 更新日: 2026-08-19
+- 状態: 設計決定・UI-01 primitive／Web component sheet、UI-02 App Shell／hash route／共通header、UI-03 popup／shortcut／保存状態を実装済み
+- 更新日: 2026-08-22
 - 採用: Plasmo + React + TypeScript + Radix Primitives + Tailwind CSS
 - 関連: [UI](./UI.md) / [設計](./DESIGN.md) / [要件](./REQUIREMENTS.md) / [実装ガイド](../FRONTEND_GUIDE.md) / [テスト](./TESTING.md)
 
@@ -15,7 +15,9 @@
 
 `chrome.runtime.onInstalled` のinstall時だけ拡張タブの `#/welcome` を開く。update時や通常起動で開かない。popupは `chrome.commands.getAll()` のallowlistだけを表示し、空の割当は `未割り当て` とする。
 
-テスト用Webプレビューはproduction entryではない。本番と同じpage componentへfake Portを注入し、Chrome API、Repository、AI、Drive、camera等を置換する。fixture/debug UIを本番buildへ含めない。
+UI-03ではproduction popupを薄いentryとし、`PopupApp`へ`PopupPort`を注入する。Chrome adapterは2 commandの実キー取得、現在ページ保存message、`#/home`を開く操作、`chrome://extensions/shortcuts`への案内だけを担当する。画面は開いただけで保存せず、保存中／成功／重複／失敗を同じpopup内のlive regionへ残す。現行Service Workerの保存Applicationは未実装のため、実Bookmark保存と重複判定はTASK-004の接続後に完了する。
+
+テスト用Webプレビューはproduction entryではない。本番と同じpage componentへfake Portを注入し、Chrome API、Repository、AI、Drive、camera等を置換する。UI-03 popupは `?view=popup&fixture=assigned` を入口に、割当済み／未割当、保存中／成功／重複／失敗、shortcut取得失敗を切り替える。fixture/debug UIを本番buildへ含めない。
 
 ## routes と一時状態
 

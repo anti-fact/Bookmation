@@ -62,7 +62,7 @@ import {
   buildUpdateTagRequestFingerprint,
   searchDocumentId,
 } from "./search-document-builder"
-import { INTERNAL_PAGE_SIZE, STORES, BOOKMARK_INDEXES } from "./stores"
+import { INTERNAL_PAGE_SIZE, STORES, BOOKMARK_INDEXES, CLASSIFICATION_JOB_INDEXES } from "./stores"
 
 const SAVE_TX_STORES = [
   STORES.bookmarks,
@@ -185,7 +185,7 @@ export class LocalDataLayer {
     const txCheck = this.db.transaction([STORES.classificationJobs], "readonly")
     const existingJob = await txCheck
       .objectStore(STORES.classificationJobs)
-      .index("byRequestId")
+      .index(CLASSIFICATION_JOB_INDEXES.byRequestId)
       .get(input.creationRequestId)
     await txCheck.done
 
