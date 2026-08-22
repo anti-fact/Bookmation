@@ -146,6 +146,16 @@ describe("ExtensionApp", () => {
       name: "一般設定"
     })
     expect(document.activeElement).toBe(settingsHeading)
+    const settingsIntro = settingsHeading.parentElement
+    expect(settingsIntro?.className).toContain("-ml-4")
+    expect(settingsIntro?.className).toContain("pl-8")
+    expect(settingsIntro?.className).toContain("sm:-ml-8")
+    expect(settingsIntro?.className).toContain("sm:pl-10")
+    expect(settingsIntro?.className).toContain("lg:-ml-[4.5rem]")
+    expect(settingsIntro?.className).toContain("lg:pl-14")
+    expect(settingsIntro?.className).toContain(
+      "min-[1440px]:ml-[calc(-4.5rem-(100vw-90rem)/2)]"
+    )
     const generalLink = screen.getByRole("link", { name: "一般" })
     expect(generalLink.getAttribute("href")).toBe("#/settings/general")
     expect(generalLink.getAttribute("aria-current")).toBe("page")
@@ -199,9 +209,7 @@ describe("ExtensionApp", () => {
     expect(selectionHighlight?.className).not.toContain("w-0.5")
     expect(selectionHighlight?.className).not.toContain("left-0")
     const archiveLink = screen.getByRole("link", { name: "アーカイブ" })
-    const hoverHighlight = archiveLink.querySelector(
-      'span[aria-hidden="true"]'
-    )
+    const hoverHighlight = archiveLink.querySelector('span[aria-hidden="true"]')
     for (const className of sharedBackgroundClasses) {
       expect(hoverHighlight?.className).toContain(className)
     }

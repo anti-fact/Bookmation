@@ -3,11 +3,7 @@
  * 画面遷移時のフォーカスとスクロール位置を管理するアプリ本体です。
  */
 import * as React from "react"
-import {
-  ArchiveIcon,
-  GearIcon,
-  Share2Icon
-} from "@radix-ui/react-icons"
+import { ArchiveIcon, GearIcon, Share2Icon } from "@radix-ui/react-icons"
 
 import { AppHeader } from "~/ui/components/AppHeader"
 import { AppShell } from "~/ui/components/AppShell"
@@ -66,6 +62,11 @@ const settingsIcons = {
 // ホバーと継続選択で同じ領域を使い、背景色だけを各レイヤーで管理します。
 const settingsItemBackgroundClass =
   "pointer-events-none absolute inset-y-0 -right-2 w-screen sm:-right-4 lg:-right-6"
+
+// 説明とメニューを同じ左レールに置き、項目ごとのpaddingを共用します。
+const settingsRailClass =
+  "-ml-4 w-[calc(100%+1rem)] sm:-ml-8 sm:w-[calc(100%+2rem)] lg:-ml-[4.5rem] lg:w-[calc(100%+4.5rem)] min-[1440px]:ml-[calc(-4.5rem-(100vw-90rem)/2)] min-[1440px]:w-[calc(100%+4.5rem+(100vw-90rem)/2)]"
+const settingsRailPaddingClass = "pl-8 pr-2 sm:pl-10 sm:pr-4 lg:pl-14"
 
 const welcomeDescription = [
   "Bookmationはブックマークを簡単に整理できる拡張機能です。",
@@ -304,7 +305,7 @@ function RouteBody({
       <div className="grid grid-cols-[clamp(7rem,28vw,13rem)_0.125rem_minmax(0,1fr)] gap-2 sm:gap-4 lg:gap-6">
         <nav
           aria-label="設定メニュー"
-          className="-ml-4 w-[calc(100%+1rem)] self-start sm:-ml-8 sm:w-[calc(100%+2rem)] lg:-ml-[4.5rem] lg:w-[calc(100%+4.5rem)] min-[1440px]:ml-[calc(-4.5rem-(100vw-90rem)/2)] min-[1440px]:w-[calc(100%+4.5rem+(100vw-90rem)/2)]"
+          className={joinClassNames(settingsRailClass, "self-start")}
         >
           <ul className="m-0 flex list-none flex-col gap-1 p-0">
             {(["general", "archive", "share"] as const).map((section) => {
@@ -317,7 +318,8 @@ function RouteBody({
                   <a
                     aria-current={current ? "page" : undefined}
                     className={joinClassNames(
-                      "group relative flex min-h-12 w-full items-center whitespace-nowrap pl-8 pr-2 text-left text-base no-underline outline-none transition-colors focus-visible:ring-2 focus-visible:ring-inset sm:pl-10 sm:pr-4 sm:text-lg lg:pl-14 lg:text-xl",
+                      "group relative flex min-h-12 w-full items-center whitespace-nowrap text-left text-base no-underline outline-none transition-colors focus-visible:ring-2 focus-visible:ring-inset sm:text-lg lg:text-xl",
+                      settingsRailPaddingClass,
                       current
                         ? "font-bold text-bm-paper focus-visible:ring-bm-paper"
                         : "font-medium text-bm-ink focus-visible:ring-bm-focus"
@@ -591,6 +593,11 @@ export function ExtensionApp({
           />
         }
         heading={copy.heading}
+        introClassName={
+          route.kind === "settings"
+            ? joinClassNames(settingsRailClass, settingsRailPaddingClass)
+            : undefined
+        }
         headingVisuallyHidden={
           route.kind === "home" || route.kind === "bookmarks"
         }
