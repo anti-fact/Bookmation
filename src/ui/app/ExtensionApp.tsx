@@ -16,11 +16,18 @@ import {
   emptyBookmarkListPort,
   type BookmarkListPort
 } from "~/ui/features/bookmarks/bookmark-list-port"
-import { Button } from "~/ui/primitives"
+import {
+  Button,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle
+} from "~/ui/primitives"
 import { joinClassNames } from "~/ui/primitives/class-names"
 
 import { useAppRuntime, useHashRouteStore } from "./AppProviders"
-import { HomeSavePanel } from "./HomeSavePanel"
+import { BookmarkAddForm } from "./BookmarkAddForm"
 import { PromptApiTester } from "./PromptApiTester"
 import {
   getHashRouteKey,
@@ -127,6 +134,7 @@ type NavigateRoute = (
 type RouteHeaderProps = {
   closeSurface: () => void
   navigate: NavigateRoute
+  onBookmarkAddClick: () => void
   onUnavailable: (message: string) => void
   route: HashRoute
 }
@@ -135,6 +143,7 @@ type RouteHeaderProps = {
 function RouteHeader({
   closeSurface,
   navigate,
+  onBookmarkAddClick,
   onUnavailable,
   route
 }: RouteHeaderProps) {
@@ -156,6 +165,7 @@ function RouteHeader({
             </span>
           }
           onAiSearchClick={() => navigate({ kind: "labels" })}
+          onBookmarkAddClick={onBookmarkAddClick}
           onSearchClick={() =>
             onUnavailable("検索入力と候補は現在準備中です。")
           }
@@ -212,6 +222,7 @@ function RouteHeader({
 }
 
 type RouteBodyProps = {
+  bookmarkListRevision: number
   bookmarkListPort: BookmarkListPort
   headingRef: React.RefObject<HTMLHeadingElement>
   navigate: NavigateRoute
@@ -280,6 +291,7 @@ function WelcomeScreen({
 
 // UI-02では画面遷移の骨組みを実装し、後続機能の領域はプレースホルダーにします。
 function RouteBody({
+  bookmarkListRevision,
   bookmarkListPort,
   headingRef,
   navigate,
@@ -287,8 +299,6 @@ function RouteBody({
   route,
   runtime
 }: RouteBodyProps) {
-  const [homeListRevision, setHomeListRevision] = React.useState(0)
-
   if (route.kind === "settings") {
     return (
       <div className="grid grid-cols-[clamp(7rem,28vw,13rem)_0.125rem_minmax(0,1fr)] gap-2 sm:gap-4 lg:gap-6">
@@ -415,7 +425,7 @@ function RouteBody({
       <BookmarkListPage
         filter={filter}
         headingRef={headingRef}
-        key={route.kind === "home" ? homeListRevision : undefined}
+        key={bookmarkListRevision}
         onClearFilter={() => navigate({ kind: "home" })}
         onEdit={(bookmarkId) =>
           onUnavailable(
@@ -430,17 +440,7 @@ function RouteBody({
       />
     )
 
-    return route.kind === "home" ? (
-      <div className="space-y-8">
-        <HomeSavePanel
-          onSaved={() => setHomeListRevision((revision) => revision + 1)}
-          showRecent={false}
-        />
-        {bookmarkList}
-      </div>
-    ) : (
-      bookmarkList
-    )
+    return bookmarkList
   }
 
   return (
@@ -476,6 +476,8 @@ export function ExtensionApp({
     { surface: "labels" | "settings" } | undefined
   >(undefined)
   const previousRouteKey = React.useRef(routeKey)
+  const [bookmarkAddOpen, setBookmarkAddOpen] = React.useState(false)
+  const [bookmarkListRevision, setBookmarkListRevision] = React.useState(0)
   const [notice, setNotice] = React.useState<string | null>(null)
 
   // ブラウザ標準とアプリ独自のスクロール復元が競合しないようにします。
@@ -575,40 +577,61 @@ export function ExtensionApp({
   const tone = route.kind === "labels" ? "accent" : "paper"
 
   return (
-    <AppShell
-      description={copy.description}
-      eyebrow={copy.eyebrow}
-      header={
-        <RouteHeader
-          closeSurface={closeSurface}
+    <>
+      <AppShell
+        description={copy.description}
+        eyebrow={copy.eyebrow}
+        header={
+          <RouteHeader
+            closeSurface={closeSurface}
+            navigate={navigate}
+            onBookmarkAddClick={() => setBookmarkAddOpen(true)}
+            onUnavailable={setNotice}
+            route={route}
+          />
+        }
+        heading={copy.heading}
+        headingVisuallyHidden={
+          route.kind === "home" || route.kind === "bookmarks"
+        }
+        headingRef={headingRef}
+        tone={tone}
+      >
+        {notice ? (
+          <p
+            className="mb-4 mt-0 rounded-bm-field border-2 border-bm-border bg-bm-paper px-4 py-3 text-sm"
+            role="status"
+          >
+            {notice}
+          </p>
+        ) : null}
+        <RouteBody
+          bookmarkListPort={bookmarkListPort}
+          bookmarkListRevision={bookmarkListRevision}
+          headingRef={headingRef}
           navigate={navigate}
           onUnavailable={setNotice}
           route={route}
+          runtime={runtime}
         />
-      }
-      heading={copy.heading}
-      headingVisuallyHidden={
-        route.kind === "home" || route.kind === "bookmarks"
-      }
-      headingRef={headingRef}
-      tone={tone}
-    >
-      {notice ? (
-        <p
-          className="mb-4 mt-0 rounded-bm-field border-2 border-bm-border bg-bm-paper px-4 py-3 text-sm"
-          role="status"
-        >
-          {notice}
-        </p>
-      ) : null}
-      <RouteBody
-        bookmarkListPort={bookmarkListPort}
-        headingRef={headingRef}
-        navigate={navigate}
-        onUnavailable={setNotice}
-        route={route}
-        runtime={runtime}
-      />
-    </AppShell>
+      </AppShell>
+      <Dialog onOpenChange={setBookmarkAddOpen} open={bookmarkAddOpen}>
+        <DialogContent closeLabel="ブックマーク追加を閉じる">
+          <DialogHeader>
+            <DialogTitle>ブックマークを追加</DialogTitle>
+            <DialogDescription>
+              http または https のURLを入力して保存します。
+            </DialogDescription>
+          </DialogHeader>
+          <BookmarkAddForm
+            onSaved={({ duplicate }) => {
+              if (duplicate) return
+              setBookmarkListRevision((revision) => revision + 1)
+              setBookmarkAddOpen(false)
+            }}
+          />
+        </DialogContent>
+      </Dialog>
+    </>
   )
 }

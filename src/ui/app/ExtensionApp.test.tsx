@@ -89,6 +89,32 @@ function renderApp(initialRoute: HashRoute) {
 }
 
 describe("ExtensionApp", () => {
+  it("opens URL bookmark creation from a plus icon instead of an inline home form", () => {
+    renderApp({ kind: "home" })
+
+    expect(
+      screen.queryByRole("form", { name: "ブックマーク追加フォーム" })
+    ).toBeNull()
+    expect(screen.queryByText("URL を保存")).toBeNull()
+
+    const addButton = screen.getByRole("button", {
+      name: "ブックマークを追加"
+    })
+    expect(addButton.className).toContain("rounded-bm-pill")
+    expect(addButton.querySelector("svg")?.classList.contains("size-6")).toBe(
+      true
+    )
+
+    fireEvent.click(addButton)
+
+    expect(
+      screen.getByRole("dialog", { name: "ブックマークを追加" })
+    ).not.toBeNull()
+    expect(
+      screen.getByRole("form", { name: "ブックマーク追加フォーム" })
+    ).not.toBeNull()
+  })
+
   it("changes the shared shell through typed navigation and focuses its heading", () => {
     const { store } = renderApp({ kind: "home" })
 
