@@ -39,6 +39,10 @@ const settingsLabels: Record<SettingsSection, string> = {
   share: "共有"
 }
 
+// ホバーと継続選択で同じ領域を使い、背景色だけを各レイヤーで管理します。
+const settingsItemBackgroundClass =
+  "pointer-events-none absolute inset-y-0 right-0 w-screen md:-right-6"
+
 const welcomeDescription = [
   "Bookmationはブックマークを簡単に整理できる拡張機能です。",
   "かんたんな初期設定を終わらせて、さっそくはじめましょう。"
@@ -276,12 +280,19 @@ function RouteBody({ navigate, route }: RouteBodyProps) {
                     <span
                       aria-hidden="true"
                       className={joinClassNames(
-                        "pointer-events-none absolute inset-y-0 right-0 w-screen md:-right-6",
-                        current
-                          ? "bg-bm-ink"
-                          : "bg-transparent group-hover:bg-bm-accent"
+                        settingsItemBackgroundClass,
+                        "bg-transparent group-hover:bg-bm-accent"
                       )}
                     />
+                    {current && (
+                      <span
+                        aria-hidden="true"
+                        className={joinClassNames(
+                          settingsItemBackgroundClass,
+                          "bg-bm-ink"
+                        )}
+                      />
+                    )}
                     <span className="relative truncate">
                       {settingsLabels[section]}
                     </span>

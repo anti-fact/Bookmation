@@ -126,7 +126,23 @@ describe("ExtensionApp", () => {
     })
     expect(settingsNavigation.className).toContain("-ml-4")
     expect(settingsNavigation.className).toContain("lg:-ml-[4.5rem]")
-    const selectionHighlight = generalLink.querySelector('[aria-hidden="true"]')
+    const [currentHoverHighlight, selectionHighlight] =
+      generalLink.querySelectorAll('[aria-hidden="true"]')
+    const sharedBackgroundClasses = [
+      "absolute",
+      "inset-y-0",
+      "right-0",
+      "w-screen",
+      "md:-right-6"
+    ]
+    for (const className of sharedBackgroundClasses) {
+      expect(currentHoverHighlight?.className).toContain(className)
+      expect(selectionHighlight?.className).toContain(className)
+    }
+    expect(currentHoverHighlight?.className).toContain("bg-transparent")
+    expect(currentHoverHighlight?.className).toContain(
+      "group-hover:bg-bm-accent"
+    )
     expect(selectionHighlight?.className).toContain("right-0")
     expect(selectionHighlight?.className).toContain("w-screen")
     expect(selectionHighlight?.className).toContain("bg-bm-ink")
@@ -138,8 +154,9 @@ describe("ExtensionApp", () => {
     expect(selectionHighlight?.className).not.toContain("left-0")
     const archiveLink = screen.getByRole("link", { name: "アーカイブ" })
     const hoverHighlight = archiveLink.querySelector('[aria-hidden="true"]')
-    expect(hoverHighlight?.className).toContain("w-screen")
-    expect(hoverHighlight?.className).toContain("md:-right-6")
+    for (const className of sharedBackgroundClasses) {
+      expect(hoverHighlight?.className).toContain(className)
+    }
     expect(hoverHighlight?.className).toContain("bg-transparent")
     expect(hoverHighlight?.className).toContain("group-hover:bg-bm-accent")
     expect(hoverHighlight?.className).not.toContain("bg-bm-ink")
