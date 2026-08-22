@@ -111,6 +111,24 @@ export {
 export type { SchemaMetaRecord } from "./schema-meta"
 export { assertSchemaMetaValid, assertSchemaMetaAssetHashValid } from "./schema-meta"
 
+// --- Security ---
+export {
+  ALLOWED_IMAGE_MIME_TYPES,
+  BUNDLED_FALLBACK_LOGO_PATH,
+  MAX_BOOKMARK_TITLE_LENGTH,
+  MAX_FAVICON_BYTES,
+  MAX_HTML_FETCH_BYTES,
+  MAX_IMAGE_HEIGHT,
+  MAX_IMAGE_WIDTH,
+  MAX_MESSAGE_JSON_DEPTH,
+  MAX_THUMBNAIL_BYTES,
+  isAllowedImageMimeType,
+  jsonValueWithinBounds,
+  resolveBookmarkTitle,
+  validateBookmarkTitle,
+} from "./security"
+export type { AllowedImageMimeType } from "./security"
+
 // --- AI 境界 ---
 export type { AiTagSuggestion, AiClassificationResult } from "./ai-boundary"
 export {

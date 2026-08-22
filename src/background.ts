@@ -2,6 +2,7 @@ import { ChromeCategoryTemplateReceiptStore } from "~adapters"
 import { createLibraryApplication } from "~application"
 import { createSaveBookmarkMessageApplication } from "~application/save-bookmark-message-application"
 import { LocalDataLayer } from "~/adapters"
+import { safeLogError, safeLogInfo, safeLogWarning } from "~/adapters/security/log-redaction"
 import { handleExtensionCommand } from "~extension/command-handlers"
 import { isExtensionCommand } from "~extension/commands"
 import { initializeOnInstall } from "~extension/install-handler"
@@ -23,14 +24,14 @@ void LocalDataLayer.open()
     try {
       const recovered = await layer.recoverStaleClassificationJobs()
       if (recovered > 0) {
-        console.info(`[Bookmation] Recovered ${recovered} stale classification job(s)`)
+        safeLogInfo("Classification job recovery", `recovered ${recovered} stale job(s)`)
       }
     } finally {
       await layer.close()
     }
   })
   .catch((error: unknown) => {
-    console.error("[Bookmation] Classification job recovery failed:", error)
+    safeLogError("Classification job recovery", error)
   })
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -41,14 +42,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 chrome.runtime.onInstalled.addListener((details) => {
   void initializeOnInstall(details.reason, chrome.storage.local, chrome.runtime, chrome.tabs).catch(
     (error: unknown) => {
-      console.error("[Bookmation] Install initialization failed:", error)
+      safeLogError("Install initialization", error)
     },
   )
 })
 
 chrome.commands.onCommand.addListener((command) => {
   if (!isExtensionCommand(command)) {
-    console.warn("[Bookmation] Ignored unknown command:", command)
+    safeLogWarning("Command handler", `ignored unknown command: ${command}`)
     return
   }
 
@@ -62,7 +63,7 @@ chrome.commands.onCommand.addListener((command) => {
       tabs: chrome.tabs,
     },
   ).catch((error: unknown) => {
-    console.error("[Bookmation] Command handler failed:", command, error)
+    safeLogError(`Command handler (${command})`, error)
   })
 })
 

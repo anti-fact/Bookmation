@@ -60,6 +60,17 @@
 
 IndexedDB利用だけを理由に追加権限は要求しない。host_permissions は URL 指定保存のメタデータ fetch に限定し、現在タブ保存は `activeTab` を優先する。Manifest へ記載する host permission は上記 2 パターンだけとし、それ以外の通信目的へ転用しない。
 
+### 実装済み Manifest 対応表（2026-08-23 確認）
+
+| Manifest 項目 | コード上の用途 | 拒否・縮退時の挙動 |
+| --- | --- | --- |
+| `storage` | `chrome.storage.local` への view mode、template receipt、将来の設定 | 読取失敗時は既定値（例: 一覧 GRID）へ縮退 |
+| `activeTab` | popup / ショートカット保存時の `tab.url` / `title` / `favIconUrl` | タブ情報が取れない場合は保存を拒否（`ACTION_NOT_AVAILABLE`） |
+| `host_permissions` `http(s)://*/*` | URL 指定保存の HTML / 画像メタデータ fetch のみ | fetch 失敗でも Bookmark 本体は保存済み。画像は Blob 化せず一覧は同梱ロゴ |
+| `commands` | `save-current-page` / `open-bookmation-home` | 未知 command は無視しログのみ（redacted） |
+
+一覧表示は保存済み Blob または同梱 `assets/icon.png` のみを参照し、Bookmark レコード上の外部 `faviconUrl` / `og:image` URL を UI へ渡さない。
+
 ### 技術スパイク後に判断
 
 | 権限 | 想定用途 | 判断基準 |

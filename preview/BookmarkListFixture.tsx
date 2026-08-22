@@ -45,12 +45,12 @@ function fixtureItems(count: number): BookmarkListItem[] {
 
   return Array.from({ length: count }, (_, index) => ({
     categories: [categories[index % categories.length]!],
-    faviconUrl: null,
+    faviconSrc: previewImage,
     id: `fixture-bookmark-${index + 1}`,
     savedAt: Date.UTC(2026, 7, 22) - index * 86_400_000,
     siteName: index % 2 === 0 ? "Bookmation Docs" : "example.com",
     tags: index % 4 === 0 ? [] : tags.slice(0, (index % tags.length) + 1),
-    thumbnailUrl: index % 3 === 0 ? previewImage : null,
+    thumbnailSrc: index % 3 === 0 ? previewImage : previewImage,
     title:
       index === 4
         ? "長い日本語のページ名でもカードやリストの操作が重ならず読み進められることを確認するブックマーク"

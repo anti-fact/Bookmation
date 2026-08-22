@@ -21,6 +21,7 @@ import {
   policyFromGranularity,
   validateAndNormalizeUrl,
 } from "~/domain"
+import { validateBookmarkTitle } from "~/domain/security"
 
 import { computeUrlHash, fingerprintFromObject, syncInputFingerprint } from "./crypto-utils"
 import {
@@ -108,6 +109,13 @@ const CASCADE_TX_STORES = [
   STORES.bookmarkRevisions,
   STORES.searchDocuments,
 ] as const
+
+function asBlob(value: unknown, mimeType: string): Blob {
+  if (value instanceof Blob) {
+    return value
+  }
+  return new Blob([value as BlobPart], { type: mimeType })
+}
 
 export interface SaveBookmarkWithJobInput {
   id: Id
@@ -360,7 +368,10 @@ export class LocalDataLayer {
 
     const updated: PersistedActiveBookmarkRecord = {
       ...bookmark,
-      title: input.title ?? bookmark.title,
+      title:
+        input.title !== undefined
+          ? validateBookmarkTitle(input.title)
+          : bookmark.title,
       faviconUrl:
         input.faviconUrl !== undefined ? input.faviconUrl : bookmark.faviconUrl,
       faviconBlobId:
@@ -393,6 +404,8 @@ export class LocalDataLayer {
     kind: "THUMBNAIL" | "FAVICON"
     mimeType: string
     byteLength: number
+    width: number | null
+    height: number | null
     data: Blob
     contentHash: string
     now?: EpochMs
@@ -405,8 +418,8 @@ export class LocalDataLayer {
       kind: record.kind,
       mimeType: record.mimeType,
       byteLength: record.byteLength,
-      width: null,
-      height: null,
+      width: record.width,
+      height: record.height,
       contentHash: record.contentHash,
       data: record.data,
       createdAt: now,
@@ -414,6 +427,38 @@ export class LocalDataLayer {
       lastReferencedAt: now,
     })
     await tx.done
+  }
+
+  async getBlobRecord(
+    id: Id,
+  ): Promise<
+    | {
+        id: Id
+        kind: "THUMBNAIL" | "FAVICON"
+        mimeType: string
+        data: Blob
+      }
+    | undefined
+  > {
+    const tx = this.db.transaction(STORES.blobs, "readonly")
+    const stored = (await tx.store.get(id)) as
+      | {
+          id: Id
+          kind: "THUMBNAIL" | "FAVICON"
+          mimeType: string
+          data: unknown
+        }
+      | undefined
+    await tx.done
+    if (!stored) {
+      return undefined
+    }
+    return {
+      id: stored.id,
+      kind: stored.kind,
+      mimeType: stored.mimeType,
+      data: asBlob(stored.data, stored.mimeType),
+    }
   }
 
   async createCategory(input: CreateCategoryInput): Promise<PersistedLabelRecord> {
@@ -624,7 +669,7 @@ export class LocalDataLayer {
       }
     }
     bookmark = await syncCategoryEdgesFromTags(tx, bookmark, now)
-    const updated: PersistedActiveBookmarkRecord = { ...bookmark, rawUrl: normalized.raw, normalizedUrl: normalized.normalized, urlHash, urlNormalizationVersion: normalized.normalizationVersion, title: input.title.trim(), updatedAt: now, revision: nextRevision(bookmark.revision) }
+    const updated: PersistedActiveBookmarkRecord = { ...bookmark, rawUrl: normalized.raw, normalizedUrl: normalized.normalized, urlHash, urlNormalizationVersion: normalized.normalizationVersion, title: validateBookmarkTitle(input.title), updatedAt: now, revision: nextRevision(bookmark.revision) }
     await putBookmark(tx, updated)
     await tx.objectStore(STORES.searchDocuments).put(buildBookmarkSearchDocument(updated, now))
     await tx.done

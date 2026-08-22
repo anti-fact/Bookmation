@@ -1,7 +1,6 @@
 import {
   ArrowUpIcon,
   ChevronDownIcon,
-  GlobeIcon,
   GridIcon,
   ImageIcon,
   ListBulletIcon,
@@ -234,7 +233,7 @@ function BookmarkCard({
           <BookmarkImage
             alt={bookmark.title}
             className="aspect-[16/9] w-full"
-            src={bookmark.thumbnailUrl}
+            src={bookmark.thumbnailSrc}
           />
         </a>
         <IconButton
@@ -301,20 +300,11 @@ function BookmarkRow({
         rel="noreferrer"
         target="_blank"
       >
-        {bookmark.faviconUrl ? (
-          <img
-            alt=""
-            className="size-[3.25rem] rounded-bm-field border border-bm-border object-cover sm:size-[3.75rem]"
-            src={bookmark.faviconUrl}
-          />
-        ) : (
-          <div
-            aria-hidden="true"
-            className="flex size-[3.25rem] items-center justify-center rounded-bm-field bg-bm-ink text-bm-paper sm:size-[3.75rem]"
-          >
-            <GlobeIcon className="size-6" />
-          </div>
-        )}
+        <img
+          alt=""
+          className="size-[3.25rem] rounded-bm-field border border-bm-border object-cover sm:size-[3.75rem]"
+          src={bookmark.faviconSrc}
+        />
       </a>
 
       <div className="min-w-0">

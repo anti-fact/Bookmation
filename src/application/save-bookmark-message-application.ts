@@ -1,4 +1,5 @@
 import { isDomainError, type JsonValue } from "~/domain"
+import { safeLogError } from "~/adapters/security/log-redaction"
 import { SaveBookmarkUseCase, type SaveBookmarkResult } from "~/application/save-bookmark"
 import { LocalDataLayer } from "~/adapters/indexeddb/local-data-layer"
 import type {
@@ -240,9 +241,9 @@ export function createSaveBookmarkMessageApplication(
           }
         }
         if (isDomainError(error)) {
-          console.error("[Bookmation] Save request rejected:", error.code, error.message)
+          safeLogError("Save request rejected", error)
         } else {
-          console.error("[Bookmation] Save request failed:", error)
+          safeLogError("Save request failed", error)
         }
         return {
           requestId: request.requestId,

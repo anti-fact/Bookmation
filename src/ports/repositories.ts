@@ -81,9 +81,20 @@ export interface LocalDataLayerPort {
     kind: "THUMBNAIL" | "FAVICON"
     mimeType: string
     byteLength: number
+    width: number | null
+    height: number | null
     data: Blob
     contentHash: string
   }): Promise<void>
+  getBlobRecord(id: string): Promise<
+    | {
+        id: string
+        kind: "THUMBNAIL" | "FAVICON"
+        mimeType: string
+        data: Blob
+      }
+    | undefined
+  >
   getBookmark(id: string): Promise<PersistedActiveBookmarkRecord | undefined>
   findActiveBookmarkByNormalizedUrl(normalizedUrl: string): Promise<PersistedActiveBookmarkRecord | undefined>
   createCategory(input: CreateCategoryInput): Promise<PersistedLabelRecord>

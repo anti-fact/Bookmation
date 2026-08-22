@@ -1,4 +1,6 @@
 import { LocalDataLayer } from "~/adapters/indexeddb/local-data-layer"
+import { BlobUrlRegistry } from "~/adapters/blob/blob-url-registry"
+import { resolveBookmarkImageSrc } from "~/adapters/blob/resolve-bookmark-images"
 import type {
   PersistedActiveBookmarkRecord,
   PersistedLabelRecord
@@ -170,7 +172,8 @@ function sortLabels(
 
 async function toListItems(
   layer: LocalDataLayer,
-  records: PersistedActiveBookmarkRecord[]
+  records: PersistedActiveBookmarkRecord[],
+  registry: BlobUrlRegistry,
 ): Promise<BookmarkListItem[]> {
   const tx = layer.rawDb.transaction(
     [STORES.bookmarkLabels, STORES.labels],
@@ -209,14 +212,22 @@ async function toListItems(
 
       return {
         categories,
-        faviconUrl: null,
+        faviconSrc: await resolveBookmarkImageSrc(
+          layer,
+          bookmark.faviconBlobId,
+          registry,
+        ),
         id: bookmark.id,
         savedAt: bookmark.savedAt,
         siteName: bookmark.siteName,
         tags,
-        thumbnailUrl: null,
+        thumbnailSrc: await resolveBookmarkImageSrc(
+          layer,
+          bookmark.thumbnailBlobId,
+          registry,
+        ),
         title: bookmark.title,
-        url: bookmark.normalizedUrl
+        url: bookmark.normalizedUrl,
       }
     })
   )
@@ -230,6 +241,7 @@ export function createIndexedDbBookmarkListPort({
   storage
 }: IndexedDbBookmarkListPortOptions): BookmarkListPort {
   let layerPromise: Promise<LocalDataLayer> | null = null
+  const imageUrlRegistry = new BlobUrlRegistry()
   const getLayer = () => {
     layerPromise ??= openDataLayer()
     return layerPromise
@@ -243,13 +255,14 @@ export function createIndexedDbBookmarkListPort({
     },
 
     async loadPage(input) {
+      imageUrlRegistry.revokeAll()
       const layer = await getLayer()
       const limit = Math.min(
         MAX_PAGE_SIZE,
         Math.max(1, input.limit ?? DEFAULT_PAGE_SIZE)
       )
       const page = await bookmarksForLabel(layer, input, limit)
-      const items = await toListItems(layer, page.items)
+      const items = await toListItems(layer, page.items, imageUrlRegistry)
 
       return {
         items,
