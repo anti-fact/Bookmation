@@ -681,6 +681,40 @@ Figmaを見た目の正本、現行docsを挙動・データ・権限の正本�
 - Figma対象nodeからNoto Sans JP Mediumの参照は得たが、path化された全sheetのText Style数値は確定できない。現行の日本語system sans stackは暫定である。
 - App Shell、保存／一覧／検索等のfeature fixture、fake Port、Playwright実拡張E2E、人間の実Chrome受入はTASK-013以降の範囲であり、UI-01では未実装／未実施である。
 
+## 2026-08-19 — UI-02 App Shell／typed hash route／共通header
+
+### 目的
+
+UI-01のtokenとRadix wrapperを土台に、Bookmation全画面で再利用するApp Shell、header、route、error boundaryを実装する。Figmaは見た目の正本として読み取り専用で使い、最新要件とdocsを挙動の正本とする。feature固有データやChrome API接続はUI-02へ含めない。
+
+### 変更
+
+- Figma URLからdefault header `6:16`、カテゴリ・タグ一覧header `62:1093`、設定header `95:1140`、logo `39:593`を`get_design_context`で取得した。Figma fileは編集せず、logoとAI iconのassetを実装へ取り込んだ。カテゴリ・タグ一覧headerには、Figma nodeで省略されていたAI検索を最新要件に従って同じ外観で追加した。
+- `AppProviders`、`AppErrorBoundary`、`ExtensionApp`、native document scrollの`AppShell`、default／labels／settingsの`AppHeader`、`IconButton`、Radix Tooltip wrapperを追加した。
+- `#/welcome`、`#/home`、Category／Tag別Bookmark一覧、全画面検索、カテゴリ・タグ一覧、一般／archive／共有設定の9 route形式を判別共用体で表し、不正hashは暗黙redirectせずnot-foundとして表示するtyped hash routeを追加した。
+- SPA route変更時だけ見出しへfocusし、初回mountではfocus ringを出さない。labels／settingsをアプリ内から開いた場合はbrowser backで元routeとscrollを復元し、直接entryではhomeへreplaceする。settings section間は同じhistory entryをreplaceする。
+- 320 CSS pxで折り返すlabels headerの高さに合わせて見出しのscroll marginを256 pxとし、`lg`以上は128 pxへ戻した。labels headerは`lg`未満で折り返し、768 pxでも検索操作を潰さない。
+- Web previewはcomponent sheetをrootに維持し、`?view=app-shell#/home`でproduction App Shellとpreview専用fixture menuを表示できるようにした。preview fixtureはPlasmo production bundleへ含めない。
+- UI-02コードと`src/ui`全35テキストファイルの日本語解説コメントを単一commit `9d5e44d`へまとめ、Markdownを含まないDraft PR [#49](https://github.com/anti-fact/Bookmation/pull/49)としてUI-01コードPR #45へ積み上げた。旧PR #47はコメント未commit版として#49へ置き換え、本節を含む文書更新は別PRとして管理する。
+
+### 検証
+
+- `npx --yes pnpm@10.15.1 lint`: 成功。
+- `npx --yes pnpm@10.15.1 typecheck`: 成功。
+- `npx --yes pnpm@10.15.1 test`: 成功、Vitest 17ファイル／84件。
+- `npx --yes pnpm@10.15.1 ui:build`: 成功。
+- `npx --yes pnpm@10.15.1 build`: 成功、Chrome MV3向けPlasmo production build。
+- 最終tabs bundleのSHA-256は`d69840b75916e63bb5f45dadbb1b84713608bc7b6984546c1986f8149dc8aa51`、manifestのSHA-256は`4c5d2fdc5af03816bab23496ebd8bade90457702edd112869b289e625a7a2801`である。
+- Playwright 1.62.1とbundled Chromium 151.0.7922.34で最終production buildをunpacked extensionとして読み込み、初回homeで見出しをfocusしないこと、route変更後の見出しfocus、homeの`scrollY=600`復元、back／forward履歴、直接entry時のreplace fallbackを確認した。
+- 320 CSS pxのlabels画面ではdocument横overflowなし、header実測約231.8 pxに対して見出しscroll margin 256 pxを確認した。768 CSS pxでは検索操作がviewport内で460×50 pxを確保し、AI検索を含む操作のaccessible nameと応答を確認した。確認経路のconsole error／page errorは0件だった。
+- production成果物にWeb preview fixture codeが含まれないこと、`git diff --check`、Figma read-only、`docs/AI_GUIDE.md` 0バイトを確認した。
+
+### 残課題
+
+- Bookmark実データ、保存、検索候補、AI応答modal、カテゴリ・タグ管理、設定formは後続UIで実装する。現在のroute bodyと操作応答には準備中のfixtureが含まれる。
+- Playwrightのrepository管理script、CI、report／trace保存、証拠manifest、人間による実Chrome最終受入は未実装／未実施である。今回の一回限りのAI実拡張確認は、その恒常的な受入gateを置き換えない。
+- Figmaとのpixel単位比較、200% zoom、screen reader、正式typographyの確定は未検証である。
+
 ## 追記テンプレート
 
 ```markdown

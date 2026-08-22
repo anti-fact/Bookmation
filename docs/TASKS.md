@@ -1,7 +1,7 @@
 # TASKS
 
 - 状態: 実装バックログ
-- 更新日: 2026-08-17
+- 更新日: 2026-08-19
 - 対象: P0実装と確定済みP1ワークパッケージ
 
 ## 運用
@@ -13,7 +13,7 @@
 | ID       | Task                                  | 状態    | 依存                          | 完了時の成果                                                                   |
 | -------- | ------------------------------------- | ------- | ----------------------------- | ------------------------------------------------------------------------------ |
 | TASK-001 | 開発基盤と初期 Plan                   | Done    | ISSUE-006                     | 同じ環境・コマンドで開発開始できる                                             |
-| TASK-002 | Plasmo 拡張 bootstrap                 | Backlog | TASK-001                      | popup、dashboard、worker を開ける                                              |
+| TASK-002 | Plasmo 拡張 bootstrap                 | 進行中  | TASK-001                      | popup、dashboard、worker を開ける                                              |
 | TASK-003 | JSONドキュメントデータ層              | Backlog | TASK-002                      | Bookmark / Label / Job が再読込後も残る                                        |
 | TASK-004 | popup・commands・保存・初回ホーム     | Backlog | TASK-003                      | 現在ページ／URLを保存し、初回と通常のホームを開ける                            |
 | TASK-014 | 初回カテゴリテンプレート              | Backlog | ISSUE-022、TASK-003、004、006 | 初回にテンプレート候補を提示し、利用者が適用したCategoryだけを安全に作成できる |
@@ -23,7 +23,7 @@
 | TASK-008 | AI classification / settings          | Backlog | TASK-003、006、007            | 規則どおりタグを分類できる                                                     |
 | TASK-009 | Full-page search / AI assistant       | Backlog | TASK-003、006、007            | 最大8件の候補検索とAIへの検索・機能質問ができる                                |
 | TASK-010 | Security / media / permissions        | Backlog | TASK-002〜004                 | 最小権限と入力検証が成立する                                                   |
-| TASK-013 | UI Web preview / Playwright harness   | Backlog | TASK-002                      | 同じUIをWebで確認し、実拡張をAIエージェントが自動確認できる                    |
+| TASK-013 | UI Web preview / Playwright harness   | 進行中  | TASK-002                      | 同じUIをWebで確認し、実拡張をAIエージェントが自動確認できる                    |
 | TASK-011 | Recovery / quality                    | Backlog | TASK-004〜010、013、014       | 中断・再送・大量件数に耐える                                                   |
 | TASK-012 | P0 integrated demo / human acceptance | Backlog | TASK-004〜011、013、014       | AIエージェント確認後、人間が初回設定から保存・検索・編集まで受入できる         |
 
@@ -40,10 +40,12 @@
 
 ### TASK-002: Plasmo 拡張 bootstrap
 
-- [ ] popup、dashboard tab、MV3 Service Worker を分離する。
+- [x] productionのdashboard tabにApp Shell、共通Header、型付きhash route、error boundaryを実装する。
+- [ ] product popup（保存／ホーム）とMV3 Service Workerをdashboard tabから分離し、保存導線へ接続する。
 - [ ] `save-current-page` と `open-bookmation-home` commands を宣言する。
 - [ ] Tailwind production build、CSP、local asset を確認する。
-- 完了条件: Chrome で popup と空 dashboard を開ける。
+- 現在地: dashboard shellだけが進行済みであり、popup保存、commands、Service Workerは未実装である。
+- 完了条件: Chrome でpopupと空dashboardを開き、分離したService Workerへ接続できる。App ShellだけではDoneにしない。
 
 ### TASK-003: ローカルデータ層
 
@@ -156,6 +158,8 @@
 
 - [ ] [TESTING.md](TESTING.md) の通常Webページとして、production React componentとTailwind tokenをfake Adapterで表示する。
 - [x] UI-01のproduction tokenとButton／Dialog／Switch／Slider／SelectをVite component sheetで表示し、`ui:preview`／`ui:build`を実装する。
+- [x] UI-02のproduction App Shell、共通Header、型付きhash routeを全画面Web fixture `?view=app-shell#/home` で直接開けるようにする。
+- [x] 最終UI-02 tab bundle（SHA-256 `d69840b75916e63bb5f45dadbb1b84713608bc7b6984546c1986f8149dc8aa51`）をunpacked extensionとして一回限りでPlaywright確認し、見出しfocus、ブラウザBack＋scroll復元、直接指定fallback、320 px／768 px reflow、console errorなしを確認する。ただし再実行可能なrepository harness／CI／report／traceではない。
 - [ ] popup、ホーム、カテゴリ一覧、主要dialogと、空／通常／大量／エラー／権限拒否等の版管理fixtureを直接開けるようにする。
 - [ ] 初回ホーム、未適用／適用済み／競合／再開のCategory template step、検索候補0／8／9件以上、AI検索／機能質問、Unicode 15.1.0 vendored Normalizer asset＋hash、Tag作成／編集のCategory候補／side view／draft、親変更の0件／1件／多数Bookmark参照・revision競合・同request再送／別payload再利用拒否・rollback・AI再分類なし、Bookmark編集のTag-only入力、Category使用状況、Bookmark／Tagの確認なしdelete、Category警告付きcascade deleteと再分類、削除Undo経路なし、AI snapshot、設定境界値、URL単位SUPPRESSED、archive権限gate／履歴なしエラー／復元、Drive／QR／CSVをfixture化する。
 - [ ] `test:e2e`、`test:e2e:ui` scriptを実装する。実装済みの`ui:preview`／`ui:build`を含め、preview／fixture／debug UIを本番拡張成果物から除外する。

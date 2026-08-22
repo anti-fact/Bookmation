@@ -1,3 +1,4 @@
+/* アプリ全体の土台となる表示規則と、OS の動き軽減設定への対応を定義します。 */
 *,
 *::before,
 *::after {
@@ -33,6 +34,7 @@ button:not(:disabled),
 }
 
 @media (prefers-reduced-motion: reduce) {
+  /* 内容は隠さず、アニメーション時間だけをほぼゼロにして情報を保ちます。 */
   *,
   *::before,
   *::after {

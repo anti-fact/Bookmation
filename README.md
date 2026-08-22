@@ -3,7 +3,7 @@
 Bookmation は、Chrome標準ブックマークとは別の専用領域へWebページを保存し、カテゴリ／タグと検索で見つけ直すChrome拡張機能である。
 
 > [!IMPORTANT]
-> 開発基盤とUI-01（semantic token、Radix wrapper、Web component sheet）は実装済みである。保存・一覧・AI は未実装である。始め方は [QUICKSTART.md](docs/QUICKSTART.md) を参照する。
+> 開発基盤、UI-01（semantic token、Radix wrapper、Web component sheet）、UI-02（Plasmo dashboard App Shell、型付き9 route、`default`／`labels`／`settings` 共通header、`IconButton`／`Tooltip`、focus／戻る時のscroll復元、`ErrorBoundary`）は実装済みである。保存データ、Bookmark一覧、検索／AI、設定等のfeature UIは未実装である。始め方は [QUICKSTART.md](docs/QUICKSTART.md) を参照する。
 
 ## プロダクト概要
 

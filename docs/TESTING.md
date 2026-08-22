@@ -1,6 +1,6 @@
 # テスト仕様
 
-- 状態: **確定要件・UI-01 Web component sheet実装済み・全画面fixture／拡張E2E未実装**
+- 状態: **確定要件・UI-01 component sheet／UI-02 App Shell fixture実装済み・feature fixture／拡張E2E基盤／人間受入未実装**
 - 更新日: 2026-08-19
 - 関連: [要件](REQUIREMENTS.md) / [制約](CONSTRAINTS.md) / [設計](DESIGN.md) / [フロントエンド](FRONTEND.md) / [セキュリティ](SECURITY.md) / [実装タスク](TASKS.md)
 
@@ -40,7 +40,7 @@ flowchart LR
 
 ## Webプレビューの確定仕様
 
-UI-01ではVite 7.3.6をrunnerとして採用し、semantic tokenとButton／Dialog／Switch／Slider／Selectをproduction codeから直接読み込むcomponent sheetを実装した。これは通常Webページの最小入口であり、以下の全画面fixture catalogやPlaywright拡張E2Eの完了を意味しない。
+UI-01ではVite 7.3.6をrunnerとして採用し、semantic tokenとButton／Dialog／Switch／Slider／Selectをproduction codeから直接読み込むcomponent sheetを実装した。UI-02ではproductionのApp Shell、共通Header、型付きhash routeと同じcomponentを使う全画面shell fixtureを追加した。Bookmark、Category／Tag、検索、設定等のfeature data／fake Adapterと以下の全fixture catalogは未実装であり、shell fixtureの存在はPlaywright拡張E2E基盤の完了を意味しない。
 
 ### 同じUIを使う
 
@@ -53,6 +53,7 @@ UI-01ではVite 7.3.6をrunnerとして採用し、semantic tokenとButton／Dia
 
 - `http://localhost:<port>/...` の通常Webページとしてブラウザから開けることを必須にする。
 - Viteの独立preview appを利用し、preview entryとfixture codeをPlasmo production entryから参照しない。通常Webページで確認できるという受入条件は変更しない。
+- UI-02の全画面shellは `?view=app-shell#/home` で開く。これはrouting、共通header、responsive shellを確認する入口であり、Bookmark等のfeature fixtureではない。
 - 対象画面とfixtureをURL、toolbar、または両方で明示的に切り替えられるようにし、同じURLで同じ初期状態を再現する。
 - popup相当は本番幅のframe内、dashboard相当はデスクトップ／狭幅／200%相当を確認できるviewportで表示する。
 - 画面上に `TEST PREVIEW` とfixture名を表示し、本番画面や実データと誤認させない。
@@ -114,6 +115,10 @@ AIエージェントは、人間へ確認を依頼する前に次を実行する
 7. 成否、skip、未実証事項をまとめてから人間へ引き渡す。
 
 AIエージェントがPlaywrightを起動できない環境では、Webプレビュー結果だけで合格にせず、`未実施` または `blocked` として人間へ伝える。
+
+### UI-02で実施した一回限りの確認
+
+AIエージェントはUI-02の最終tab bundle（SHA-256 `d69840b75916e63bb5f45dadbb1b84713608bc7b6984546c1986f8149dc8aa51`、manifest SHA-256 `4c5d2fdc5af03816bab23496ebd8bade90457702edd112869b289e625a7a2801`）をunpacked extensionとして読み込み、Playwrightで見出しfocus、ブラウザBackとscroll復元、URL直接指定時のfallback、320 px／768 pxのreflow、console errorがないことを確認した。この実行はUI-02 App Shellに限定した一回限りの確認であり、リポジトリ管理された `test:e2e`／`test:e2e:ui`、CI、HTML report、trace保存を実装したものではない。popup、Service Worker、権限、永続化、feature dataは対象外であり、人間による実Chrome受入も未実施である。
 
 ### 最小E2Eシナリオ
 
@@ -188,15 +193,15 @@ URL、タイトル、検索文、履歴、token等の利用者データは証拠
 
 ## コマンド契約
 
-UI-01でVitest component testと最小Web component sheetを実装した。Playwright関連scriptはまだ目標契約であり、存在確認前に成功したと記録しない。
+UI-01／UI-02でVitestのunit／component testを17 files／84 tests実装し、component sheetと全画面App Shell fixtureを追加した。Playwright関連scriptはまだ目標契約であり、一回限りのUI-02確認をリポジトリE2E基盤の成功として記録しない。
 
-| command            | 目的                                     | 現在                                        |
-| ------------------ | ---------------------------------------- | ------------------------------------------- |
-| `pnpm test`        | unit／component                          | 実装済み（UI-01はjsdom、全featureは未実装） |
-| `pnpm ui:preview`  | 通常WebページのUIプレビューを起動        | 実装済み（UI-01 component sheetのみ）       |
-| `pnpm ui:build`    | レビュー可能な静的UIプレビューを生成     | 実装済み（`build/ui-preview`）              |
-| `pnpm test:e2e`    | ビルド済み拡張機能のPlaywright E2E       | 未実装                                      |
-| `pnpm test:e2e:ui` | AIエージェント／人間が画面付きでデバッグ | 未実装                                      |
+| command            | 目的                                     | 現在                                              |
+| ------------------ | ---------------------------------------- | ------------------------------------------------- |
+| `pnpm test`        | unit／component                          | 実装済み（17 files／84 tests、全featureは未実装） |
+| `pnpm ui:preview`  | 通常WebページのUIプレビューを起動        | 実装済み（component sheet／UI-02 App Shell）      |
+| `pnpm ui:build`    | レビュー可能な静的UIプレビューを生成     | 実装済み（`build/ui-preview`）                    |
+| `pnpm test:e2e`    | ビルド済み拡張機能のPlaywright E2E       | 未実装                                            |
+| `pnpm test:e2e:ui` | AIエージェント／人間が画面付きでデバッグ | 未実装                                            |
 
 script名を変更する場合は、同じ変更で本書、`package.json`、[QUICKSTART.md](QUICKSTART.md)、CI、[WORKLOG.md](WORKLOG.md)を更新する。
 

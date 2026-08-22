@@ -2,7 +2,7 @@
 
 ## 最初に確認すること
 
-2026-08-19時点ではPlasmo開発基盤、`package.json`、Vitest、確認用popupに加え、UI-01のRadix wrapperと通常Web component sheetが存在する。保存・一覧・AI、全featureのWeb fixture、Playwright拡張E2Eは未実装である。`package.json` 自体が見つからない場合は古いbranch、誤ったディレクトリ、不完全なcheckoutを疑い、[QUICKSTART.md](QUICKSTART.md) で現在の状態を確認する。
+2026-08-19時点ではPlasmo開発基盤、`package.json`、Vitest 17 files／84 tests、確認用popup、UI-01のRadix wrapper／通常Web component sheet、UI-02のproduction App Shell／全画面shell fixtureが存在する。保存・一覧・AI、feature data／fixture、repository Playwright拡張E2E、CI、report／trace、人間受入は未実装である。`package.json` 自体が見つからない場合は古いbranch、誤ったディレクトリ、不完全なcheckoutを疑い、[QUICKSTART.md](QUICKSTART.md) で現在の状態を確認する。
 
 実装後の障害調査では、次の順序を守る。
 
@@ -508,20 +508,20 @@ Chromeは拡張service workerを非活動時に終了するため、グローバ
 
 **症状**
 
-- `pnpm ui:preview`は開くがcomponent sheetしかなく、目的のfeature fixtureが存在しない。または`pnpm test:e2e`が存在しない。
+- `pnpm ui:preview`でcomponent sheetとUI-02 App Shellは開くが、目的のfeature fixtureが存在しない。または`pnpm test:e2e`が存在しない。
 - Webプレビューでは動くが、実拡張機能でChrome APIや永続化が失敗する。
 - AIエージェントが成功と報告したが、HTML report、screenshot、trace、対象commitがない。
 
 **確認**
 
 1. [TESTING.md](TESTING.md) と `package.json` のscriptを比較する。
-2. Webプレビューがproduction componentとfake Adapterを使い、別UIを複製していないか確認する。
+2. `?view=app-shell#/home` を開き、UI-02 App Shellがproduction componentを使っているか確認する。feature fixtureではfake Adapterを使い、別UIを複製していないか確認する。
 3. Playwrightがbuild済み拡張を隔離profileへ読み込み、`chrome-extension://` ページを操作したか確認する。
 4. AIエージェントの対象commit／buildと、人間が確認する成果物が一致するか確認する。
 
 **対処**
 
-- UI-01では`ui:preview`／`ui:build`だけが実装済みである。全feature fixtureとPlaywright scriptはTASK-013の残作業なので、存在しない検査をpassと記録しない。
+- UI-01のcomponent sheetとUI-02の全画面App Shell fixtureは実装済みである。最終UI-02 tab bundleでは一回限りのPlaywright確認が成功しているが、全feature fixtureとrepository Playwright script／CI／report／traceはTASK-013の残作業なので、存在しない検査をpassと記録しない。
 - Webプレビュー成功をpermissions、commands、Service Worker、拡張機能originの成功根拠にしない。
 - reportまたはtraceがない場合はAIエージェント確認を未実施として再実行し、その後に人間受入を行う。
 - screenshot基準を自動更新せず、人間が差分と理由を確認する。

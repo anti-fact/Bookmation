@@ -1,3 +1,4 @@
+// Select の選択結果、無効状態、キーボードでの開閉とフォーカス復帰を確認します。
 import { render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import * as React from "react"
@@ -16,6 +17,7 @@ function ControlledSelect({
 }: {
   onChange?: (value: string) => void
 }) {
+  // 実際の設定画面と同じく、親コンポーネントが現在値を持つ使い方を再現します。
   const [value, setValue] = React.useState("")
 
   return (
@@ -67,6 +69,7 @@ describe("Select", () => {
   })
 
   it("opens and closes by keyboard and restores trigger focus", async () => {
+    // マウスなしでも開閉でき、閉じた後の操作位置が保たれることを確認します。
     const user = userEvent.setup()
     render(<ControlledSelect />)
 

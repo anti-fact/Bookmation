@@ -1,3 +1,4 @@
+// Switch のラベル操作、キーボード操作、無効・保存待ち状態を確認するテストです。
 import { render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import * as React from "react"
@@ -10,6 +11,7 @@ function ControlledSwitch({
 }: {
   onChange?: (value: boolean) => void
 }) {
+  // 親が checked を持つ controlled な使い方をテスト用に再現します。
   const [checked, setChecked] = React.useState(false)
 
   return (

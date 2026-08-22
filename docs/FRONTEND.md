@@ -1,6 +1,6 @@
 # フロントエンド設計
 
-- 状態: 設計決定・popup scaffoldとUI-01 primitive／Web component sheetを実装済み
+- 状態: 設計決定・popup scaffold、UI-01 primitive／Web component sheet、UI-02 App Shell／hash route／共通headerを実装済み
 - 更新日: 2026-08-19
 - 採用: Plasmo + React + TypeScript + Radix Primitives + Tailwind CSS
 - 関連: [UI](./UI.md) / [設計](./DESIGN.md) / [要件](./REQUIREMENTS.md) / [実装ガイド](../FRONTEND_GUIDE.md) / [テスト](./TESTING.md)
@@ -32,6 +32,10 @@
 | `#/settings/share`          | `SettingsPage` 共有                  |
 
 `BookmarkEditDialog`、`CategoryTagCreateDialog`、`CategoryTagEditDialog`、`AddUrlDialog`、`AiAgentPopup` はroute上へ重ねる。キーワードqueryはhash routeへ保持し、AI会話、編集draft、候補cursorは永続化しない。
+
+UI-02では上表の9 routeを型付きでparse／serializeし、Plasmo dashboard entryから共通App Shellへ接続した。`AppHeader`は `default`／`labels`／`settings` の3 variantを共有し、icon-only操作はaccessible name付きの`IconButton`とpointer／focusの両方で開く`Tooltip`を使う。route変更後はmain headingへscrollさせずにfocusし、ブラウザの戻る／進むではrouteごとのscroll位置を復元する。描画例外は`ErrorBoundary`のfallbackへ隔離する。
+
+この段階の各route本文はshell確認用であり、Bookmarkデータ、検索候補、AI dialog、カテゴリ・タグ管理、設定form等のfeature実装を含まない。通常Webプレビューはcomponent sheetを `http://127.0.0.1:4173/`、App Shellを `http://127.0.0.1:4173/?view=app-shell#/home` から確認する。実拡張のPlaywright E2E scriptと人間による実Chrome受入は未完了である。
 
 ## コンポーネント境界
 
