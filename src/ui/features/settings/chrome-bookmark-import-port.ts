@@ -31,6 +31,13 @@ export type ChromeImportCommitResult = Readonly<{
   skippedDuplicate: number
   skippedOther: number
   failed: number
+  importedBookmarks: ReadonlyArray<{
+    bookmarkId: string
+    revision: number
+    rawUrl: string
+    title: string
+    faviconUrl: string | null
+  }>
 }>
 
 export type ChromeImportErrorCode =
@@ -61,6 +68,6 @@ export const emptyChromeBookmarkImportPort: ChromeBookmarkImportPort = {
     return { selectionFingerprint: "", folders: [], entries: [] }
   },
   async commit() {
-    return { imported: 0, skippedDuplicate: 0, skippedOther: 0, failed: 0 }
+    return { imported: 0, skippedDuplicate: 0, skippedOther: 0, failed: 0, importedBookmarks: [] }
   },
 }

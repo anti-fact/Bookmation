@@ -17,6 +17,7 @@ describe("parseNetscapeBookmarkHtml", () => {
       expect.objectContaining({
         url: "https://example.com/nested",
         sourceFolderName: "開発",
+        faviconUrl: null,
       }),
     ])
   })
@@ -38,5 +39,14 @@ describe("parseNetscapeBookmarkHtml", () => {
     } catch {
       // optional local fixture
     }
+  })
+
+  it("parses Chrome export ICON attribute as faviconUrl", () => {
+    const html = `<!DOCTYPE NETSCAPE-Bookmark-file-1>
+<DL><p>
+  <DT><A HREF="https://example.com" ICON="data:image/png;base64,iVBORw0KGgo=">Example</A>
+</DL><p>`
+    const entries = parseNetscapeBookmarkHtml(html)
+    expect(entries[0]?.faviconUrl).toBe("data:image/png;base64,iVBORw0KGgo=")
   })
 })

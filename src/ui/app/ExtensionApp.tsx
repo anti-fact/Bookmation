@@ -49,10 +49,8 @@ import {
   emptyGeneralSettingsPort,
   type GeneralSettingsPort
 } from "~/ui/features/settings/general-settings-port"
-import {
-  emptyChromeBookmarkImportPort,
-  type ChromeBookmarkImportPort
-} from "~/ui/features/settings/chrome-bookmark-import-port"
+import { createIndexedDbChromeBookmarkImportPort } from "~/adapters/indexeddb-chrome-bookmark-import-port"
+import type { ChromeBookmarkImportPort } from "~/ui/features/settings/chrome-bookmark-import-port"
 import { ShareSettingsSection } from "~/ui/features/settings/ShareSettingsSection"
 import {
   emptyShareSettingsPort,
@@ -308,6 +306,7 @@ type RouteBodyProps = {
   bookmarkListPort: BookmarkListPort
   chromeBookmarkImportPort: ChromeBookmarkImportPort
   generalSettingsPort: GeneralSettingsPort
+  onBookmarksImported: () => void
   headingRef: React.RefObject<HTMLHeadingElement>
   labelCreateRequest: LabelsCreateRequest
   labelManagementPort: LabelManagementPort
@@ -414,6 +413,7 @@ function RouteBody({
   labelManagementPort,
   labelsManageMode,
   navigate,
+  onBookmarksImported,
   onLabelCreateRequestHandled,
   onEditBookmark,
   generalSettingsPort,
@@ -527,6 +527,7 @@ function RouteBody({
           {route.section === "general" && (
             <GeneralSettingsSection
               chromeBookmarkImportPort={chromeBookmarkImportPort}
+              onBookmarksImported={onBookmarksImported}
               port={generalSettingsPort}
             />
           )}
@@ -594,7 +595,7 @@ export function ExtensionApp({
   archiveSettingsPort = emptyArchiveSettingsPort,
   bookmarkFormPort = emptyBookmarkFormPort,
   bookmarkListPort = emptyBookmarkListPort,
-  chromeBookmarkImportPort = emptyChromeBookmarkImportPort,
+  chromeBookmarkImportPort,
   generalSettingsPort = emptyGeneralSettingsPort,
   labelManagementPort = emptyLabelManagementPort,
   onboardingPort = emptyOnboardingPort,
@@ -633,6 +634,19 @@ export function ExtensionApp({
   const [bookmarkDialogMode, setBookmarkDialogMode] =
     React.useState<BookmarkDialogMode | null>(null)
   const [bookmarkListRevision, setBookmarkListRevision] = React.useState(0)
+  const resolvedChromeBookmarkImportPort = React.useMemo(
+    () =>
+      chromeBookmarkImportPort ??
+      createIndexedDbChromeBookmarkImportPort({
+        onMetadataComplete: () => {
+          setBookmarkListRevision((revision) => revision + 1)
+        },
+      }),
+    [chromeBookmarkImportPort],
+  )
+  const handleChromeBookmarksImported = React.useCallback(() => {
+    setBookmarkListRevision((revision) => revision + 1)
+  }, [])
   const [labelCreateRequest, setLabelCreateRequest] =
     React.useState<LabelsCreateRequest>(null)
   const [labelsManageMode, setLabelsManageMode] = React.useState(false)
@@ -908,8 +922,9 @@ export function ExtensionApp({
           bookmarkFormPort={bookmarkFormPort}
           bookmarkListPort={bookmarkListPort}
           bookmarkListRevision={bookmarkListRevision}
-          chromeBookmarkImportPort={chromeBookmarkImportPort}
+          chromeBookmarkImportPort={resolvedChromeBookmarkImportPort}
           generalSettingsPort={generalSettingsPort}
+          onBookmarksImported={handleChromeBookmarksImported}
           headingRef={headingRef}
           labelCreateRequest={labelCreateRequest}
           labelManagementPort={labelManagementPort}

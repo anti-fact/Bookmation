@@ -4,6 +4,8 @@ export type ParsedChromeBookmarkEntry = Readonly<{
   entryId: string
   url: string
   title: string
+  /** Chrome export の ICON 属性（data URL または http(s) URL）。 */
+  faviconUrl: string | null
   /** 直上 Folder の表示名。ルート直下は null。 */
   sourceFolderName: string | null
 }>
@@ -49,10 +51,13 @@ function parseBookmarkDl(
       if (anchor) {
         const href = anchor.getAttribute("href")?.trim()
         if (!href) continue
+        const icon = anchor.getAttribute("ICON") ?? anchor.getAttribute("icon")
+        const faviconUrl = icon?.trim() || null
         entries.push({
           entryId: `entry-${nextEntryIndex.value}`,
           url: href,
           title: anchor.textContent?.trim() ?? "",
+          faviconUrl,
           sourceFolderName: currentFolder,
         })
         nextEntryIndex.value += 1

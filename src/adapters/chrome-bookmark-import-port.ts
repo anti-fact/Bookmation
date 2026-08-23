@@ -81,11 +81,15 @@ function decodeCommit(data: Record<string, unknown>): ChromeImportCommitResult {
   ) {
     throw new ChromeBookmarkImportPortError("INVALID_RESPONSE")
   }
+  const importedBookmarks = Array.isArray(data.importedBookmarks)
+    ? (data.importedBookmarks as ChromeImportCommitResult["importedBookmarks"])
+    : []
   return {
     imported: data.imported,
     skippedDuplicate: data.skippedDuplicate,
     skippedOther: data.skippedOther,
     failed: data.failed,
+    importedBookmarks,
   }
 }
 

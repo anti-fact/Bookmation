@@ -170,6 +170,7 @@ export interface ImportChromeBookmarkUnclassifiedInput {
   id: Id
   rawUrl: string
   title: string
+  faviconUrl?: string | null
   creationRequestId: string
   now?: EpochMs
 }
@@ -179,6 +180,7 @@ export interface ImportChromeBookmarkWithTagInput {
   rawUrl: string
   title: string
   tagId: Id
+  faviconUrl?: string | null
   creationRequestId: string
   now?: EpochMs
 }
@@ -293,7 +295,7 @@ export class LocalDataLayer {
       urlNormalizationVersion: 1,
       title: input.title,
       siteName: null,
-      faviconUrl: null,
+      faviconUrl: input.faviconUrl ?? null,
       faviconBlobId: null,
       thumbnailBlobId: null,
       classificationState: "CLASSIFIED",
@@ -369,7 +371,7 @@ export class LocalDataLayer {
       urlNormalizationVersion: 1,
       title: input.title,
       siteName: null,
-      faviconUrl: null,
+      faviconUrl: input.faviconUrl ?? null,
       faviconBlobId: null,
       thumbnailBlobId: null,
       classificationState: "UNCLASSIFIED",

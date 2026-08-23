@@ -56,8 +56,10 @@ function folderResolutionLabel(
 
 export function ChromeBookmarkImportPanel({
   importPort,
+  onImported,
 }: {
   importPort: ChromeBookmarkImportPort
+  onImported?: () => void
 }) {
   const [entries, setEntries] = React.useState<ParsedChromeBookmarkEntry[]>([])
   const [preview, setPreview] = React.useState<ChromeImportPreview | null>(null)
@@ -114,6 +116,7 @@ export function ChromeBookmarkImportPanel({
       setMessage(
         `取り込み完了: ${result.imported} 件 / 重複スキップ ${result.skippedDuplicate} 件 / その他スキップ ${result.skippedOther} 件 / 失敗 ${result.failed} 件`,
       )
+      onImported?.()
       const refreshed = await importPort.preview(entries)
       setPreview(refreshed)
     } catch (error) {

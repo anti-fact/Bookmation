@@ -1,4 +1,5 @@
 import { LocalDataLayer } from "~/adapters/indexeddb/local-data-layer"
+import { scheduleChromeImportMetadataFetch } from "~/adapters/chrome-bookmark-import-metadata"
 import {
   commitChromeBookmarkImport,
   previewChromeBookmarkImport,
@@ -7,12 +8,14 @@ import type { ChromeBookmarkImportPort } from "~/ui/features/settings/chrome-boo
 
 type IndexedDbChromeBookmarkImportPortOptions = {
   openDataLayer?: () => Promise<LocalDataLayer>
+  onMetadataComplete?: () => void
 }
 
 export function createIndexedDbChromeBookmarkImportPort(
   options: IndexedDbChromeBookmarkImportPortOptions = {},
 ): ChromeBookmarkImportPort {
   const openDataLayer = options.openDataLayer ?? (() => LocalDataLayer.open())
+  const onMetadataComplete = options.onMetadataComplete
 
   return {
     async preview(entries) {
@@ -26,7 +29,9 @@ export function createIndexedDbChromeBookmarkImportPort(
     async commit(input) {
       const layer = await openDataLayer()
       try {
-        return await commitChromeBookmarkImport(layer, input)
+        const result = await commitChromeBookmarkImport(layer, input)
+        scheduleChromeImportMetadataFetch(result.importedBookmarks, onMetadataComplete)
+        return result
       } finally {
         await layer.close()
       }

@@ -55,6 +55,13 @@ export type ChromeImportCommitResult = Readonly<{
   skippedDuplicate: number
   skippedOther: number
   failed: number
+  importedBookmarks: ReadonlyArray<{
+    bookmarkId: string
+    revision: number
+    rawUrl: string
+    title: string
+    faviconUrl: string | null
+  }>
 }>
 
 async function findTagByFolderKey(
@@ -233,6 +240,7 @@ export async function commitChromeBookmarkImport(
   let skippedDuplicate = 0
   let skippedOther = 0
   let failed = 0
+  const importedBookmarks: ChromeImportCommitResult["importedBookmarks"][number][] = []
 
   for (const entry of input.entries) {
     const folderKey = folderKeyFromName(entry.sourceFolderName)
@@ -263,6 +271,7 @@ export async function commitChromeBookmarkImport(
 
     const title = resolveBookmarkTitle(entry.title, hostnameFromUrl(entry.url))
     try {
+      let bookmark
       if (resolution.mode === "REUSE") {
         const tag = await layer.getLabel(resolution.tagId)
         if (
@@ -274,28 +283,37 @@ export async function commitChromeBookmarkImport(
           failed += 1
           continue
         }
-        await layer.importChromeBookmarkWithTag({
+        bookmark = await layer.importChromeBookmarkWithTag({
           id: crypto.randomUUID(),
           rawUrl: entry.url,
           title,
           tagId: tag.id,
+          faviconUrl: entry.faviconUrl,
           creationRequestId: `${input.commitRequestId}:${entry.entryId}`,
         })
       } else {
-        await layer.importChromeBookmarkUnclassified({
+        bookmark = await layer.importChromeBookmarkUnclassified({
           id: crypto.randomUUID(),
           rawUrl: entry.url,
           title,
+          faviconUrl: entry.faviconUrl,
           creationRequestId: `${input.commitRequestId}:${entry.entryId}`,
         })
       }
       imported += 1
+      importedBookmarks.push({
+        bookmarkId: bookmark.id,
+        revision: bookmark.revision,
+        rawUrl: bookmark.rawUrl,
+        title: bookmark.title,
+        faviconUrl: bookmark.faviconUrl,
+      })
     } catch {
       failed += 1
     }
   }
 
-  return { imported, skippedDuplicate, skippedOther, failed }
+  return { imported, skippedDuplicate, skippedOther, failed, importedBookmarks }
 }
 
 export function folderResolutionComplete(

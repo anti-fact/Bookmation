@@ -61,7 +61,8 @@ function parseImportEntries(value: unknown): ParsedChromeBookmarkEntry[] | null 
       typeof record.entryId !== "string" ||
       typeof record.url !== "string" ||
       typeof record.title !== "string" ||
-      !(record.sourceFolderName === null || typeof record.sourceFolderName === "string")
+      !(record.sourceFolderName === null || typeof record.sourceFolderName === "string") ||
+      !(record.faviconUrl === null || record.faviconUrl === undefined || typeof record.faviconUrl === "string")
     ) {
       return null
     }
@@ -69,6 +70,8 @@ function parseImportEntries(value: unknown): ParsedChromeBookmarkEntry[] | null 
       entryId: record.entryId,
       url: record.url,
       title: record.title,
+      faviconUrl:
+        typeof record.faviconUrl === "string" ? record.faviconUrl : null,
       sourceFolderName: record.sourceFolderName,
     })
   }

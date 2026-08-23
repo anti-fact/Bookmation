@@ -74,9 +74,11 @@ function SettingSwitchRow({
 
 export function GeneralSettingsSection({
   chromeBookmarkImportPort,
+  onBookmarksImported,
   port
 }: {
   chromeBookmarkImportPort: ChromeBookmarkImportPort
+  onBookmarksImported?: () => void
   port: GeneralSettingsPort
 }) {
   const [snapshot, setSnapshot] =
@@ -344,6 +346,7 @@ export function GeneralSettingsSection({
 
       <ChromeBookmarkImportPanel
         importPort={chromeBookmarkImportPort}
+        onImported={onBookmarksImported}
       />
 
       {error ? (
