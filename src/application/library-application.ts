@@ -143,7 +143,7 @@ export function createLibraryApplication(
         return {
           requestId: request.requestId,
           ok: true,
-          data: { categoryId: category.id, revision: category.revision },
+          data: { categoryId: category.id, name: category.name, revision: category.revision },
         }
       }
 
@@ -163,7 +163,7 @@ export function createLibraryApplication(
         return {
           requestId: request.requestId,
           ok: true,
-          data: { tagId: tag.id, revision: tag.revision, parentCategoryId: tag.parentCategoryId },
+          data: { tagId: tag.id, name: tag.name, revision: tag.revision, parentCategoryId: tag.parentCategoryId },
         }
       }
 
@@ -210,7 +210,7 @@ export function createLibraryApplication(
         const kind = payload.kind === "CATEGORY" || payload.kind === "TAG" ? payload.kind : undefined
         const limit = typeof payload.limit === "number" ? payload.limit : undefined
         const items = await layer.listLabelCandidates(payload.keyword, kind, limit)
-        return { requestId: request.requestId, ok: true, data: { items: items.map((item) => ({ id: item.id, name: item.name, kind: item.kind, parentCategoryId: item.parentCategoryId, revision: item.revision, origin: item.origin, usageCount: item.usageCount })) } }
+        return { requestId: request.requestId, ok: true, data: { items: items.map((item) => ({ id: item.id, name: item.name, kind: item.kind, parentCategoryId: item.parentCategoryId, parentCategoryName: item.parentCategoryName, revision: item.revision, origin: item.origin, usageCount: item.usageCount })) } }
       }
       if (request.action === "get-category-edit-detail" && typeof payload.categoryId === "string") {
         const detail = await layer.getCategoryEditDetail(payload.categoryId)
@@ -270,6 +270,7 @@ export function createLibraryApplication(
     } catch (error: unknown) {
       if (isDomainError(error)) {
         safeLogError("Library action rejected", error)
+        return { requestId: request.requestId, ok: false, error: { code: error.code } }
       } else {
         safeLogError("Library action failed", error)
       }

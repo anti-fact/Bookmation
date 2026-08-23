@@ -79,6 +79,8 @@ import {
 import { INTERNAL_PAGE_SIZE, STORES, BOOKMARK_INDEXES, CLASSIFICATION_JOB_INDEXES } from "./stores"
 
 const SAVE_TX_STORES = [
+  STORES.labels,
+  STORES.bookmarkLabels,
   STORES.bookmarks,
   STORES.classificationJobs,
   STORES.bookmarkRevisions,
@@ -125,6 +127,7 @@ export interface SaveBookmarkWithJobInput {
   faviconUrl?: string | null
   faviconBlobId?: Id | null
   thumbnailBlobId?: Id | null
+  tagIds?: readonly Id[]
   source?: PersistedActiveBookmarkRecord["source"]
   policy?: ClassificationPolicySnapshot
   creationRequestId: Id
@@ -190,7 +193,7 @@ export interface SuggestAllByKeywordCandidate {
   displayText: string
   matchedFields: string[]
 }
-export interface LabelCandidate { id: Id; name: string; kind: "CATEGORY" | "TAG"; parentCategoryId: Id | null; revision: number; origin: PersistedLabelRecord["origin"]; usageCount: number }
+export interface LabelCandidate { id: Id; name: string; kind: "CATEGORY" | "TAG"; parentCategoryId: Id | null; parentCategoryName: string | null; revision: number; origin: PersistedLabelRecord["origin"]; usageCount: number }
 
 export class LocalDataLayer {
   private constructor(private readonly db: BookmationDatabase) {}
@@ -233,6 +236,10 @@ export class LocalDataLayer {
     const url = validateAndNormalizeUrl(input.rawUrl)
     const urlHash = await computeUrlHash(url.normalized)
     const policy = input.policy ?? policyFromGranularity(2)
+    const tagIds = [...(input.tagIds ?? [])]
+    if (new Set(tagIds).size !== tagIds.length) {
+      throw new DomainError(DomainErrorCode.INVALID_ID, "Duplicate tag IDs")
+    }
 
     const txCheck = this.db.transaction([STORES.classificationJobs], "readonly")
     const existingJob = await txCheck
@@ -264,10 +271,30 @@ export class LocalDataLayer {
       bookmarkId: input.id,
       normalizedUrl: url.normalized,
       policy,
+      tagIds: [...tagIds].sort(),
     })
 
     const tx = this.db.transaction([...SAVE_TX_STORES], "readwrite")
     const jobsStore = tx.objectStore(STORES.classificationJobs)
+    const categoryIds = new Set<Id>()
+
+    for (const tagId of tagIds) {
+      const tag = await getLabelOrThrow(tx, tagId)
+      if (
+        tag.kind !== "TAG" ||
+        tag.deletedAt !== null ||
+        tag.parentCategoryId === null
+      ) {
+        throw new DomainError(DomainErrorCode.INVALID_ID, "Active tag not found")
+      }
+      const parent = await getLabelOrThrow(tx, tag.parentCategoryId)
+      if (parent.kind !== "CATEGORY" || parent.deletedAt !== null) {
+        throw new DomainError(
+          DomainErrorCode.TAG_REQUIRES_ACTIVE_CATEGORY_PARENT,
+        )
+      }
+      categoryIds.add(parent.id)
+    }
 
     const bookmark: PersistedActiveBookmarkRecord = {
       schemaVersion: 1,
@@ -325,7 +352,11 @@ export class LocalDataLayer {
       bookmarkRevision: bookmark.revision,
       reason: "USER_EDIT",
       before: { categoryIds: [], tagIds: [], archiveState: "ACTIVE" },
-      after: { categoryIds: [], tagIds: [], archiveState: "ACTIVE" },
+      after: {
+        categoryIds: [...categoryIds].sort(),
+        tagIds: [...tagIds].sort(),
+        archiveState: "ACTIVE",
+      },
       actor: "USER",
       createdAt: now,
       updatedAt: now,
@@ -334,6 +365,22 @@ export class LocalDataLayer {
     const searchDoc = buildBookmarkSearchDocument(bookmark, now)
 
     await putBookmark(tx, bookmark)
+    for (const tagId of tagIds) {
+      await putEdge(tx, {
+        schemaVersion: 1,
+        id: crypto.randomUUID(),
+        bookmarkId: bookmark.id,
+        labelId: tagId,
+        assignedBy: "USER",
+        confidence: null,
+        classificationJobId: null,
+        createdAt: now,
+        updatedAt: now,
+        revision: 1,
+        deletedAt: null,
+      })
+    }
+    await syncCategoryEdgesFromTags(tx, bookmark, now)
     await jobsStore.put(stripUndefinedFields(job as unknown as Record<string, unknown>) as unknown as PersistedClassificationJobRecord)
     await tx
       .objectStore(STORES.bookmarkRevisions)
@@ -1222,12 +1269,41 @@ export class LocalDataLayer {
   }
 
   async listLabelCandidates(keyword: string, kind?: "CATEGORY" | "TAG", limit = 8): Promise<LabelCandidate[]> {
-    const needle = keyword.trim().toLowerCase()
-    if (!needle) return []
+    let needle: string
+    try {
+      needle = normalizeLabelName(keyword).normalized
+    } catch {
+      return []
+    }
     const labels = await this.db.getAll(STORES.labels)
     const matches = labels.filter((label) => label.deletedAt === null && (!kind || label.kind === kind) && label.normalizedName.includes(needle))
-    const candidates = await Promise.all(matches.map(async (label) => ({ id: label.id, name: label.name, kind: label.kind, parentCategoryId: label.parentCategoryId, revision: label.revision, origin: label.origin, usageCount: (await this.db.getAllFromIndex(STORES.bookmarkLabels, "byLabel", label.id)).filter((edge) => edge.deletedAt === null).length })))
-    return candidates.sort((a, b) => b.usageCount - a.usageCount || a.name.localeCompare(b.name)).slice(0, limit)
+    const candidates = await Promise.all(matches.map(async (label) => {
+      const parent = label.parentCategoryId
+        ? await this.db.get(STORES.labels, label.parentCategoryId)
+        : undefined
+      return {
+        id: label.id,
+        name: label.name,
+        kind: label.kind,
+        exactMatch: label.normalizedName === needle,
+        parentCategoryId: label.parentCategoryId,
+        parentCategoryName:
+          parent?.kind === "CATEGORY" && parent.deletedAt === null
+            ? parent.name
+            : null,
+        revision: label.revision,
+        origin: label.origin,
+        usageCount: (await this.db.getAllFromIndex(STORES.bookmarkLabels, "byLabel", label.id)).filter((edge) => edge.deletedAt === null).length,
+      }
+    }))
+    return candidates
+      .sort(
+        (a, b) =>
+          Number(b.exactMatch) - Number(a.exactMatch) ||
+          b.usageCount - a.usageCount ||
+          a.name.localeCompare(b.name),
+      )
+      .slice(0, limit)
   }
 
   /** BE-09: Label を先に返す、順位契約を持たない字句検索。 */

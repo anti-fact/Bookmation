@@ -29,8 +29,10 @@ describe("LabelRibbonTrail", () => {
     expect(segments[0]?.className).toContain("text-2xl")
     expect(segments[0]?.className).toContain("sm:text-3xl")
     expect(segments[0]?.className).not.toContain("text-4xl")
-    expect(segments[0]?.className).toContain("hover:bg-bm-on-panel")
-    expect(segments[0]?.className).toContain("hover:text-bm-ink")
+    expect(segments[0]?.className).toContain("hover:bg-bm-ink")
+    expect(segments[0]?.className).toContain("hover:text-bm-paper")
+    expect(segments[0]?.className).toContain("focus-within:bg-bm-ink")
+    expect(segments[0]?.className).toContain("focus-within:text-bm-paper")
     expect(segments[1]?.className).toContain("-ml-[15px]")
     expect(segments[1]?.style.zIndex).toBe("2")
     const categoryRemove = within(segments[0]!).getByRole("button", {
@@ -46,11 +48,7 @@ describe("LabelRibbonTrail", () => {
   })
 
   it("keeps a non-filter trail non-interactive", () => {
-    render(
-      <LabelRibbonTrail
-        items={[{ id: "recent", label: "最近追加" }]}
-      />
-    )
+    render(<LabelRibbonTrail items={[{ id: "recent", label: "最近追加" }]} />)
 
     expect(screen.queryByRole("button")).toBeNull()
   })

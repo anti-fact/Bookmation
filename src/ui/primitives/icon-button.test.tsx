@@ -18,6 +18,9 @@ describe("IconButton", () => {
     const button = screen.getByRole("button", { name: "設定を開く" })
     expect(button.getAttribute("type")).toBe("button")
     expect(button.getAttribute("data-purpose")).toBe("settings")
+    expect(button.className).toContain("hover:bg-bm-ink")
+    expect(button.className).toContain("hover:text-bm-paper")
+    expect(button.className).toContain("[&:hover_img]:invert")
     expect(button.querySelector("span")?.getAttribute("aria-hidden")).toBe(
       "true"
     )

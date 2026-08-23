@@ -1000,11 +1000,50 @@ Chrome Prompt API v151 での型定義エラーを修正し、Availability チ�
 
 ### 残課題
 
-- 編集buttonから開くBookmark編集／Tag作成side view／削除はUI-05で実装する。
+- Bookmark編集／Tag作成side view／削除はUI-05で実装済みである。
 - toolbarのkeyword検索候補／結果はUI-07、AI応答はUI-08で実装する。
 - IndexedDBに保存したthumbnail／favicon Blobの画面用URL解決はTASK-010へ残し、現時点のproduction一覧は同梱ロゴ／iconへ縮退する。
 - repository管理されたPlaywright拡張E2Eと人間による実Chrome受入は未実施である。
 - 実装はbase commit `e770827`上の未commit差分であり、commit／pushは未実施である。
+
+## 2026-08-23 — UI-05 Bookmark追加／編集Tag field・同一Dialog side view
+
+### 目的
+
+UI-04の全Bookmark編集buttonとApp Headerの追加buttonを、追加／編集で共通のTag field、Tag／Category作成side view、確認なしのBookmark論理削除へ接続する。
+
+### 変更
+
+- `BookmarkDialog`を`FORM | CREATE_TAG | CREATE_CATEGORY`のstep state machineとして追加し、Radix Dialogを重ねずにBookmark draft、Tag検索語、作成draftを保持するようにした。
+- `BookmarkTagField`へ親Category名付き最大8件候補、正規化完全一致、IME変換中を除くEnter、1件ずつの追加、重複防止、入力clear／focus復帰、初期展開Tag chipと個別解除、TagからのCategory読取表示を実装した。
+- Tag作成からCategory作成へ進み、新Categoryを自動選択してTag作成へ戻すside viewを実装した。作成済みTagは解決済み候補へ戻し、利用者が`追加`／EnterするまでBookmark draftへ確定しない。
+- `BookmarkFormPort`とChrome adapterを追加し、候補検索、Category／Tag作成、Bookmark保存／更新／論理削除を既存message／Application／IndexedDBへ接続した。同じ作成draftのretryではrequest IDを再利用し、安全なDomain error codeをUI文言へ変換する。
+- Dashboard URL保存で0件以上の明示Tag IDを受け取り、Bookmark、Tag／自動導出Category edge、初期分類Jobを同じIndexedDB transactionへ保存してからmetadata取得を始めるようにした。
+- UI-04一覧itemへBookmark revisionとTagの親Category情報をhydrateし、編集modalの初期draftへ渡すようにした。
+- Web fixtureを可変のUI-05 Portへ更新し、追加／編集／Tag・Category作成／削除後の一覧再読込をproduction componentで確認できるようにした。
+- 通常画面とカテゴリ・タグ一覧のヘッダー末尾操作を同じ右余白へ揃え、折返し時も右寄せを維持するようにした。トップへ戻る操作は共通`IconButton`へ置き換え、閉じる操作と同じ85×50 pxのピル型に統一した。
+- 共通Button／IconButton、Select、候補、表示形式、開閉操作、選択済みTagを、hover中と選択／open継続中のどちらも黒背景・白文字へ統一した。カテゴリ・タグ一覧の管理Toggleと設定カテゴリ一覧は指定どおり既存のhover／選択表現を維持した。
+
+### 検証
+
+- 最新`origin/main`へrebase後の`pnpm typecheck`: 成功。
+- 最新`origin/main`へrebase後の`pnpm test`: 55 files／332 tests成功。
+- UI-05変更対象のESLint: 成功。
+- `pnpm ui:build`: 成功。
+- `pnpm build`: 成功、Chrome MV3向けPlasmo production build。
+- `git diff --check`: 成功。
+- `pnpm lint`: 失敗。今回未変更のUnicode生成script、Domain import、Normalizer test、schema-meta、security正規表現に既存29件のerrorがあり、UI-05変更対象にはerrorなし。
+- Web fixture: 最終差分をChromiumで開き、追加modalを1440×1000 pxと320×900 px、編集modalとTag／Category side viewを1440×1000 pxで確認した。横overflowはなく、狭幅modalはviewport内でscroll可能な高さに収まった。追加時はURLへ初期focusし、Tag side viewから戻るとTag入力へfocusが復元され、確認経路のconsole error／runtime exceptionは0件だった。
+- Web fixture: Chromiumの1440／768／320 px幅で通常画面とカテゴリ・タグ一覧のヘッダー右余白差がすべて0 pxであることを計測した。トップへ戻る操作と閉じる操作はいずれも85×50 pxだった。
+- `pnpm exec vitest run src/ui preview`: 24 files／117 tests成功。highlight共通契約、表示形式選択、Tag開閉、候補選択、管理Toggle／設定カテゴリ一覧の例外を含む。
+- Chromium Web fixture: 検索、IconButton、閉じる、Select、表示形式、Tag開閉のhover／継続状態が`#1e1e1e`／`#ffffff`、管理Toggleのhoverが`#ffffff`／`#1e1e1e`、設定カテゴリ一覧のhover背景が`#b9d4ea`であることを算出styleで確認した。
+- highlight変更対象のESLint、Prettier、`git diff --check`、`pnpm ui:build`、`pnpm build`: 成功。
+- 最新`origin/main`の分類Job／字句検索APIとUI-05の親Category付き候補を統合し、競合解消後も型検査、全test、変更対象ESLint、UI／拡張buildが成功した。
+
+### 残課題
+
+- repository管理されたPlaywright拡張E2E、build済みChrome拡張でのmessage／IndexedDB永続化確認、人間による実Chrome受入は未実施である。
+- keyword検索候補／結果はUI-07、AI応答はUI-08で実装する。
 
 ## 追記テンプレート
 

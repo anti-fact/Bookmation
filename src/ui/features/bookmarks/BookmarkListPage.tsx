@@ -39,7 +39,7 @@ type BookmarkListPageProps = {
   filter: BookmarkListFilter
   headingRef: React.RefObject<HTMLHeadingElement>
   onClearFilter: () => void
-  onEdit: (bookmarkId: string) => void
+  onEdit: (bookmark: BookmarkListItem) => void
   onNavigateToFilter: (
     filter: Exclude<BookmarkListFilter, { kind: "recent" }>
   ) => void
@@ -142,7 +142,7 @@ function CategoryLinks({
     <div aria-label="カテゴリ" className="flex min-w-0 flex-wrap gap-1">
       {bookmark.categories.map((category) => (
         <button
-          className="inline-flex min-h-5 items-center rounded-l-none rounded-r-bm-chip bg-bm-ink px-2 text-[0.6875rem] font-bold text-bm-paper outline-none transition-colors hover:bg-bm-panel focus-visible:ring-2 focus-visible:ring-bm-focus focus-visible:ring-offset-2 focus-visible:ring-offset-bm-paper"
+          className="inline-flex min-h-5 items-center rounded-l-none rounded-r-bm-chip bg-bm-ink px-2 text-[0.6875rem] font-bold text-bm-paper outline-none transition-colors hover:bg-bm-ink hover:text-bm-paper focus-visible:ring-2 focus-visible:ring-bm-focus focus-visible:ring-offset-2 focus-visible:ring-offset-bm-paper"
           key={category.id}
           onClick={() =>
             onNavigateToFilter({ id: category.id, kind: "category" })
@@ -172,7 +172,10 @@ function TagDisclosure({
             ? "タグなし"
             : `タグ${tags.length}件を${open ? "隠す" : "表示"}`
         }
-        className="group inline-flex min-h-7 items-center gap-1 rounded-bm-chip border border-bm-border bg-bm-paper px-2 text-xs font-semibold text-bm-ink outline-none transition-colors hover:bg-bm-accent focus-visible:ring-2 focus-visible:ring-bm-focus focus-visible:ring-offset-2 focus-visible:ring-offset-bm-paper disabled:cursor-default disabled:border-bm-muted disabled:text-bm-muted-text"
+        className={joinClassNames(
+          "group inline-flex min-h-7 items-center gap-1 rounded-bm-chip border border-bm-border px-2 text-xs font-semibold outline-none transition-colors hover:bg-bm-ink hover:text-bm-paper focus-visible:ring-2 focus-visible:ring-bm-focus focus-visible:ring-offset-2 focus-visible:ring-bm-paper disabled:cursor-default disabled:border-bm-muted disabled:text-bm-muted-text disabled:hover:bg-bm-paper disabled:hover:text-bm-muted-text",
+          open ? "bg-bm-ink text-bm-paper" : "bg-bm-paper text-bm-ink"
+        )}
         type="button"
       >
         タグ {tags.length}件
@@ -199,7 +202,7 @@ function TagDisclosure({
         <div aria-label="タグ" className="mt-2 flex flex-wrap gap-1.5">
           {tags.map((tag) => (
             <button
-              className="rounded-bm-chip border border-bm-border bg-bm-paper px-2 py-1 text-xs text-bm-ink outline-none transition-colors hover:bg-bm-accent focus-visible:ring-2 focus-visible:ring-bm-focus focus-visible:ring-offset-2 focus-visible:ring-offset-bm-paper"
+              className="rounded-bm-chip border border-bm-border bg-bm-paper px-2 py-1 text-xs text-bm-ink outline-none transition-colors hover:bg-bm-ink hover:text-bm-paper focus-visible:ring-2 focus-visible:ring-bm-focus focus-visible:ring-offset-2 focus-visible:ring-offset-bm-paper"
               key={tag.id}
               onClick={() => onNavigateToFilter({ id: tag.id, kind: "tag" })}
               type="button"
@@ -239,7 +242,7 @@ function BookmarkCard({
         <IconButton
           className="peer/edit pointer-events-none absolute right-2 top-2 z-10 bg-bm-paper opacity-0 shadow-bm-control group-hover/bookmark:pointer-events-auto group-hover/bookmark:opacity-100 focus-visible:pointer-events-auto focus-visible:opacity-100"
           label={`${bookmark.title}を編集`}
-          onClick={() => onEdit(bookmark.id)}
+          onClick={() => onEdit(bookmark)}
           shape="pill"
           size="compact"
           tooltipSide="left"
@@ -340,7 +343,7 @@ function BookmarkRow({
       <IconButton
         className="pointer-events-none self-start opacity-0 group-hover/bookmark:pointer-events-auto group-hover/bookmark:opacity-100 focus-visible:pointer-events-auto focus-visible:opacity-100"
         label={`${bookmark.title}を編集`}
-        onClick={() => onEdit(bookmark.id)}
+        onClick={() => onEdit(bookmark)}
         shape="pill"
         size="compact"
         tooltipSide="left"
@@ -371,14 +374,14 @@ function ViewModeControl({
     >
       <RadioGroupItem
         aria-label="グリッド表示"
-        className="size-10 rounded-bm-field text-bm-ink data-[state=checked]:bg-bm-paper data-[state=checked]:shadow-bm-control"
+        className="size-10 rounded-bm-field text-bm-ink transition-colors hover:bg-bm-ink hover:text-bm-paper data-[state=checked]:bg-bm-ink data-[state=checked]:text-bm-paper data-[state=checked]:shadow-bm-control"
         value="GRID"
       >
         <GridIcon className="size-5" />
       </RadioGroupItem>
       <RadioGroupItem
         aria-label="リスト表示"
-        className="size-10 rounded-bm-field text-bm-ink data-[state=checked]:bg-bm-paper data-[state=checked]:shadow-bm-control"
+        className="size-10 rounded-bm-field text-bm-ink transition-colors hover:bg-bm-ink hover:text-bm-paper data-[state=checked]:bg-bm-ink data-[state=checked]:text-bm-paper data-[state=checked]:shadow-bm-control"
         value="LIST"
       >
         <ListBulletIcon className="size-5" />
@@ -592,26 +595,27 @@ export function BookmarkListPage({
     })
   }
 
-  const handleNavigateToFilter: BookmarkListPageProps["onNavigateToFilter"] =
-    (nextFilter) => {
-      if (filter.kind === "category" && nextFilter.kind === "tag") {
-        onNavigateToFilter({
-          categoryId: filter.id,
-          kind: "category-tag",
-          tagId: nextFilter.id
-        })
-        return
-      }
-      if (filter.kind === "tag" && nextFilter.kind === "category") {
-        onNavigateToFilter({
-          categoryId: nextFilter.id,
-          kind: "category-tag",
-          tagId: filter.id
-        })
-        return
-      }
-      onNavigateToFilter(nextFilter)
+  const handleNavigateToFilter: BookmarkListPageProps["onNavigateToFilter"] = (
+    nextFilter
+  ) => {
+    if (filter.kind === "category" && nextFilter.kind === "tag") {
+      onNavigateToFilter({
+        categoryId: filter.id,
+        kind: "category-tag",
+        tagId: nextFilter.id
+      })
+      return
     }
+    if (filter.kind === "tag" && nextFilter.kind === "category") {
+      onNavigateToFilter({
+        categoryId: nextFilter.id,
+        kind: "category-tag",
+        tagId: filter.id
+      })
+      return
+    }
+    onNavigateToFilter(nextFilter)
+  }
 
   const handleRemoveFilter = (filterId: string) => {
     if (filter.kind === "recent") {
@@ -637,15 +641,13 @@ export function BookmarkListPage({
       const matchingCategory = items
         .flatMap((item) => item.categories)
         .find((category) => category.id === filter.id)
-      return [
-        { id: "category", label: matchingCategory?.name ?? filter.id }
-      ]
+      return [{ id: "category", label: matchingCategory?.name ?? filter.id }]
     }
 
     const matchingTag = items
       .flatMap((item) => item.tags)
-      .find((tag) =>
-        tag.id === (filter.kind === "tag" ? filter.id : filter.tagId)
+      .find(
+        (tag) => tag.id === (filter.kind === "tag" ? filter.id : filter.tagId)
       )
     if (filter.kind === "tag") {
       return [{ id: "tag", label: matchingTag?.name ?? filter.id }]
@@ -789,17 +791,19 @@ export function BookmarkListPage({
       </div>
 
       {showBackToTop ? (
-        <Button
-          aria-label="トップへ戻る"
-          className="fixed bottom-5 right-5 z-bm-floating size-12 min-w-0 rounded-full p-0 shadow-bm-floating sm:bottom-8 sm:right-8"
+        <IconButton
+          className="fixed bottom-5 right-5 z-bm-floating shadow-bm-floating sm:bottom-8 sm:right-8"
+          label="トップへ戻る"
           onClick={() => {
             runtime.scrollTo(0)
             headingRef.current?.focus({ preventScroll: true })
           }}
+          shape="pill"
+          tooltipSide="left"
           variant="outline"
         >
           <ArrowUpIcon aria-hidden="true" className="size-6" />
-        </Button>
+        </IconButton>
       ) : null}
     </section>
   )

@@ -2,9 +2,9 @@
 
 - 状態: 進行中
 - 作成日: 2026-08-22
-- 最終更新: 2026-08-22 13:15 JST
+- 最終更新: 2026-08-23 JST
 - 担当: 未定
-- 関連: [REQUIREMENTS.md](../REQUIREMENTS.md) / [BACKEND.md](../BACKEND.md) / [UI.md](../UI.md) / [SECURITY.md](../SECURITY.md) / [TASKS.md](../TASKS.md) / [BACKEND_TASKS.md](../../BACKEND_TASKS.md) / [Issue #9](https://github.com/anti-fact/Bookmation/issues/9) / [ISSUE-D35](../ISSUES.md)
+- 関連: [REQUIREMENTS.md](../REQUIREMENTS.md) / [BACKEND.md](../BACKEND.md) / [UI.md](../UI.md) / [SECURITY.md](../SECURITY.md) / [TASKS.md](../TASKS.md) / [BACKEND_TASKS.md](../../BACKEND_TASKS.md) / [Issue #9](https://github.com/anti-fact/Bookmation/issues/9) / [ISSUE-D35／D37](../ISSUES.md)
 
 ## 目的と利用者への価値
 
@@ -14,7 +14,7 @@
 | --- | --- |
 | popup「このページをブックマーク」 | 現在タブの URL が Bookmark として保存され、PENDING 分類 Job が付く |
 | ショートカット `save-current-page` | 同上（キーボードから） |
-| dashboard の URL 指定保存 | 入力 URL が valid なら Bookmark が保存される |
+| dashboard のブックマーク追加 | 入力URLがvalidなら、明示選択した0件以上のTagとともにBookmarkが保存され、CategoryはTag親から自動導出される |
 | popup / ショートカット「Bookmation ホームを開く」 | `#/home` が開き、**保存は走らない** |
 | 初回 install | `#/welcome` が 1 回だけ開き、update / reload では再表示されない |
 
@@ -64,7 +64,7 @@
 2. **BE-03 最小**: popup / dashboard ↔ Service Worker の typed message、allowlist、requestId 冪等
 3. **popup UI**: FR-003〜005（2 ボタン、ショートカット表示、割り当て変更案内）
 4. **commands 接続**: `save-current-page` / `open-bookmation-home` の分離 handler
-5. **dashboard URL 指定保存**: FR-006（最小 UI + 検証 + 保存）
+5. **dashboard Bookmark追加**: FR-006／FR-032（URL、任意title、Tagのリアルタイム候補／順次追加／解除、検証、保存）
 6. **`runtime.onInstalled`**: FR-012 / ISSUE-D21（INSTALL 時だけ `#/welcome` + onboardingState 初期化）
 7. **Manifest**: ISSUE-D35 に従い `host_permissions: ["https://*/*", "http://*/*"]` を追加
 8. **IndexedDB 接続**: Service Worker 起動時に `LocalDataLayer` を開き、保存 handler から利用
@@ -91,7 +91,8 @@
 | FR-003 | popup 2 操作、開いただけでは保存しない | 「このページをブックマーク」「Bookmation ホームを開く」。アイコン click ≠ 保存 |
 | FR-004 | 2 ショートカット + popup にキー表示 | `chrome.commands.getAll()` で allowlist 2 件のみ表示。空は `未割り当て` |
 | FR-005 | ショートカット変更は Chrome 管理画面へ案内 | `割り当てを変更` → `chrome://extensions/shortcuts` へのリンクまたは手順 |
-| FR-006 | URL 指定保存 | dashboard（`#/home`）に URL 入力 + 任意タイトル + 保存。ISSUE-D35 の検証・タイトル・メタデータ方針に従う |
+| FR-006 | URL 指定保存 | dashboardの共通ヘッダーからBookmark追加modalを開き、URL、任意title、0件以上のTagを保存する。ISSUE-D35の検証・タイトル・メタデータ方針に従う |
+| FR-032 | Tagの順次追加 | 空の入力からリアルタイム候補または明示的に新規作成したTagを `追加`／Enterで1件ずつ加え、現在Tagを初期展開して個別解除する。未知Tagはerrorにする |
 | FR-012 | 初回 / 通常ホーム | INSTALL だけ `#/welcome` を開き onboardingState 初期化。完了後は `#/home` |
 | NFR-003 | AI 非対応でも保存できる | 保存成功は Job=PENDING のまま返す。AI Host 未接続でも Bookmark は残る |
 
@@ -103,7 +104,7 @@
 | --- | --- | --- | --- |
 | 1 | popup | 「このページをブックマーク」click | `activeTab` の URL / title / favIconUrl |
 | 2 | command | `save-current-page` | 同上（アクティブタブ） |
-| 3 | dashboard | URL 指定保存フォーム submit | ユーザー URL、任意 title |
+| 3 | dashboard | Bookmark追加フォームsubmit | ユーザーURL、任意title、明示選択した0件以上のactive Tag ID |
 
 3 入口は **同一 Application use case**（内部で `SaveCurrentTab` / `SaveBookmarkByUrl` を分岐）へ合流する。Bookmark 作成・重複確認・Job 永続化を **重複実装しない**（[BACKEND.md](../BACKEND.md)）。
 
@@ -180,12 +181,19 @@
 - 保存中は二重 submit を抑止。
 - キーボード操作と focus 順序を確保（NFR-004 の最小）。
 
-### dashboard URL 指定保存要件
+### dashboard Bookmark追加要件
 
-- 配置: `#/home`（最近追加ホーム）に **P0 最小フォーム** を置く。
-  - URL 入力（必須）
+- 配置: 共通ヘッダーの追加操作からBookmark追加modalを開く。
+  - URL入力（必須）
   - タイトル入力（任意）
-  - 「保存」ボタン
+  - Tag入力（空欄）と最大8件のリアルタイム候補
+  - 入力直下に左 `タグ n件`、右 `追加`
+  - 初期展開した現在Tag。全画面カテゴリ・タグ一覧のTag chip形状と、Bookmark一覧のカテゴリ・タグシェブロン相当のhover／focus減光＋中央解除buttonを使う
+  - Bookmarkを確定する `保存する`
+- 選択中候補またはactive Tag名との正規化完全一致を `追加`／IME変換中ではないEnterで1件ずつdraftへ追加する。成功後は入力をclearしてfocusを戻し、Tagを続けて追加できる。
+- `＋新規作成` は同じmodal内のTag作成side viewへ移り、作成成功したTagを入力の解決済み選択へ戻す。`追加`／EnterでBookmark draftへ確定する。
+- 現在Tagの解除はBookmarkのTag edge draftだけを外し、Tag record自体を削除しない。同じTag IDを重複追加しない。
+- 存在しないTag文字列を `追加`／Enterした場合はfield errorを表示し、暗黙作成しない。
 - submit で Service Worker へ `SAVE_BOOKMARK_BY_URL` message。
 - 成功時: インライン成功表示（例: 「保存しました」）。一覧更新は TASK-005 まで簡易でよい。
 - 失敗時: `INVALID_URL` 等をフィールド横またはフォーム上部に表示。入力値は保持。
@@ -207,7 +215,7 @@
 | action | 送信元 | 概要 |
 | --- | --- | --- |
 | `SAVE_CURRENT_TAB` | popup, command | activeTab 取得 → 保存 |
-| `SAVE_BOOKMARK_BY_URL` | dashboard | payload `{ rawUrl, title?, requestId }` |
+| `SAVE_BOOKMARK_BY_URL` | dashboard | payload `{ rawUrl, title?, tagIds: string[], requestId }`。自由入力Tag文字列と`categoryIds`は禁止 |
 | `GET_COMMAND_SHORTCUTS` | popup | 2 command の表示用 shortcut 文字列 |
 
 - 各 request に `schemaVersion`, `requestId`（UUID）必須。
@@ -256,6 +264,7 @@
 | DomainErrorCode | 保存 | ユーザー向け（例） |
 | --- | --- | --- |
 | `INVALID_URL` | 否 | URL の形式が正しくありません |
+| `TAG_SELECTION_INVALID` | 否 | タグが見つかりません。候補から選び直してください |
 | `STORAGE_*` / DB 失敗 | 否 | 保存できませんでした。再度お試しください |
 | 重複 URL | **是**（既存返却） | 保存済みです（duplicate=true） |
 
@@ -266,7 +275,9 @@ Issue #9 / [TASKS.md](../TASKS.md) / BE-04 完了条件と整合:
 - [ ] popup に 2 ボタン + shortcut 表示 + 割り当て変更案内がある
 - [ ] アイコン click だけでは保存されない
 - [ ] `save-current-page` と `open-bookmation-home` が **別 handler** で、後者は保存しない
-- [ ] dashboard から http(s) URL を保存できる。それ以外は拒否
+- [ ] dashboardからhttp(s) URLと0件以上のactive Tagを保存できる。それ以外は拒否
+- [ ] Tag入力は空欄から始まり、0／1／8／9件以上のリアルタイム候補、新規作成Tag、`追加`／Enter、IME、連続追加、入力clear／focus復帰、`タグ n件`左／`追加`右、初期展開、Tag chip、個別解除を扱う
+- [ ] 存在しないTag文字列、不在／非TAG／inactive ID、`categoryIds`を拒否し、Bookmark／edge／Jobを部分保存しない
 - [ ] 3 保存入口が **同一 use case** を使う（context menu からも将来呼べる形状）
 - [ ] valid URL なら metadata 失敗でも Bookmark が残る
 - [ ] 重複 URL は新規複製せず既存を返す
@@ -278,6 +289,7 @@ Issue #9 / [TASKS.md](../TASKS.md) / BE-04 完了条件と整合:
 
 - 2026-08-22 — 重複 URL: 既存返却 + UI「すでに保存されています」（P0）。
 - 2026-08-22 — thumbnail: 最小 fetch（og:image 後追いのみ。詳細 MIME/容量は TASK-010）。
+- 2026-08-23 — Bookmark追加／編集は同じTag順次追加componentを使い、仕様書をFigmaより優先する。
 - 2026-08-22 — ホーム tab: 既に `#/home` が開いていればフォーカス、なければ新規 tab。
 
 ## 参考: 実装マイルストーン案（レビュー後に詳細化）
