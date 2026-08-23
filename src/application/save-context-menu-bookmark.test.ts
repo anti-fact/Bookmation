@@ -30,6 +30,7 @@ describe("saveFromContextMenuClick", () => {
     set: ReturnType<typeof vi.fn>
     remove: ReturnType<typeof vi.fn>
   }
+  let action: { openPopup: ReturnType<typeof vi.fn> }
 
   beforeEach(async () => {
     const { LocalDataLayer } = await import("~/adapters/indexeddb/local-data-layer")
@@ -40,6 +41,9 @@ describe("saveFromContextMenuClick", () => {
       get: vi.fn().mockResolvedValue({}),
       set: vi.fn().mockResolvedValue(undefined),
       remove: vi.fn().mockResolvedValue(undefined),
+    }
+    action = {
+      openPopup: vi.fn().mockResolvedValue(undefined),
     }
   })
 
@@ -56,7 +60,7 @@ describe("saveFromContextMenuClick", () => {
         menuItemId: CONTEXT_MENU_BOOKMARK_PAGE_ID,
         pageUrl: "https://example.com/page",
       }),
-      { settingsStore, sessionStorage },
+      { settingsStore, sessionStorage, action },
     )
 
     const bookmarks = await layer.listRecentBookmarks(null, 10)
@@ -68,6 +72,7 @@ describe("saveFromContextMenuClick", () => {
         [POPUP_SAVE_FEEDBACK_STORAGE_KEY]: expect.objectContaining({ status: "saved" }),
       }),
     )
+    expect(action.openPopup).toHaveBeenCalledTimes(1)
   })
 
   it("saves link context bookmark with link text title", async () => {
@@ -77,7 +82,7 @@ describe("saveFromContextMenuClick", () => {
         linkUrl: "https://example.com/target",
         selectionText: "Target Page",
       }),
-      { settingsStore, sessionStorage },
+      { settingsStore, sessionStorage, action },
     )
 
     const bookmarks = await layer.listRecentBookmarks(null, 10)
@@ -94,11 +99,12 @@ describe("saveFromContextMenuClick", () => {
         menuItemId: CONTEXT_MENU_BOOKMARK_PAGE_ID,
         pageUrl: "https://example.com/page",
       }),
-      { settingsStore, sessionStorage },
+      { settingsStore, sessionStorage, action },
     )
 
     expect((await layer.listRecentBookmarks(null, 10)).items).toHaveLength(0)
     expect(sessionStorage.set).not.toHaveBeenCalled()
+    expect(action.openPopup).not.toHaveBeenCalled()
   })
 
   it("rejects dangerous URLs", async () => {
@@ -107,7 +113,7 @@ describe("saveFromContextMenuClick", () => {
         menuItemId: CONTEXT_MENU_BOOKMARK_PAGE_ID,
         pageUrl: "javascript:alert(1)",
       }),
-      { settingsStore, sessionStorage },
+      { settingsStore, sessionStorage, action },
     )
 
     expect((await layer.listRecentBookmarks(null, 10)).items).toHaveLength(0)
@@ -120,7 +126,7 @@ describe("saveFromContextMenuClick", () => {
         menuItemId: "other-menu",
         pageUrl: "https://example.com/page",
       }),
-      { settingsStore, sessionStorage },
+      { settingsStore, sessionStorage, action },
     )
 
     expect((await layer.listRecentBookmarks(null, 10)).items).toHaveLength(0)
@@ -133,7 +139,7 @@ describe("saveFromContextMenuClick", () => {
         menuItemId: CONTEXT_MENU_BOOKMARK_PAGE_ID,
         pageUrl: "https://example.com/dup",
       }),
-      { settingsStore, sessionStorage },
+      { settingsStore, sessionStorage, action },
     )
 
     await saveFromContextMenuClick(
@@ -141,7 +147,7 @@ describe("saveFromContextMenuClick", () => {
         menuItemId: CONTEXT_MENU_BOOKMARK_PAGE_ID,
         pageUrl: "https://example.com/dup",
       }),
-      { settingsStore, sessionStorage },
+      { settingsStore, sessionStorage, action },
     )
 
     expect(sessionStorage.set).toHaveBeenLastCalledWith(
@@ -149,6 +155,7 @@ describe("saveFromContextMenuClick", () => {
         [POPUP_SAVE_FEEDBACK_STORAGE_KEY]: expect.objectContaining({ status: "duplicate" }),
       }),
     )
+    expect(action.openPopup).toHaveBeenCalledTimes(2)
   })
 })
 

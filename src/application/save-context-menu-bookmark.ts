@@ -5,12 +5,14 @@ import { LocalDataLayer } from "~/adapters/indexeddb/local-data-layer"
 import { safeLogError, safeLogWarning } from "~/adapters/security/log-redaction"
 import { SaveBookmarkUseCase } from "~/application/save-bookmark"
 import type { LocalSettingsStore } from "~/ports/local-settings-store-port"
+import { openExtensionPopup, type ExtensionPopupAction } from "~/extension/open-extension-popup"
+import { recordPopupSaveFeedback, type PopupSaveFeedbackStorage } from "~/extension/popup-save-feedback"
 import { scheduleBookmarkMetadataFetch } from "~/extension/save-side-effects"
-import { recordPopupSaveFeedback } from "~/extension/popup-save-feedback"
 
 export type SaveContextMenuBookmarkDeps = Readonly<{
   settingsStore: LocalSettingsStore
-  sessionStorage: Pick<typeof chrome.storage.session, "get" | "set" | "remove">
+  sessionStorage: PopupSaveFeedbackStorage
+  action: ExtensionPopupAction
 }>
 
 let dataLayerPromise: Promise<LocalDataLayer> | null = null
@@ -77,10 +79,12 @@ export async function saveFromContextMenuClick(
 
     if (result.duplicate) {
       await recordPopupSaveFeedback(deps.sessionStorage, "duplicate")
+      await openExtensionPopup(deps.action)
       return
     }
 
     await recordPopupSaveFeedback(deps.sessionStorage, "saved")
+    await openExtensionPopup(deps.action)
     scheduleBookmarkMetadataFetch(data, result, {
       rawUrl,
       source: isContextMenuPageId(info.menuItemId) ? "CONTEXT_PAGE" : "CONTEXT_LINK",

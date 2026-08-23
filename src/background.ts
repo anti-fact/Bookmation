@@ -19,6 +19,7 @@ const saveDeps = {
 const contextMenuDeps = {
   settingsStore: new ChromeLocalSettingsStore(),
   sessionStorage: chrome.storage.session,
+  action: chrome.action,
 }
 
 const messageRouter = createExtensionMessageRouter(
