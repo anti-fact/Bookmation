@@ -1,4 +1,4 @@
-import type { JsonValue } from "~/domain"
+import type { DomainErrorCode, JsonValue } from "~/domain"
 import { jsonValueWithinBounds, MAX_MESSAGE_JSON_DEPTH } from "~/domain/security"
 
 /** Service Worker と拡張ページ間で交換する protocol version。 */
@@ -47,6 +47,7 @@ export type SaveCurrentTabPayload = Readonly<{
 export type SaveBookmarkByUrlPayload = Readonly<{
   url: string
   title?: string
+  tagIds?: string[]
 }>
 
 export type ClaimClassificationJobPayload = Readonly<{
@@ -74,6 +75,11 @@ export type RetryClassificationJobPayload = Readonly<{
 
 export type CancelClassificationJobPayload = Readonly<{
   jobId: string
+}>
+
+export type SearchLibraryPayload = Readonly<{
+  keyword: string
+  mode?: "SEARCH" | "SUGGEST"
 }>
 
 export type SetContextMenuBookmarkEnabledPayload = Readonly<{
@@ -127,7 +133,7 @@ export type ExtensionMessageRequest =
   | MessageRequest<"get-classification-job", "dashboard", GetClassificationJobPayload>
   | MessageRequest<"retry-classification-job", "dashboard", RetryClassificationJobPayload>
   | MessageRequest<"cancel-classification-job", "dashboard", CancelClassificationJobPayload>
-  | MessageRequest<"search-library", "dashboard" | "ai-host", JsonValue>
+  | MessageRequest<"search-library", "dashboard" | "ai-host", SearchLibraryPayload>
   | MessageRequest<"get-general-settings-snapshot", "dashboard", Record<never, never>>
   | MessageRequest<
       "set-context-menu-bookmark-enabled",
@@ -140,6 +146,7 @@ export type ExtensionMessageErrorCode =
   | "UNAUTHORIZED_SENDER"
   | "ACTION_NOT_AVAILABLE"
   | "INTERNAL_ERROR"
+  | DomainErrorCode
 
 export type ExtensionMessageResponse =
   | Readonly<{ requestId: string | null; ok: true; data: JsonValue }>

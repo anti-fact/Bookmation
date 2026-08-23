@@ -120,11 +120,11 @@ const SearchEntry = ({
 }) => (
   <button
     aria-label={accessibleLabel}
-    className="flex h-[3.125rem] w-full min-w-0 items-stretch overflow-hidden rounded-bm-pill border-2 border-bm-ink bg-bm-paper text-left text-bm-ink outline-none transition-colors hover:bg-bm-accent focus-visible:ring-2 focus-visible:ring-bm-focus focus-visible:ring-offset-2 focus-visible:ring-offset-bm-paper"
+    className="group flex h-[3.125rem] w-full min-w-0 items-stretch overflow-hidden rounded-bm-pill border-2 border-bm-ink bg-bm-paper text-left text-bm-ink outline-none transition-colors hover:bg-bm-ink hover:text-bm-paper focus-visible:ring-2 focus-visible:ring-bm-focus focus-visible:ring-offset-2 focus-visible:ring-offset-bm-paper"
     onClick={onClick}
     type="button"
   >
-    <span className="min-w-0 flex-1 truncate px-5 py-[0.8125rem] text-sm text-bm-muted-text">
+    <span className="min-w-0 flex-1 truncate px-5 py-[0.8125rem] text-sm text-bm-muted-text transition-colors group-hover:text-bm-paper">
       {placeholder}
     </span>
     <span
@@ -164,7 +164,7 @@ const LabelsCreateMenu = ({
     <DropdownMenuTrigger asChild>
       <button
         aria-label="新規作成メニュー"
-        className="group inline-flex h-[3.125rem] w-[9.1875rem] shrink-0 items-center justify-center gap-5 rounded-[5px] border-2 border-bm-ink bg-bm-accent text-xl font-bold text-bm-ink outline-none transition-colors hover:bg-bm-paper focus-visible:ring-2 focus-visible:ring-bm-focus focus-visible:ring-offset-2 focus-visible:ring-offset-bm-paper data-[state=open]:bg-bm-accent"
+        className="group inline-flex h-[3.125rem] w-[9.1875rem] shrink-0 items-center justify-center gap-5 rounded-[5px] border-2 border-bm-ink bg-bm-accent text-xl font-bold text-bm-ink outline-none transition-colors hover:bg-bm-ink hover:text-bm-paper focus-visible:ring-2 focus-visible:ring-bm-focus focus-visible:ring-offset-2 focus-visible:ring-offset-bm-paper data-[state=open]:bg-bm-ink data-[state=open]:text-bm-paper"
         type="button"
       >
         <span>New</span>
@@ -199,10 +199,10 @@ export const AppHeader = (props: AppHeaderProps) => {
     >
       <div
         className={joinClassNames(
-          "flex min-h-[4.5rem] w-full flex-wrap items-center justify-between gap-x-3 gap-y-2 px-3 py-3 sm:px-6",
+          "flex min-h-[4.5rem] w-full flex-wrap items-center justify-between gap-x-3 gap-y-2 px-3 py-3 sm:px-6 md:px-[clamp(1.5rem,5vw,4.5rem)]",
           props.variant === "labels"
-            ? "lg:min-h-[6.25rem] lg:flex-nowrap lg:justify-start lg:gap-[3rem] lg:px-[clamp(1.5rem,5vw,4.5rem)] lg:py-0"
-            : "md:min-h-[6.25rem] md:flex-nowrap md:gap-5 md:px-[clamp(1.5rem,5vw,4.5rem)] md:py-0 lg:justify-start lg:gap-[3rem]"
+            ? "lg:min-h-[6.25rem] lg:flex-nowrap lg:justify-start lg:gap-[3rem] lg:py-0"
+            : "md:min-h-[6.25rem] md:flex-nowrap md:gap-5 md:py-0 lg:justify-start lg:gap-[3rem]"
         )}
       >
         <Logo alt={logoAlt} onClick={props.onLogoClick} src={props.logoSrc} />
@@ -225,7 +225,7 @@ export const AppHeader = (props: AppHeaderProps) => {
         {props.variant === "default" ? (
           <div
             aria-label="ヘッダー操作"
-            className="flex max-w-full shrink-0 items-center gap-3 lg:ml-auto lg:gap-[1.125rem]"
+            className="ml-auto flex max-w-full shrink-0 items-center gap-3 lg:gap-[1.125rem]"
             role="group"
           >
             {props.onBookmarkAddClick ? (
@@ -257,7 +257,7 @@ export const AppHeader = (props: AppHeaderProps) => {
         {props.variant === "labels" ? (
           <div
             aria-label="カテゴリ・タグ操作"
-            className="flex max-w-full shrink-0 flex-wrap items-center justify-end gap-3 lg:ml-auto lg:gap-[3.125rem]"
+            className="ml-auto flex max-w-full shrink-0 flex-wrap items-center justify-end gap-3 lg:gap-[3.125rem]"
             role="group"
           >
             <LabelsCreateMenu
@@ -268,7 +268,7 @@ export const AppHeader = (props: AppHeaderProps) => {
               {/* 継続する押下状態と aria-pressed は Radix Toggle に管理させます。 */}
               <TogglePrimitive.Root asChild defaultPressed={false}>
                 <IconButton
-                  className="data-[state=on]:bg-bm-ink data-[state=on]:text-bm-paper data-[state=on]:hover:bg-bm-paper data-[state=on]:hover:text-bm-ink [&[data-state=on]_img]:invert [&[data-state=on]:hover_img]:invert-0"
+                  className="data-[state=off]:hover:bg-bm-paper data-[state=off]:hover:text-bm-ink data-[state=on]:bg-bm-ink data-[state=on]:text-bm-paper data-[state=on]:hover:bg-bm-paper data-[state=on]:hover:text-bm-ink [&[data-state=on]_img]:invert [&[data-state]:hover_img]:invert-0"
                   label="管理モードを切り替える"
                   onClick={props.onManageClick}
                   shape="pill"

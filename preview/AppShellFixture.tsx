@@ -44,7 +44,7 @@ export function AppShellFixture() {
           >
             {fixtureRoutes.map(([label, hash]) => (
               <a
-                className="rounded-bm-field border border-bm-border bg-bm-paper px-2 py-1 text-bm-ink outline-none hover:bg-bm-accent focus-visible:ring-2 focus-visible:ring-bm-focus"
+                className="rounded-bm-field border border-bm-border bg-bm-paper px-2 py-1 text-bm-ink outline-none hover:bg-bm-ink hover:text-bm-paper focus-visible:ring-2 focus-visible:ring-bm-focus"
                 href={hash}
                 key={hash}
               >
@@ -55,7 +55,7 @@ export function AppShellFixture() {
               className="rounded-bm-field border border-bm-border bg-bm-panel px-2 py-1 text-bm-on-panel outline-none focus-visible:ring-2 focus-visible:ring-bm-focus"
               href="?view=bookmarks&fixture=grid#/home"
             >
-              UI-04 bookmarks
+              UI-05 bookmarks
             </a>
             <a
               className="rounded-bm-field border border-bm-border bg-bm-panel px-2 py-1 text-bm-on-panel outline-none focus-visible:ring-2 focus-visible:ring-bm-focus"

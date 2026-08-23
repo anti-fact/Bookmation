@@ -5,6 +5,11 @@ import { AppErrorBoundary } from "~/ui/app/ErrorBoundary"
 import { ExtensionApp } from "~/ui/app/ExtensionApp"
 import { createBrowserHashRouteStore } from "~/ui/app/hash-route"
 import type {
+  BookmarkCategoryOption,
+  BookmarkFormPort,
+  BookmarkTagOption
+} from "~/ui/features/bookmarks/bookmark-form-port"
+import type {
   BookmarkListItem,
   BookmarkListPort
 } from "~/ui/features/bookmarks/bookmark-list-port"
@@ -32,21 +37,45 @@ function isFixtureName(value: string | null): value is BookmarkListFixtureName {
 }
 
 function fixtureItems(count: number): BookmarkListItem[] {
-  const categories = [
-    { id: "category-development", name: "開発" },
-    { id: "category-reading", name: "あとで読む" },
-    { id: "category-design", name: "デザイン" }
+  const categories: BookmarkCategoryOption[] = [
+    { id: "category-development", name: "開発", revision: 1 },
+    { id: "category-reading", name: "あとで読む", revision: 1 },
+    { id: "category-design", name: "デザイン", revision: 1 }
   ]
-  const tags = [
-    { id: "tag-typescript", name: "TypeScript" },
-    { id: "tag-react", name: "React" },
-    { id: "tag-accessibility", name: "アクセシビリティ" }
+  const tags: BookmarkTagOption[] = [
+    {
+      id: "tag-typescript",
+      name: "TypeScript",
+      parentCategoryId: "category-development",
+      parentCategoryName: "開発",
+      revision: 1
+    },
+    {
+      id: "tag-react",
+      name: "React",
+      parentCategoryId: "category-development",
+      parentCategoryName: "開発",
+      revision: 1
+    },
+    {
+      id: "tag-accessibility",
+      name: "アクセシビリティ",
+      parentCategoryId: "category-design",
+      parentCategoryName: "デザイン",
+      revision: 1
+    }
   ]
 
   return Array.from({ length: count }, (_, index) => ({
-    categories: [categories[index % categories.length]!],
+    categories: [
+      {
+        id: categories[index % categories.length]!.id,
+        name: categories[index % categories.length]!.name
+      }
+    ],
     faviconSrc: previewImage,
     id: `fixture-bookmark-${index + 1}`,
+    revision: 1,
     savedAt: Date.UTC(2026, 7, 22) - index * 86_400_000,
     siteName: index % 2 === 0 ? "Bookmation Docs" : "example.com",
     tags: index % 4 === 0 ? [] : tags.slice(0, (index % tags.length) + 1),
@@ -54,7 +83,7 @@ function fixtureItems(count: number): BookmarkListItem[] {
     title:
       index === 4
         ? "長い日本語のページ名でもカードやリストの操作が重ならず読み進められることを確認するブックマーク"
-        : `Bookmation UI-04 サンプル ${index + 1}`,
+        : `Bookmation UI-05 サンプル ${index + 1}`,
     url: `https://example.com/bookmarks/${index + 1}`
   }))
 }
@@ -70,10 +99,41 @@ function itemCount(fixture: BookmarkListFixtureName): number {
   }
 }
 
-function createFixturePort(fixture: BookmarkListFixtureName): BookmarkListPort {
-  const items = fixtureItems(itemCount(fixture))
+function createFixturePorts(fixture: BookmarkListFixtureName): {
+  formPort: BookmarkFormPort
+  listPort: BookmarkListPort
+} {
+  let items = fixtureItems(itemCount(fixture))
+  const categories: BookmarkCategoryOption[] = [
+    { id: "category-development", name: "開発", revision: 1 },
+    { id: "category-reading", name: "あとで読む", revision: 1 },
+    { id: "category-design", name: "デザイン", revision: 1 }
+  ]
+  const tags: BookmarkTagOption[] = [
+    {
+      id: "tag-typescript",
+      name: "TypeScript",
+      parentCategoryId: "category-development",
+      parentCategoryName: "開発",
+      revision: 1
+    },
+    {
+      id: "tag-react",
+      name: "React",
+      parentCategoryId: "category-development",
+      parentCategoryName: "開発",
+      revision: 1
+    },
+    {
+      id: "tag-accessibility",
+      name: "アクセシビリティ",
+      parentCategoryId: "category-design",
+      parentCategoryName: "デザイン",
+      revision: 1
+    }
+  ]
 
-  return {
+  const listPort: BookmarkListPort = {
     getViewMode: async () => (fixture === "list" ? "LIST" : "GRID"),
     async loadPage({ cursor, filter, requestId }) {
       if (fixture === "loading" && cursor === null) {
@@ -96,9 +156,8 @@ function createFixturePort(fixture: BookmarkListFixtureName): BookmarkListPort {
             return item.tags.some((label) => label.id === filter.id)
           case "category-tag":
             return (
-              item.categories.some(
-                (label) => label.id === filter.categoryId
-              ) && item.tags.some((label) => label.id === filter.tagId)
+              item.categories.some((label) => label.id === filter.categoryId) &&
+              item.tags.some((label) => label.id === filter.tagId)
             )
         }
       })
@@ -117,6 +176,93 @@ function createFixturePort(fixture: BookmarkListFixtureName): BookmarkListPort {
     },
     setViewMode: async () => undefined
   }
+
+  const derivedCategories = (selectedTags: BookmarkTagOption[]) =>
+    Array.from(
+      new Map(
+        selectedTags.map((tag) => [
+          tag.parentCategoryId,
+          { id: tag.parentCategoryId, name: tag.parentCategoryName }
+        ])
+      ).values()
+    )
+
+  const formPort: BookmarkFormPort = {
+    async createCategory({ name }) {
+      const created = {
+        id: `category-${crypto.randomUUID()}`,
+        name: name.trim(),
+        revision: 1
+      }
+      categories.push(created)
+      return created
+    },
+    async createTag({ category, name }) {
+      const created = {
+        id: `tag-${crypto.randomUUID()}`,
+        name: name.trim(),
+        parentCategoryId: category.id,
+        parentCategoryName: category.name,
+        revision: 1
+      }
+      tags.push(created)
+      return created
+    },
+    async deleteBookmark({ bookmarkId }) {
+      items = items.filter((item) => item.id !== bookmarkId)
+    },
+    async saveBookmark({ tagIds, title, url }) {
+      if (items.some((item) => item.url === url)) return { duplicate: true }
+      const selectedTags = tags.filter((tag) => tagIds.includes(tag.id))
+      items = [
+        {
+          categories: derivedCategories(selectedTags),
+          faviconSrc: previewImage,
+          id: `fixture-bookmark-${crypto.randomUUID()}`,
+          revision: 1,
+          savedAt: Date.now(),
+          siteName: new URL(url).hostname,
+          tags: selectedTags,
+          thumbnailSrc: previewImage,
+          title: title.trim() || new URL(url).hostname,
+          url
+        },
+        ...items
+      ]
+      return { duplicate: false }
+    },
+    async searchCategories(keyword) {
+      const needle = keyword.trim().toLocaleLowerCase("ja")
+      return categories
+        .filter((category) =>
+          category.name.toLocaleLowerCase("ja").includes(needle)
+        )
+        .slice(0, 8)
+    },
+    async searchTags(keyword) {
+      const needle = keyword.trim().toLocaleLowerCase("ja")
+      return tags
+        .filter((tag) => tag.name.toLocaleLowerCase("ja").includes(needle))
+        .slice(0, 8)
+    },
+    async updateBookmark({ bookmarkId, tagIds, title, url }) {
+      const selectedTags = tags.filter((tag) => tagIds.includes(tag.id))
+      items = items.map((item) =>
+        item.id === bookmarkId
+          ? {
+              ...item,
+              categories: derivedCategories(selectedTags),
+              revision: item.revision + 1,
+              tags: selectedTags,
+              title,
+              url
+            }
+          : item
+      )
+    }
+  }
+
+  return { formPort, listPort }
 }
 
 export function BookmarkListFixture() {
@@ -132,18 +278,21 @@ export function BookmarkListFixture() {
     () => createBrowserAppRuntime(window, "web-preview"),
     []
   )
-  const port = React.useMemo(() => createFixturePort(fixture), [fixture])
+  const ports = React.useMemo(() => createFixturePorts(fixture), [fixture])
 
   return (
     <AppProviders routeStore={routeStore} runtime={runtime}>
       <AppErrorBoundary>
-        <ExtensionApp bookmarkListPort={port} />
+        <ExtensionApp
+          bookmarkFormPort={ports.formPort}
+          bookmarkListPort={ports.listPort}
+        />
       </AppErrorBoundary>
 
       <aside className="fixed bottom-3 left-3 z-bm-toast max-w-[calc(100vw-1.5rem)] rounded-bm-dialog border-2 border-bm-border bg-bm-paper p-3 text-xs shadow-bm-floating">
         <details>
           <summary className="cursor-pointer select-none font-bold uppercase tracking-[0.12em]">
-            Test preview / UI-04
+            Test preview / UI-05
           </summary>
           <p className="mb-0 mt-1 text-bm-muted-text">fixture: {fixture}</p>
           <nav
@@ -153,7 +302,7 @@ export function BookmarkListFixture() {
             {fixtures.map((name) => (
               <a
                 aria-current={fixture === name ? "page" : undefined}
-                className="rounded-bm-field border border-bm-border bg-bm-paper px-2 py-1 text-bm-ink no-underline outline-none hover:bg-bm-accent focus-visible:ring-2 focus-visible:ring-bm-focus aria-[current=page]:bg-bm-ink aria-[current=page]:text-bm-paper"
+                className="rounded-bm-field border border-bm-border bg-bm-paper px-2 py-1 text-bm-ink no-underline outline-none hover:bg-bm-ink hover:text-bm-paper focus-visible:ring-2 focus-visible:ring-bm-focus aria-[current=page]:bg-bm-ink aria-[current=page]:text-bm-paper"
                 href={`?view=bookmarks&fixture=${name}#/home`}
                 key={name}
               >

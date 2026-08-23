@@ -30,7 +30,7 @@ export function LabelRibbonTrail({
           className={joinClassNames(
             "inline-flex h-[63px] shrink-0 items-center bg-bm-black pl-[41px] pr-[41px] text-2xl font-bold leading-none text-bm-paper sm:text-3xl",
             onRemove
-              ? "group relative transition-colors hover:bg-bm-on-panel hover:text-bm-ink focus-within:bg-bm-on-panel focus-within:text-bm-ink"
+              ? "group relative transition-colors hover:bg-bm-ink hover:text-bm-paper focus-within:bg-bm-ink focus-within:text-bm-paper"
               : "",
             index > 0 ? "-ml-[15px]" : ""
           )}

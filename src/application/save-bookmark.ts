@@ -40,11 +40,13 @@ export class SaveBookmarkUseCase {
   async saveByUrl(params: {
     rawUrl: string
     title?: string
+    tagIds?: readonly string[]
     creationRequestId: string
   }): Promise<SaveBookmarkResult> {
     return this.saveWithSource({
       rawUrl: params.rawUrl,
       title: params.title ?? "",
+      tagIds: params.tagIds,
       source: "MANUAL_URL",
       creationRequestId: params.creationRequestId,
     })
@@ -78,6 +80,7 @@ export class SaveBookmarkUseCase {
   private async saveWithSource(params: {
     rawUrl: string
     title: string
+    tagIds?: readonly string[]
     source: "MANUAL_URL" | "CONTEXT_PAGE" | "CONTEXT_LINK"
     creationRequestId: string
   }): Promise<SaveBookmarkResult> {
@@ -88,6 +91,7 @@ export class SaveBookmarkUseCase {
       rawUrl: params.rawUrl,
       title,
       source: params.source,
+      tagIds: params.tagIds,
       creationRequestId: params.creationRequestId,
     })
     return toSaveBookmarkResult(result)

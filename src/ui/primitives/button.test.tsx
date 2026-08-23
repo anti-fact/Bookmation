@@ -24,6 +24,9 @@ describe("Button", () => {
     const button = screen.getByRole("button", { name: "保存する" })
     expect(button.getAttribute("type")).toBe("button")
     expect(button.className).toContain("consumer-class")
+    expect(button.className).toContain("hover:bg-bm-ink")
+    expect(button.className).toContain("hover:text-bm-paper")
+    expect(button.className).not.toContain("hover:bg-bm-accent")
     expect(button.getAttribute("data-purpose")).toBe("save")
     expect(ref.current).toBe(button)
 

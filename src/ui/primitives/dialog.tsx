@@ -37,7 +37,7 @@ export const DialogContent = React.forwardRef<
           <DialogPrimitive.Close asChild>
             <button
               aria-label={closeLabel}
-              className="absolute right-4 top-4 inline-flex size-10 items-center justify-center rounded-full border-2 border-transparent text-bm-ink outline-none hover:border-bm-ink hover:bg-bm-accent focus-visible:ring-2 focus-visible:ring-bm-focus focus-visible:ring-offset-2 focus-visible:ring-offset-bm-paper"
+              className="absolute right-4 top-4 inline-flex size-10 items-center justify-center rounded-full border-2 border-transparent text-bm-ink outline-none hover:border-bm-ink hover:bg-bm-ink hover:text-bm-paper focus-visible:ring-2 focus-visible:ring-bm-focus focus-visible:ring-offset-2 focus-visible:ring-offset-bm-paper"
               type="button"
             >
               <Cross2Icon aria-hidden="true" className="size-5" />

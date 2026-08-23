@@ -260,8 +260,12 @@ describe("LocalDataLayer", () => {
       await layer.saveBookmarkWithJob({ id: bookmarkId, rawUrl: "https://query.example/", title: "Query", creationRequestId: uuid(), jobId: uuid() })
       const category = await layer.createCategory({ id: uuid(), name: "Research", creationRequestId: uuid() })
       const tag = await layer.createTag({ id: uuid(), name: "Reading", parentCategoryId: category.id, expectedParentRevision: category.revision, creationRequestId: uuid() })
+      const partialTag = await layer.createTag({ id: uuid(), name: "PreReading", parentCategoryId: category.id, expectedParentRevision: category.revision, creationRequestId: uuid() })
       await layer.assignTagEdge({ bookmarkId, tagId: tag.id, expectedBookmarkRevision: (await layer.getBookmark(bookmarkId))!.revision })
-      expect((await layer.listLabelCandidates("read", "TAG")).map((item) => item.id)).toEqual([tag.id])
+      expect((await layer.listLabelCandidates("read", "TAG")).map((item) => item.id)).toEqual([tag.id, partialTag.id])
+      const exactCandidates = await layer.listLabelCandidates("Reading", "TAG")
+      expect(exactCandidates.map((item) => item.id)).toEqual([tag.id, partialTag.id])
+      expect(exactCandidates[0]?.parentCategoryName).toBe(category.name)
       const result = await layer.listBookmarksByLabel(tag.id, null)
       expect(result.totalCount).toBe(1)
       expect(result.items[0]?.id).toBe(bookmarkId)
@@ -570,6 +574,52 @@ describe("LocalDataLayer", () => {
         creationRequestId: uuid(),
       })
       expect(recreated.normalizedName).toBe("reuseme")
+    })
+  })
+
+  describe("BE-09: lexical search", () => {
+    it("returns active Labels before Bookmarks and caps the combined result", async () => {
+      const category = await layer.createCategory({ id: uuid(), name: "React", creationRequestId: uuid() })
+      await layer.saveBookmarkWithJob({ id: uuid(), rawUrl: "https://react.dev/", title: "React docs", creationRequestId: uuid(), jobId: uuid() })
+      await Promise.all(
+        Array.from({ length: 8 }, (_, index) =>
+          layer.saveBookmarkWithJob({
+            id: uuid(),
+            rawUrl: `https://react-${index}.example/`,
+            title: `React ${index}`,
+            creationRequestId: uuid(),
+            jobId: uuid(),
+          }),
+        ),
+      )
+
+      const result = await layer.searchAllByKeyword("react", 8)
+
+      expect(result.labels.map((label) => label.id)).toEqual([category.id])
+      expect(result.bookmarks).toHaveLength(7)
+      expect(await layer.searchAllByKeyword("", 8)).toEqual({ labels: [], bookmarks: [] })
+    })
+
+    it("returns at most eight deterministic autocomplete candidates", async () => {
+      await Promise.all(
+        Array.from({ length: 9 }, (_, index) =>
+          layer.saveBookmarkWithJob({
+            id: uuid(),
+            rawUrl: `https://autocomplete-${index}.example/`,
+            title: `Autocomplete ${index}`,
+            creationRequestId: uuid(),
+            jobId: uuid(),
+          }),
+        ),
+      )
+
+      const candidates = await layer.suggestAllByKeyword("autocomplete", 9)
+
+      expect(candidates).toHaveLength(8)
+      expect(candidates.every((candidate) => candidate.entityType === "BOOKMARK")).toBe(true)
+      expect(candidates.map((candidate) => candidate.entityId)).toEqual(
+        [...candidates].map((candidate) => candidate.entityId).sort(),
+      )
     })
   })
 })

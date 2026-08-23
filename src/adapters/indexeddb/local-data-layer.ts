@@ -79,6 +79,8 @@ import {
 import { INTERNAL_PAGE_SIZE, STORES, BOOKMARK_INDEXES, CLASSIFICATION_JOB_INDEXES } from "./stores"
 
 const SAVE_TX_STORES = [
+  STORES.labels,
+  STORES.bookmarkLabels,
   STORES.bookmarks,
   STORES.classificationJobs,
   STORES.bookmarkRevisions,
@@ -125,6 +127,7 @@ export interface SaveBookmarkWithJobInput {
   faviconUrl?: string | null
   faviconBlobId?: Id | null
   thumbnailBlobId?: Id | null
+  tagIds?: readonly Id[]
   source?: PersistedActiveBookmarkRecord["source"]
   policy?: ClassificationPolicySnapshot
   creationRequestId: Id
@@ -177,7 +180,20 @@ export interface ListRecentBookmarksResult {
   items: PersistedActiveBookmarkRecord[]
   nextCursor: BookmarkCursor | null
 }
-export interface LabelCandidate { id: Id; name: string; kind: "CATEGORY" | "TAG"; parentCategoryId: Id | null; revision: number; origin: PersistedLabelRecord["origin"]; usageCount: number }
+export interface SearchAllByKeywordResult {
+  labels: PersistedLabelRecord[]
+  bookmarks: PersistedActiveBookmarkRecord[]
+}
+export interface SuggestAllByKeywordCandidate {
+  entityType: "LABEL" | "BOOKMARK"
+  entityId: Id
+  entityRevision: number
+  labelKind: "CATEGORY" | "TAG" | null
+  parentCategoryId: Id | null
+  displayText: string
+  matchedFields: string[]
+}
+export interface LabelCandidate { id: Id; name: string; kind: "CATEGORY" | "TAG"; parentCategoryId: Id | null; parentCategoryName: string | null; revision: number; origin: PersistedLabelRecord["origin"]; usageCount: number }
 
 export class LocalDataLayer {
   private constructor(private readonly db: BookmationDatabase) {}
@@ -220,6 +236,10 @@ export class LocalDataLayer {
     const url = validateAndNormalizeUrl(input.rawUrl)
     const urlHash = await computeUrlHash(url.normalized)
     const policy = input.policy ?? policyFromGranularity(2)
+    const tagIds = [...(input.tagIds ?? [])]
+    if (new Set(tagIds).size !== tagIds.length) {
+      throw new DomainError(DomainErrorCode.INVALID_ID, "Duplicate tag IDs")
+    }
 
     const txCheck = this.db.transaction([STORES.classificationJobs], "readonly")
     const existingJob = await txCheck
@@ -251,10 +271,30 @@ export class LocalDataLayer {
       bookmarkId: input.id,
       normalizedUrl: url.normalized,
       policy,
+      tagIds: [...tagIds].sort(),
     })
 
     const tx = this.db.transaction([...SAVE_TX_STORES], "readwrite")
     const jobsStore = tx.objectStore(STORES.classificationJobs)
+    const categoryIds = new Set<Id>()
+
+    for (const tagId of tagIds) {
+      const tag = await getLabelOrThrow(tx, tagId)
+      if (
+        tag.kind !== "TAG" ||
+        tag.deletedAt !== null ||
+        tag.parentCategoryId === null
+      ) {
+        throw new DomainError(DomainErrorCode.INVALID_ID, "Active tag not found")
+      }
+      const parent = await getLabelOrThrow(tx, tag.parentCategoryId)
+      if (parent.kind !== "CATEGORY" || parent.deletedAt !== null) {
+        throw new DomainError(
+          DomainErrorCode.TAG_REQUIRES_ACTIVE_CATEGORY_PARENT,
+        )
+      }
+      categoryIds.add(parent.id)
+    }
 
     const bookmark: PersistedActiveBookmarkRecord = {
       schemaVersion: 1,
@@ -312,7 +352,11 @@ export class LocalDataLayer {
       bookmarkRevision: bookmark.revision,
       reason: "USER_EDIT",
       before: { categoryIds: [], tagIds: [], archiveState: "ACTIVE" },
-      after: { categoryIds: [], tagIds: [], archiveState: "ACTIVE" },
+      after: {
+        categoryIds: [...categoryIds].sort(),
+        tagIds: [...tagIds].sort(),
+        archiveState: "ACTIVE",
+      },
       actor: "USER",
       createdAt: now,
       updatedAt: now,
@@ -321,6 +365,22 @@ export class LocalDataLayer {
     const searchDoc = buildBookmarkSearchDocument(bookmark, now)
 
     await putBookmark(tx, bookmark)
+    for (const tagId of tagIds) {
+      await putEdge(tx, {
+        schemaVersion: 1,
+        id: crypto.randomUUID(),
+        bookmarkId: bookmark.id,
+        labelId: tagId,
+        assignedBy: "USER",
+        confidence: null,
+        classificationJobId: null,
+        createdAt: now,
+        updatedAt: now,
+        revision: 1,
+        deletedAt: null,
+      })
+    }
+    await syncCategoryEdgesFromTags(tx, bookmark, now)
     await jobsStore.put(stripUndefinedFields(job as unknown as Record<string, unknown>) as unknown as PersistedClassificationJobRecord)
     await tx
       .objectStore(STORES.bookmarkRevisions)
@@ -1209,12 +1269,124 @@ export class LocalDataLayer {
   }
 
   async listLabelCandidates(keyword: string, kind?: "CATEGORY" | "TAG", limit = 8): Promise<LabelCandidate[]> {
-    const needle = keyword.trim().toLowerCase()
-    if (!needle) return []
+    let needle: string
+    try {
+      needle = normalizeLabelName(keyword).normalized
+    } catch {
+      return []
+    }
     const labels = await this.db.getAll(STORES.labels)
     const matches = labels.filter((label) => label.deletedAt === null && (!kind || label.kind === kind) && label.normalizedName.includes(needle))
-    const candidates = await Promise.all(matches.map(async (label) => ({ id: label.id, name: label.name, kind: label.kind, parentCategoryId: label.parentCategoryId, revision: label.revision, origin: label.origin, usageCount: (await this.db.getAllFromIndex(STORES.bookmarkLabels, "byLabel", label.id)).filter((edge) => edge.deletedAt === null).length })))
-    return candidates.sort((a, b) => b.usageCount - a.usageCount || a.name.localeCompare(b.name)).slice(0, limit)
+    const candidates = await Promise.all(matches.map(async (label) => {
+      const parent = label.parentCategoryId
+        ? await this.db.get(STORES.labels, label.parentCategoryId)
+        : undefined
+      return {
+        id: label.id,
+        name: label.name,
+        kind: label.kind,
+        exactMatch: label.normalizedName === needle,
+        parentCategoryId: label.parentCategoryId,
+        parentCategoryName:
+          parent?.kind === "CATEGORY" && parent.deletedAt === null
+            ? parent.name
+            : null,
+        revision: label.revision,
+        origin: label.origin,
+        usageCount: (await this.db.getAllFromIndex(STORES.bookmarkLabels, "byLabel", label.id)).filter((edge) => edge.deletedAt === null).length,
+      }
+    }))
+    return candidates
+      .sort(
+        (a, b) =>
+          Number(b.exactMatch) - Number(a.exactMatch) ||
+          b.usageCount - a.usageCount ||
+          a.name.localeCompare(b.name),
+      )
+      .slice(0, limit)
+  }
+
+  /** BE-09: Label を先に返す、順位契約を持たない字句検索。 */
+  async searchAllByKeyword(keyword: string, limit = 8): Promise<SearchAllByKeywordResult> {
+    const query = keyword.trim().toLowerCase()
+    if (!query || limit < 1) return { labels: [], bookmarks: [] }
+    const documents = await this.db.getAll(STORES.searchDocuments)
+    const matches = documents
+      .filter((document) => document.normalizedText.toLowerCase().includes(query))
+      .sort((a, b) => a.entityType.localeCompare(b.entityType) || a.entityId.localeCompare(b.entityId))
+    const labelDocuments = matches.filter((document) => document.entityType === "LABEL")
+    const bookmarkDocuments = matches.filter((document) => document.entityType === "BOOKMARK")
+    const labels: PersistedLabelRecord[] = []
+    const bookmarks: PersistedActiveBookmarkRecord[] = []
+
+    const cappedLimit = Math.min(limit, 8)
+    for (const document of labelDocuments) {
+      if (labels.length >= cappedLimit) break
+      const label = await this.db.get(STORES.labels, document.entityId)
+      if (label?.deletedAt === null) labels.push(label)
+    }
+    for (const document of bookmarkDocuments) {
+      if (labels.length + bookmarks.length >= cappedLimit) break
+      const bookmark = await this.db.get(STORES.bookmarks, document.entityId)
+      if (bookmark && isActiveBookmark(bookmark)) bookmarks.push(bookmark)
+    }
+    return { labels, bookmarks }
+  }
+
+  /** BE-09: フルページ検索と共有する、最大8件の決定的 autocomplete 候補。 */
+  async suggestAllByKeyword(
+    keyword: string,
+    limit = 8,
+  ): Promise<SuggestAllByKeywordCandidate[]> {
+    const query = keyword.trim().toLowerCase()
+    if (!query || limit < 1) return []
+
+    const documents = await this.db.getAll(STORES.searchDocuments)
+    const scored = documents
+      .map((document) => {
+        const exact = document.searchKeys.includes(`token:${query}`)
+        const prefix = document.searchKeys.some((key) => key.startsWith(`token:${query}`))
+        const contains = document.normalizedText.toLowerCase().includes(query)
+        return { document, score: exact ? 3 : prefix ? 2 : contains ? 1 : 0 }
+      })
+      .filter(({ score }) => score > 0)
+      .sort(
+        (a, b) =>
+          b.score - a.score ||
+          a.document.entityType.localeCompare(b.document.entityType) ||
+          a.document.entityId.localeCompare(b.document.entityId),
+      )
+
+    const candidates: SuggestAllByKeywordCandidate[] = []
+    for (const { document } of scored) {
+      if (candidates.length >= Math.min(limit, 8)) break
+      if (document.entityType === "LABEL") {
+        const label = await this.db.get(STORES.labels, document.entityId)
+        if (!label || label.deletedAt !== null) continue
+        candidates.push({
+          entityType: "LABEL",
+          entityId: label.id,
+          entityRevision: label.revision,
+          labelKind: label.kind,
+          parentCategoryId: label.parentCategoryId,
+          displayText: label.name,
+          matchedFields: ["name"],
+        })
+        continue
+      }
+      const bookmark = await this.db.get(STORES.bookmarks, document.entityId)
+      if (!bookmark || !isActiveBookmark(bookmark)) continue
+      candidates.push({
+        entityType: "BOOKMARK",
+        entityId: bookmark.id,
+        entityRevision: bookmark.revision,
+        labelKind: null,
+        parentCategoryId: null,
+        displayText: bookmark.title,
+        matchedFields: ["title-or-url"],
+      })
+    }
+    return candidates
   }
 
   /** tombstone Label を物理削除（テスト・GC 用） */
