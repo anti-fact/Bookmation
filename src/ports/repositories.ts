@@ -59,11 +59,17 @@ export interface DeleteCategoryCascadeResult {
   affectedBookmarkCount: number
   jobsCreated: number
 }
+export interface ClaimClassificationJobInput { executorInstanceId: string; leaseMs: number; now?: number }
+export interface RequeueExpiredJobsInput { now?: number; limit?: number }
 
 /** ローカル永続化 Port (TASK-003) */
 export interface LocalDataLayerPort {
   close(): Promise<void>
   saveBookmarkWithJob(input: SaveBookmarkWithJobInput): Promise<SaveBookmarkWithJobResult>
+  claimClassificationJob(input: ClaimClassificationJobInput): Promise<PersistedClassificationJobRecord | null>
+  requeueExpiredClassificationJobs(input?: RequeueExpiredJobsInput): Promise<number>
+  retryClassificationJob(jobId: string, now?: number): Promise<PersistedClassificationJobRecord>
+  cancelClassificationJob(jobId: string, now?: number): Promise<PersistedClassificationJobRecord>
   findActiveBookmarkByUrlHash(
     normalizedUrl: string,
     urlHash: string,
