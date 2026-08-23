@@ -2,7 +2,7 @@
  * 利用者から見えるルート、ヘッダー、フォーカス、スクロール、通知の連携を
  * 差し替え可能なストアと実行環境で確認します。
  */
-import { act, fireEvent, render, screen } from "@testing-library/react"
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import * as React from "react"
 import { describe, expect, it, vi } from "vitest"
 
@@ -363,7 +363,7 @@ describe("ExtensionApp", () => {
     ).not.toBeNull()
   })
 
-  it("renders the canonical Figma welcome layout and starts from its action", () => {
+  it("renders the canonical Figma welcome layout and starts from its action", async () => {
     const { store } = renderApp({ kind: "welcome" })
 
     const main = screen.getByRole("main")
@@ -393,14 +393,34 @@ describe("ExtensionApp", () => {
     expect(startButton.className).toContain("!rounded-none")
 
     fireEvent.click(startButton)
-    expect(store.navigate).toHaveBeenCalledWith({
-      kind: "onboarding",
-      step: "categories"
-    })
+    await waitFor(() =>
+      expect(store.navigate).toHaveBeenCalledWith({
+        kind: "onboarding",
+        step: "categories"
+      })
+    )
   })
 
-  it("shows the category onboarding step and returns home once it is saved", () => {
-    const { store } = renderApp({ kind: "onboarding", step: "categories" })
+  it("shows the category onboarding step and returns home once it is saved", async () => {
+    const complete = vi.fn(async () => ({
+      categorySelection: {},
+      currentStepId: null,
+      initializedBy: "INSTALL" as const,
+      schemaVersion: 1 as const,
+      status: "COMPLETED" as const,
+      updatedAt: 2
+    }))
+    const { store } = renderApp(
+      { kind: "onboarding", step: "categories" },
+      {
+        onboardingPort: {
+          complete,
+          load: vi.fn(async () => null),
+          saveSelection: vi.fn(),
+          start: vi.fn()
+        }
+      }
+    )
 
     expect(
       screen.queryByRole("banner", { name: "アプリケーションヘッダー" })
@@ -414,7 +434,36 @@ describe("ExtensionApp", () => {
     expect(screen.getByRole("button", { name: /授業・講義/ })).not.toBeNull()
 
     fireEvent.click(screen.getByRole("button", { name: "設定を保存" }))
+    await waitFor(() => expect(complete).toHaveBeenCalledWith({}))
     expect(store.navigate).toHaveBeenCalledWith({ kind: "home" })
+  })
+
+  it("resumes an unfinished category step when home opens", async () => {
+    const { store } = renderApp(
+      { kind: "home" },
+      {
+        onboardingPort: {
+          complete: vi.fn(),
+          load: vi.fn(async () => ({
+            categorySelection: { "study.lecture": ["授業ページ"] },
+            currentStepId: "categories",
+            initializedBy: "INSTALL" as const,
+            schemaVersion: 1 as const,
+            status: "IN_PROGRESS" as const,
+            updatedAt: 1
+          })),
+          saveSelection: vi.fn(),
+          start: vi.fn()
+        }
+      }
+    )
+
+    await waitFor(() =>
+      expect(store.navigate).toHaveBeenCalledWith(
+        { kind: "onboarding", step: "categories" },
+        { replace: true }
+      )
+    )
   })
 
   it("restores saved native-document scroll on browser back navigation", () => {

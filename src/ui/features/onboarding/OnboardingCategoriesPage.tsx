@@ -29,15 +29,23 @@ const bookmationLogo = new URL(
 ).href
 
 /** カテゴリIDごとに、選ばれたタグ名を持ちます。 */
-export type CategoryPresetSelection = Readonly<Record<string, readonly string[]>>
+export type CategoryPresetSelection = Readonly<
+  Record<string, readonly string[]>
+>
 
 export type OnboardingCategoriesPageProps = {
   catalog?: CategoryPresetCatalog
   description: string
   heading: string
   headingRef?: React.Ref<HTMLHeadingElement>
-  onSubmit: (selection: CategoryPresetSelection) => void
+  initialSelection?: CategoryPresetSelection
+  onSelectionChange?: (
+    selection: CategoryPresetSelection
+  ) => void | Promise<void>
+  onSubmit: (selection: CategoryPresetSelection) => void | Promise<void>
 }
+
+const EMPTY_SELECTION: CategoryPresetSelection = {}
 
 function toggleTag(
   selection: CategoryPresetSelection,
@@ -77,10 +85,7 @@ function CategoryPresetCard({
   return (
     <AccordionItem value={category.id}>
       <AccordionTrigger className="group border-b border-bm-ink pb-2 pt-1 text-lg hover:bg-bm-accent">
-        <CategoryIcon
-          aria-hidden="true"
-          className="size-[1.125rem] shrink-0"
-        />
+        <CategoryIcon aria-hidden="true" className="size-[1.125rem] shrink-0" />
         <span className="min-w-0 flex-1 break-all">{category.name}</span>
         {selectedTags.length > 0 ? (
           <span className="shrink-0 text-xs text-bm-muted-text">
@@ -128,17 +133,42 @@ export function OnboardingCategoriesPage({
   description,
   heading,
   headingRef,
+  initialSelection,
+  onSelectionChange,
   onSubmit
 }: OnboardingCategoriesPageProps) {
   const fieldIdPrefix = React.useId()
-  const [selection, setSelection] = React.useState<CategoryPresetSelection>({})
+  const [selection, setSelection] = React.useState<CategoryPresetSelection>(
+    initialSelection ?? EMPTY_SELECTION
+  )
+  const [submitState, setSubmitState] = React.useState<
+    "idle" | "saving" | "error"
+  >("idle")
+
+  React.useEffect(() => {
+    setSelection(initialSelection ?? EMPTY_SELECTION)
+  }, [initialSelection])
 
   const handleToggleTag = React.useCallback(
     (categoryId: string, tag: string) => {
-      setSelection((current) => toggleTag(current, categoryId, tag))
+      const next = toggleTag(selection, categoryId, tag)
+      setSelection(next)
+      void Promise.resolve(onSelectionChange?.(next)).catch(() =>
+        setSubmitState("error")
+      )
     },
-    []
+    [onSelectionChange, selection]
   )
+
+  const handleSubmit = async () => {
+    setSubmitState("saving")
+    try {
+      await onSubmit(selection)
+      setSubmitState("idle")
+    } catch {
+      setSubmitState("error")
+    }
+  }
 
   return (
     <div className="min-h-dvh overflow-x-clip bg-bm-paper text-bm-ink">
@@ -197,11 +227,17 @@ export function OnboardingCategoriesPage({
           </section>
         ))}
         <div className="mt-16 flex justify-end">
+          {submitState === "error" ? (
+            <p className="mr-4 self-center text-sm text-bm-error" role="alert">
+              設定を保存できませんでした。選択内容を確認して再試行してください。
+            </p>
+          ) : null}
           <Button
             className="h-[3.25rem] w-full max-w-[15rem] !rounded-none px-6 !font-normal sm:!text-[1.125rem]"
-            onClick={() => onSubmit(selection)}
+            loading={submitState === "saving"}
+            onClick={() => void handleSubmit()}
           >
-            設定を保存
+            {submitState === "saving" ? "保存しています" : "設定を保存"}
           </Button>
         </div>
       </main>

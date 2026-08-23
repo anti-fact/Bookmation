@@ -76,11 +76,42 @@ describe("OnboardingCategoriesPage", () => {
     await user.click(screen.getByRole("checkbox", { name: "授業ページ" }))
     await user.click(screen.getByRole("checkbox", { name: "資料" }))
 
-    expect(screen.getByRole("button", { name: /授業・講義.*2件選択/ })).not.toBeNull()
+    expect(
+      screen.getByRole("button", { name: /授業・講義.*2件選択/ })
+    ).not.toBeNull()
 
     await user.click(screen.getByRole("checkbox", { name: "資料" }))
     await user.click(screen.getByRole("button", { name: "設定を保存" }))
 
     expect(onSubmit).toHaveBeenCalledWith({ "study.lecture": ["授業ページ"] })
+  })
+
+  it("restores a saved selection and reports each later change", async () => {
+    const user = userEvent.setup()
+    const onSelectionChange = vi.fn()
+    render(
+      <OnboardingCategoriesPage
+        catalog={catalog}
+        description="説明"
+        heading="あなたにあったカテゴリを選ぶ"
+        initialSelection={{ "study.lecture": ["授業ページ"] }}
+        onSelectionChange={onSelectionChange}
+        onSubmit={vi.fn()}
+      />
+    )
+
+    expect(
+      screen.getByRole("button", { name: /授業・講義.*1件選択/ })
+    ).not.toBeNull()
+    await user.click(screen.getByRole("button", { name: /授業・講義/ }))
+    expect(
+      screen
+        .getByRole("checkbox", { name: "授業ページ" })
+        .getAttribute("aria-checked")
+    ).toBe("true")
+    await user.click(screen.getByRole("checkbox", { name: "資料" }))
+    expect(onSelectionChange).toHaveBeenCalledWith({
+      "study.lecture": ["授業ページ", "資料"]
+    })
   })
 })

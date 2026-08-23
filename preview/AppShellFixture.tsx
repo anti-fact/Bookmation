@@ -6,6 +6,7 @@ import { ExtensionApp } from "~/ui/app/ExtensionApp"
 import { createBrowserHashRouteStore } from "~/ui/app/hash-route"
 import type { AiAssistantPort } from "~/ui/features/ai-assistant/ai-assistant-port"
 import type { LabelManagementPort } from "~/ui/features/labels/label-management-port"
+import type { OnboardingPort } from "~/ui/features/onboarding/onboarding-port"
 import type { SearchPort } from "~/ui/features/search/search-port"
 
 const fixtureRoutes = [
@@ -101,6 +102,27 @@ const aiAssistantPort: AiAssistantPort = {
   }
 }
 
+const onboardingState = (status: "IN_PROGRESS" | "COMPLETED") => ({
+  categorySelection: {},
+  currentStepId: status === "COMPLETED" ? null : "categories",
+  initializedBy: "INSTALL" as const,
+  schemaVersion: 1 as const,
+  status,
+  updatedAt: Date.now()
+})
+
+const onboardingPort: OnboardingPort = {
+  complete: async () => onboardingState("COMPLETED"),
+  load: async () => null,
+  saveSelection: async (categorySelection) => ({
+    ...onboardingState("IN_PROGRESS"),
+    categorySelection: Object.fromEntries(
+      Object.entries(categorySelection).map(([id, tags]) => [id, [...tags]])
+    )
+  }),
+  start: async () => onboardingState("IN_PROGRESS")
+}
+
 export function AppShellFixture() {
   const routeStore = React.useMemo(
     () => createBrowserHashRouteStore(window),
@@ -180,6 +202,7 @@ export function AppShellFixture() {
         <ExtensionApp
           aiAssistantPort={aiAssistantPort}
           labelManagementPort={labelManagementPort}
+          onboardingPort={onboardingPort}
           searchPort={fixtureSearchPort}
         />
       </AppErrorBoundary>

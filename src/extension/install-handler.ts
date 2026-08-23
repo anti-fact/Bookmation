@@ -1,4 +1,9 @@
-import { buildDashboardUrl, DASHBOARD_ENTRY, DASHBOARD_WELCOME_ROUTE } from "./paths"
+import {
+  buildDashboardUrl,
+  DASHBOARD_ENTRY,
+  DASHBOARD_WELCOME_ROUTE
+} from "./paths"
+import { ONBOARDING_STATE_KEY } from "./onboarding"
 
 export const INSTALL_STATE_KEY = "bookmation.install-state-v1"
 
@@ -9,7 +14,11 @@ export type InstallStorage = {
 
 export type InstallRuntime = Pick<typeof chrome.runtime, "getURL">
 export type InstallTabs = Pick<typeof chrome.tabs, "create">
-export type InstallReason = "install" | "update" | "chrome_update" | "shared_module_update"
+export type InstallReason =
+  | "install"
+  | "update"
+  | "chrome_update"
+  | "shared_module_update"
 
 function isInitialized(value: unknown): boolean {
   return (
@@ -24,7 +33,7 @@ export async function initializeOnInstall(
   reason: InstallReason,
   storage: InstallStorage,
   runtime: InstallRuntime,
-  tabs: InstallTabs,
+  tabs: InstallTabs
 ): Promise<void> {
   if (reason !== "install") {
     return
@@ -35,10 +44,22 @@ export async function initializeOnInstall(
     return
   }
 
+  const initializedAt = Date.now()
   await storage.set({
-    [INSTALL_STATE_KEY]: { schemaVersion: 1, initializedAt: Date.now() },
+    [INSTALL_STATE_KEY]: { schemaVersion: 1, initializedAt },
+    [ONBOARDING_STATE_KEY]: {
+      schemaVersion: 1,
+      status: "NOT_STARTED",
+      currentStepId: "welcome",
+      initializedBy: "INSTALL",
+      updatedAt: initializedAt,
+      categorySelection: {}
+    }
   })
   await tabs.create({
-    url: buildDashboardUrl(runtime.getURL(DASHBOARD_ENTRY), DASHBOARD_WELCOME_ROUTE),
+    url: buildDashboardUrl(
+      runtime.getURL(DASHBOARD_ENTRY),
+      DASHBOARD_WELCOME_ROUTE
+    )
   })
 }
