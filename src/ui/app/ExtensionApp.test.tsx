@@ -167,7 +167,7 @@ describe("ExtensionApp", () => {
     ).not.toBeNull()
   })
 
-  it("changes the shared shell through typed navigation and focuses its heading", () => {
+  it("changes the shared shell through typed navigation and focuses its heading", async () => {
     const { store } = renderApp({ kind: "home" })
 
     const homeHeading = screen.getByRole("heading", {
@@ -301,8 +301,8 @@ describe("ExtensionApp", () => {
     expect(settingsContent.className).toContain("sm:p-5")
     expect(settingsContent.className).toContain("lg:p-8")
     expect(
-      screen.queryByRole("region", { name: "Prompt API スパイク設定" })
-    ).toBeNull()
+      await screen.findByRole("region", { name: "Gemini Nano設定" })
+    ).not.toBeNull()
   })
 
   it("renders all header variants from one AppHeader component", () => {

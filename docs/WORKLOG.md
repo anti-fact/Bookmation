@@ -1208,6 +1208,29 @@ install時だけwelcomeを開き、Category templateの選択を途中再開し�
 - TASK-101、TASK-103、TASK-104、TASK-105のApplication／Repository／Chrome権限adapterは未着手であり、production entryは空Portを使う。Web fixtureとcomponent testではdialog状態とPort契約だけを検証した。
 - repository管理された実拡張E2E、camera／bookmarks／Driveの実権限、人間による実Chrome受入は未実施である。
 
+## 2026-08-23 — Gemini Nano準備UIの統合
+
+### 目的
+
+開発用Prompt API testerで確認済みのモデル取得処理を、利用者向けの一般設定へ統合する。
+
+### 変更
+
+- 一般設定へGemini Nanoの利用可否、端末へのモデル取得、取得進捗、準備完了を表示する設定を追加した。
+- モデル取得は設定画面の明示的なボタン操作からだけ開始し、`downloadable`／`downloading`／`available`／`unavailable`を日本語で案内する。
+- 開発用の固定Bookmark分類、構造化JSON生出力、内部エラーコード、環境情報を表示するPrompt API testerは削除した。AI Hostは引き続き準備済みモデルだけを使用する。
+
+### 検証
+
+- Gemini Nano設定、一般設定、App Shellの対象テスト: 3 files／22 tests成功。
+- 外部HTML fixture依存の1件を除く全体テスト: 89 files／433 tests成功。
+- 変更対象のESLint、`pnpm build`、`pnpm ui:build`、`git diff --check`: 成功。Web buildには既知のchunk size警告がある。
+- `pnpm typecheck`: 既存の `src/domain/chrome-bookmark-import.ts` の`flatMap`推論エラー1件で失敗。今回変更したファイルのESLintとbuildは成功した。
+
+### 残課題
+
+- 実Chromeでのモデル取得とGemini Nano実モデルによるAI仕分けは、この環境では未実施である。
+
 ## 追記テンプレート
 
 ```markdown
