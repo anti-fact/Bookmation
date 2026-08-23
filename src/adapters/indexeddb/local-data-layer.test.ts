@@ -101,6 +101,61 @@ describe("LocalDataLayer", () => {
       expect(cat.categoryUniqueName).toBe("python 入門")
     })
 
+    it("renames a category and rebuilds child-tag search documents", async () => {
+      const category = await layer.createCategory({
+        id: uuid(),
+        name: "Development",
+        creationRequestId: uuid(),
+      })
+      const tag = await layer.createTag({
+        id: uuid(),
+        name: "TypeScript",
+        parentCategoryId: category.id,
+        expectedParentRevision: category.revision,
+        creationRequestId: uuid(),
+      })
+
+      const updated = await layer.updateCategory({
+        categoryId: category.id,
+        expectedRevision: category.revision,
+        name: "  Engineering  ",
+      })
+
+      expect(updated.name).toBe("engineering")
+      expect(updated.revision).toBe(2)
+      expect(
+        (await layer.searchAllByKeyword("engineering")).labels.map(
+          (label) => label.id,
+        ),
+      ).toEqual(expect.arrayContaining([category.id, tag.id]))
+      expect(
+        (await layer.searchAllByKeyword("development")).labels.map(
+          (label) => label.id,
+        ),
+      ).not.toContain(tag.id)
+    })
+
+    it("rejects a duplicate category name on rename", async () => {
+      const category = await layer.createCategory({
+        id: uuid(),
+        name: "Development",
+        creationRequestId: uuid(),
+      })
+      await layer.createCategory({
+        id: uuid(),
+        name: "Engineering",
+        creationRequestId: uuid(),
+      })
+
+      await expect(
+        layer.updateCategory({
+          categoryId: category.id,
+          expectedRevision: category.revision,
+          name: "Engineering",
+        }),
+      ).rejects.toThrow(DomainErrorCode.DUPLICATE_NORMALIZED_NAME)
+    })
+
     it("rejects duplicate name while tombstone exists", async () => {
       const catId = uuid()
       const cat = await layer.createCategory({

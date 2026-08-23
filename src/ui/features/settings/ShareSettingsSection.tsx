@@ -184,7 +184,7 @@ export function ShareSettingsSection({ port }: { port: ShareSettingsPort }) {
         <label className="grid gap-2 text-sm font-semibold text-bm-ink">
           共有対象を検索
           <input
-            className="h-12 rounded-bm-field border-2 border-bm-border bg-bm-paper px-4 text-bm-ink outline-none hover:bg-bm-ink hover:text-bm-paper focus-visible:ring-2 focus-visible:ring-bm-focus"
+            className="h-10 w-full max-w-md rounded-bm-field border-2 border-bm-border bg-bm-paper px-3 text-sm text-bm-ink outline-none focus-visible:ring-2 focus-visible:ring-bm-focus"
             onChange={(event) => setQuery(event.target.value)}
             placeholder="カテゴリ、タグ、ページ名"
             type="search"

@@ -142,7 +142,7 @@ function CategoryLinks({
     <div aria-label="カテゴリ" className="flex min-w-0 flex-wrap gap-1">
       {bookmark.categories.map((category) => (
         <button
-          className="inline-flex min-h-5 items-center rounded-l-none rounded-r-bm-chip bg-bm-ink px-2 text-[0.6875rem] font-bold text-bm-paper outline-none transition-colors hover:bg-bm-ink hover:text-bm-paper focus-visible:ring-2 focus-visible:ring-bm-focus focus-visible:ring-offset-2 focus-visible:ring-offset-bm-paper"
+          className="inline-flex min-h-5 items-center rounded-l-none rounded-r-bm-chip bg-bm-paper px-2 text-[0.6875rem] font-bold text-bm-ink outline-none transition-colors hover:bg-bm-ink hover:text-bm-paper focus-visible:ring-2 focus-visible:ring-bm-focus focus-visible:ring-offset-2 focus-visible:ring-offset-bm-paper"
           key={category.id}
           onClick={() =>
             onNavigateToFilter({ id: category.id, kind: "category" })

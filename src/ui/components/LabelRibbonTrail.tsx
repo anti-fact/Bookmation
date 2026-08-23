@@ -3,8 +3,11 @@ import * as React from "react"
 
 import { joinClassNames } from "~/ui/primitives/class-names"
 
-const ribbonClipPath =
+export const LABEL_RIBBON_CLIP_PATH =
   "polygon(0 0, calc(100% - 29px) 0, 100% 50%, calc(100% - 29px) 100%, 0 100%, 29px 50%)"
+
+export const LABEL_RIBBON_SEGMENT_CLASS =
+  "inline-flex h-[63px] shrink-0 items-center bg-bm-black pl-[41px] pr-[41px] text-2xl font-bold leading-none text-bm-paper sm:text-3xl"
 
 type LabelRibbonTrailProps = {
   className?: string
@@ -28,7 +31,7 @@ export function LabelRibbonTrail({
       {items.map(({ id, label }, index) => (
         <li
           className={joinClassNames(
-            "inline-flex h-[63px] shrink-0 items-center bg-bm-black pl-[41px] pr-[41px] text-2xl font-bold leading-none text-bm-paper sm:text-3xl",
+            LABEL_RIBBON_SEGMENT_CLASS,
             onRemove
               ? "group relative transition-colors hover:bg-bm-ink hover:text-bm-paper focus-within:bg-bm-ink focus-within:text-bm-paper"
               : "",
@@ -36,7 +39,7 @@ export function LabelRibbonTrail({
           )}
           key={id}
           style={{
-            clipPath: ribbonClipPath,
+            clipPath: LABEL_RIBBON_CLIP_PATH,
             zIndex: index + 1
           }}
         >

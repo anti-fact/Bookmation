@@ -33,6 +33,12 @@ describe("ShareSettingsSection", () => {
       />
     )
 
+    const search = await screen.findByRole("searchbox", {
+      name: "共有対象を検索"
+    })
+    expect(search.className).toContain("h-10")
+    expect(search.className).toContain("max-w-md")
+
     await user.click(await screen.findByRole("checkbox", { name: /開発/ }))
     await user.click(screen.getByRole("checkbox", { name: /React/ }))
     expect(screen.getByText("重複を除いた選択: 2件")).not.toBeNull()

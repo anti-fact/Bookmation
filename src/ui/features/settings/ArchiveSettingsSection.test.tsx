@@ -39,9 +39,18 @@ describe("ArchiveSettingsSection", () => {
       />
     )
 
-    await user.click(
-      await screen.findByRole("checkbox", { name: "すべて選択" })
-    )
+    const archiveList = await screen.findByRole("list", {
+      name: "アーカイブ済みブックマーク一覧"
+    })
+    expect(archiveList.className).toContain("max-h-96")
+    expect(archiveList.className).toContain("overflow-y-auto")
+    expect(archiveList.className).toContain("border-2")
+    expect(archiveList.className).toContain("border-bm-border")
+    expect(archiveList.className).toContain("p-2")
+    expect(archiveList.getAttribute("tabindex")).toBe("0")
+    expect(screen.getByText("Alpha").closest("li")?.className).toContain("py-2")
+
+    await user.click(screen.getByRole("checkbox", { name: "すべて選択" }))
     await user.click(screen.getByRole("button", { name: "選択項目を復元" }))
 
     await waitFor(() => expect(restore).toHaveBeenCalledWith(["a", "b"]))

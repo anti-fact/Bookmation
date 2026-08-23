@@ -12,6 +12,7 @@ export const EXTENSION_MESSAGE_ACTIONS = {
   DELETE_BOOKMARK: "delete-bookmark",
   LIST_BOOKMARKS: "list-bookmarks",
   CREATE_CATEGORY: "create-category",
+  UPDATE_CATEGORY: "update-category",
   CREATE_TAG: "create-tag",
   UPDATE_TAG: "update-tag",
   DELETE_TAG: "delete-tag",
@@ -144,6 +145,7 @@ export type ExtensionMessageRequest =
   | MessageRequest<"delete-bookmark", "dashboard", JsonValue>
   | MessageRequest<"list-bookmarks", "dashboard", ListBookmarksPayload>
   | MessageRequest<"create-category", "dashboard", JsonValue>
+  | MessageRequest<"update-category", "dashboard", JsonValue>
   | MessageRequest<"create-tag", "dashboard", JsonValue>
   | MessageRequest<"update-tag", "dashboard", JsonValue>
   | MessageRequest<"delete-tag", "dashboard", JsonValue>

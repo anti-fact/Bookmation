@@ -1,7 +1,10 @@
 import { Pencil2Icon, TrashIcon } from "@radix-ui/react-icons"
 import * as React from "react"
 
-import type { BookmarkCategoryOption } from "~/ui/features/bookmarks/bookmark-form-port"
+import {
+  LABEL_RIBBON_CLIP_PATH,
+  LABEL_RIBBON_SEGMENT_CLASS
+} from "~/ui/components/LabelRibbonTrail"
 import {
   Button,
   Dialog,
@@ -80,7 +83,13 @@ export function LabelsPage({
 
   const openEditor = async (next: Exclude<Editor, null>) => {
     setEditor(next)
-    setName(next.kind === "tag" ? next.tag.name : "")
+    setName(
+      next.kind === "category"
+        ? next.category.name
+        : next.kind === "tag"
+          ? next.tag.name
+          : ""
+    )
     setParentId(next.kind === "tag" ? next.tag.parentCategoryId : "")
     setCategoryQuery(next.kind === "tag" ? next.tag.parentCategoryName : "")
     setDetail(null)
@@ -125,6 +134,12 @@ export function LabelsPage({
         } else {
           setName("")
         }
+      } else if (editor.kind === "category") {
+        await port.updateCategory({
+          category: editor.category,
+          name
+        })
+        setEditor(null)
       } else if (editor.kind === "create-tag" && selectedCategory) {
         await port.createTag({
           category: selectedCategory,
@@ -191,25 +206,37 @@ export function LabelsPage({
       {categories.map((category) => (
         <section aria-labelledby={`category-${category.id}`} key={category.id}>
           <button
-            className="group relative inline-flex min-h-[3.9375rem] w-full items-center bg-bm-ink px-8 text-left text-2xl font-bold text-bm-paper outline-none hover:bg-bm-ink hover:text-bm-paper focus-visible:ring-2 focus-visible:ring-bm-focus"
+            className={`${LABEL_RIBBON_SEGMENT_CLASS} group relative outline-none focus-visible:ring-2 focus-visible:ring-bm-focus`}
             id={`category-${category.id}`}
             onClick={() =>
               manageMode
                 ? void openEditor({ category, kind: "category" })
                 : onNavigate({ id: category.id, kind: "category" })
             }
+            style={{ clipPath: LABEL_RIBBON_CLIP_PATH }}
             type="button"
           >
-            #{category.name}
+            <span
+              className={
+                manageMode
+                  ? "whitespace-nowrap transition-opacity group-hover:opacity-20 group-focus-visible:opacity-20"
+                  : "whitespace-nowrap"
+              }
+            >
+              #{category.name}
+            </span>
             {manageMode ? (
-              <Pencil2Icon className="ml-auto size-5 opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100" />
+              <Pencil2Icon
+                aria-hidden="true"
+                className="absolute left-1/2 top-1/2 size-5 -translate-x-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100"
+              />
             ) : null}
           </button>
-          <div className="flex flex-wrap gap-3 bg-bm-paper p-4 sm:px-8">
+          <div className="flex flex-wrap gap-3 p-4 sm:px-8">
             {category.tags.length ? (
               category.tags.map((tag) => (
                 <button
-                  className="group inline-flex min-h-10 items-center gap-2 rounded-bm-chip border-2 border-bm-border px-4 text-sm font-semibold outline-none hover:bg-bm-ink hover:text-bm-paper focus-visible:ring-2 focus-visible:ring-bm-focus"
+                  className="group inline-flex min-h-10 items-center gap-2 rounded-bm-chip border-2 border-bm-border bg-bm-accent px-4 text-sm font-semibold outline-none hover:bg-bm-ink hover:text-bm-paper focus-visible:ring-2 focus-visible:ring-bm-focus"
                   key={tag.id}
                   onClick={() =>
                     manageMode
@@ -257,6 +284,14 @@ export function LabelsPage({
 
           {editor?.kind === "category" ? (
             <div className="space-y-5">
+              <label className="block text-sm font-semibold">
+                名前
+                <input
+                  className="mt-2 block w-full rounded-bm-field border-2 border-bm-border px-3 py-2 font-normal outline-none focus-visible:ring-2 focus-visible:ring-bm-focus"
+                  onChange={(event) => setName(event.target.value)}
+                  value={name}
+                />
+              </label>
               <div className="rounded-bm-field bg-bm-accent p-4 text-sm">
                 <p className="m-0">
                   子タグ: {detail?.activeTagCount ?? "確認中"}件
@@ -275,17 +310,26 @@ export function LabelsPage({
                 カテゴリを削除すると子タグも削除されます。ブックマーク本体は残ります。
                 AI分類が有効な場合は、影響するブックマークの再分類が行われます。
               </p>
-              <div className="flex justify-end gap-3">
-                <Button onClick={() => setEditor(null)} variant="outline">
-                  キャンセル
-                </Button>
+              <div className="flex flex-wrap justify-between gap-3">
                 <Button
                   disabled={!detail || submitting}
                   onClick={() => void remove()}
                   tone="danger"
+                  variant="solid"
                 >
                   カテゴリと子タグを削除
                 </Button>
+                <div className="flex gap-3">
+                  <Button onClick={() => setEditor(null)} variant="outline">
+                    キャンセル
+                  </Button>
+                  <Button
+                    disabled={submitting || !name.trim()}
+                    onClick={() => void submit()}
+                  >
+                    保存する
+                  </Button>
+                </div>
               </div>
             </div>
           ) : (
@@ -373,7 +417,7 @@ export function LabelsPage({
                     disabled={submitting}
                     onClick={() => void remove()}
                     tone="danger"
-                    variant="outline"
+                    variant="solid"
                   >
                     <TrashIcon />
                     タグを削除

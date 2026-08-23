@@ -36,6 +36,11 @@ function createPort(): LabelManagementPort {
       name,
       revision: 1
     })),
+    updateCategory: vi.fn(async ({ category, name }) => ({
+      ...category,
+      name,
+      revision: category.revision + 1
+    })),
     createTag: vi.fn(async ({ category, name }) => ({
       id: "new-tag",
       name,
@@ -74,8 +79,23 @@ describe("LabelsPage", () => {
       />
     )
 
-    await user.click(await screen.findByRole("button", { name: "#開発" }))
-    await user.click(screen.getByRole("button", { name: "#TypeScript" }))
+    const category = await screen.findByRole("button", { name: "#開発" })
+    const tag = screen.getByRole("button", { name: "#TypeScript" })
+    const categoryClassNames = category.className.split(" ")
+    expect(category.style.clipPath).toContain("calc(100% - 29px)")
+    expect(categoryClassNames).toContain("h-[63px]")
+    expect(categoryClassNames).toContain("pl-[41px]")
+    expect(categoryClassNames).toContain("pr-[41px]")
+    expect(categoryClassNames).toContain("bg-bm-black")
+    expect(categoryClassNames).toContain("text-bm-paper")
+    expect(categoryClassNames).not.toContain("w-full")
+    expect(categoryClassNames).toContain("text-2xl")
+    expect(tag.parentElement?.className).not.toContain("bg-bm-paper")
+    expect(tag.className).toContain("bg-bm-accent")
+    expect(tag.className).toContain("hover:bg-bm-ink")
+
+    await user.click(category)
+    await user.click(tag)
     expect(onNavigate).toHaveBeenNthCalledWith(1, {
       id: "category-dev",
       kind: "category"
@@ -99,7 +119,31 @@ describe("LabelsPage", () => {
     await user.click(await screen.findByRole("button", { name: "#開発" }))
     const dialog = await screen.findByRole("dialog", { name: "#開発を管理" })
     expect(within(dialog).getByText("関連ブックマーク: 4件")).not.toBeNull()
-    await user.click(within(dialog).getByRole("button", { name: "キャンセル" }))
+    const categoryDelete = within(dialog).getByRole("button", {
+      name: "カテゴリと子タグを削除"
+    })
+    expect(categoryDelete.className).toContain("bg-bm-danger")
+    expect(categoryDelete.className).toContain("text-bm-paper")
+    const categoryName = within(dialog).getByRole("textbox", { name: "名前" })
+    await user.clear(categoryName)
+    await user.type(categoryName, "ソフトウェア開発")
+    await user.click(within(dialog).getByRole("button", { name: "保存する" }))
+    await waitFor(() =>
+      expect(port.updateCategory).toHaveBeenCalledWith({
+        category: catalog[0],
+        name: "ソフトウェア開発"
+      })
+    )
+
+    await user.click(screen.getByRole("button", { name: "#TypeScript" }))
+    const tagDialog = await screen.findByRole("dialog", {
+      name: "#TypeScriptを編集"
+    })
+    const tagDelete = within(tagDialog).getByRole("button", {
+      name: "タグを削除"
+    })
+    expect(tagDelete.className).toContain("bg-bm-danger")
+    expect(tagDelete.className).toContain("text-bm-paper")
 
     rerender(
       <LabelsPage

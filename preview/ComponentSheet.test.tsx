@@ -20,6 +20,9 @@ describe("ComponentSheet", () => {
     expect(
       screen.getByRole("button", { name: "編集Dialogを開く" })
     ).not.toBeNull()
+    const deleteButton = screen.getByRole("button", { name: "削除する" })
+    expect(deleteButton.className).toContain("bg-bm-danger")
+    expect(deleteButton.className).toContain("text-bm-paper")
     expect(
       screen.getByRole("switch", { name: "右クリックメニューから保存" })
     ).not.toBeNull()

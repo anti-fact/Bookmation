@@ -111,13 +111,12 @@ export function AiAgentPopup({
     <>
       <button
         aria-label="AIアシスタントを開く"
-        className="fixed bottom-24 right-5 z-bm-floating inline-flex h-[3.125rem] items-center justify-center gap-2 rounded-bm-pill border-2 border-bm-ink bg-bm-ink px-5 font-bold text-bm-paper shadow-bm-floating outline-none hover:bg-bm-paper hover:text-bm-ink focus-visible:ring-2 focus-visible:ring-bm-focus focus-visible:ring-offset-2 sm:right-8"
+        className="fixed bottom-24 right-5 z-bm-floating inline-flex size-[3.125rem] items-center justify-center rounded-bm-pill border-2 border-bm-ink bg-bm-paper text-bm-ink shadow-bm-floating outline-none hover:bg-bm-ink hover:text-bm-paper focus-visible:ring-2 focus-visible:ring-bm-focus focus-visible:ring-offset-2 sm:right-8"
         onClick={() => setOpen(true)}
         ref={triggerRef}
         type="button"
       >
-        <MagicWandIcon className="size-5" />
-        AI
+        <MagicWandIcon aria-hidden="true" className="size-5" />
       </button>
 
       {open ? (

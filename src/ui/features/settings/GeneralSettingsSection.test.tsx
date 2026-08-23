@@ -34,19 +34,21 @@ describe("GeneralSettingsSection", () => {
   it("shows the specified initial values and keeps visit days disabled without a window", async () => {
     render(renderGeneralSettings())
 
-    expect(
-      await screen.findByRole("combobox", { name: "訪問の集計期間" })
-    ).not.toBeNull()
+    const period = await screen.findByRole("combobox", {
+      name: "訪問の集計期間"
+    })
+    expect(period.className).toContain("h-10")
     expect(
       screen.getByRole<HTMLInputElement>("spinbutton", {
         name: /リマインダー表示までの訪問日数/
       }).disabled
     ).toBe(true)
-    expect(
-      screen.getByRole<HTMLInputElement>("spinbutton", {
-        name: /アーカイブ化の閾値/
-      }).value
-    ).toBe("30")
+    const archiveDays = screen.getByRole<HTMLInputElement>("spinbutton", {
+      name: /アーカイブ化の閾値/
+    })
+    expect(archiveDays.value).toBe("30")
+    expect(archiveDays.className).toContain("h-10")
+    expect(archiveDays.className).toContain("w-24")
     expect(
       screen
         .getByRole("slider", { name: "AIタグの細分化" })
@@ -80,6 +82,26 @@ describe("GeneralSettingsSection", () => {
         })
         .getAttribute("max")
     ).toBe("7")
+  })
+
+  it("moves the controlled granularity slider before saving the committed value", async () => {
+    const user = userEvent.setup()
+    const updateSettings = vi.fn(async (update) => ({
+      ...DEFAULT_GENERAL_SETTINGS_SNAPSHOT,
+      ...update
+    }))
+    render(<GeneralSettingsSection port={createPort({ updateSettings })} />)
+
+    const slider = await screen.findByRole("slider", {
+      name: "AIタグの細分化"
+    })
+    slider.focus()
+    await user.keyboard("{ArrowRight}")
+
+    expect(slider.getAttribute("aria-valuenow")).toBe("3")
+    await waitFor(() =>
+      expect(updateSettings).toHaveBeenCalledWith({ aiGranularity: 3 })
+    )
   })
 
   it("keeps auto archive off when history permission is denied", async () => {

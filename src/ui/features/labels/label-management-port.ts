@@ -28,6 +28,10 @@ export interface LabelManagementPort {
     name: string
     requestId: string
   }): Promise<BookmarkCategoryOption>
+  updateCategory(input: {
+    category: BookmarkCategoryOption
+    name: string
+  }): Promise<BookmarkCategoryOption>
   createTag(input: {
     category: BookmarkCategoryOption
     name: string
@@ -55,6 +59,7 @@ const unavailable = async (): Promise<never> => {
 
 export const emptyLabelManagementPort: LabelManagementPort = {
   createCategory: unavailable,
+  updateCategory: unavailable,
   createTag: unavailable,
   deleteCategory: unavailable,
   deleteTag: unavailable,
