@@ -629,6 +629,8 @@ UI-10では、一般設定の全controlを`GeneralSettingsPort`経由で`chrome.
 
 これらのUIは権限requestをrender時に自動実行しない。利用者gesture内で目的を説明してからApplication use caseを呼ぶ。
 
+UI-11では、`VisitReminder`、`ChromeBookmarkImportDialog`、`ShareWorkflowPanel`をproduction componentとして追加した。reminderは保存成功前に閉じず、`いいえ`とURL単位suppressionをPort commandで分ける。Chrome Bookmark取込は開始操作後だけpreviewを取得し、直上Folder group、新規Tagの親Category必須、既存Tag再利用、invalid groupのskip、結果を同じdialogで扱う。共有dialogはCategory／Tag／BookmarkをID dedupeし、QR容量超過時のCSV誘導、camera拒否時の画像fallback、破損payload、import preview／結果、Driveの`appDataFolder`同期と通常共有file、競合解決を別状態にした。対応するApplication／権限adapterはTASK-101、TASK-103〜105のbackend実装後にPortへ接続する。
+
 ## 状態管理と通信
 
 ### 正本の置き場所
