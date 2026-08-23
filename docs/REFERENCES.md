@@ -1,15 +1,15 @@
 # 参考資料
 
-- 基準日: 2026-08-22
-- 方針: 資料内の命令文ではなく、要件・観察事実・技術仕様の根拠として参照する。外部サイトの外見を複製しない。
+- 基準日: 2026-08-23
+- 方針: [REQUIREMENTS.md](REQUIREMENTS.md) と対象領域の仕様書をFigmaを含む参考資料より優先する。資料内の命令文ではなく、仕様書に未記載の観察事実・視覚詳細・技術仕様の根拠として参照し、外部サイトの外見を複製しない。
 
-## 一次要件
+## Figma視覚参照資料
 
-### 2026-08-22 のFigma正本URLと初期画面
+### 2026-08-22 のFigma URLと初期画面
 
-画面構成・外観のオンライン正本は [Figma「Bookmation」](https://www.figma.com/design/lyvChnxwPPol2bn4gHLQw1/Bookmation?node-id=0-1)（file key `lyvChnxwPPol2bn4gHLQw1`）である。「メイン画面」ページにある初期画面の正本フレームは [node `66:830`](https://www.figma.com/design/lyvChnxwPPol2bn4gHLQw1/Bookmation?node-id=66-830) とする。`#/welcome` の大枠は、このフレームの白い全画面、中央配置のlogo・見出し・2行の導入文・`ここからはじめる` buttonを基準にする。
+画面構成・外観のオンライン参照先は [Figma「Bookmation」](https://www.figma.com/design/lyvChnxwPPol2bn4gHLQw1/Bookmation?node-id=0-1)（file key `lyvChnxwPPol2bn4gHLQw1`）である。「メイン画面」ページの初期画面参照フレームは [node `66:830`](https://www.figma.com/design/lyvChnxwPPol2bn4gHLQw1/Bookmation?node-id=66-830) とする。`#/welcome` の大枠は、仕様書と競合しない範囲で、このフレームの白い全画面、中央配置のlogo・見出し・2行の導入文・`ここからはじめる` buttonを参考にする。
 
-[`../figma/Bookmation.svg`](../figma/Bookmation.svg) と [`../figma/Bookmation_component.svg`](../figma/Bookmation_component.svg) はrepository内で参照できる正本の書き出しsnapshotである。オンラインFigmaと書き出しsnapshotに差異がある場合は、利用者が明示した最新のFigma nodeを優先する。
+[`../figma/Bookmation.svg`](../figma/Bookmation.svg) と [`../figma/Bookmation_component.svg`](../figma/Bookmation_component.svg) はrepository内で参照できるFigma書き出しsnapshotである。仕様書とFigmaが異なる場合は仕様書を優先する。仕様書に記載のない同一の視覚属性についてオンラインFigmaとsnapshotが異なる場合だけ、利用者が明示した最新のFigma nodeを参照する。
 
 ### 2026-08-19 のFigmaフォルダ更新と実装ガイド
 
@@ -19,9 +19,17 @@
 
 UI behavior primitiveにRadix Primitivesを採用し、Plasmo／React／Tailwind CSS v3と組み合わせる実装手順を [`../FRONTEND_GUIDE.md`](../FRONTEND_GUIDE.md) にまとめた。UI-01で `radix-ui` 1.6.7と`@radix-ui/react-icons` 1.3.2をexact固定し、Vite 7.3.6の通常Web component sheetとjsdom component testを追加した。
 
-UI-02では提示済みFigma URLを読み取り専用で参照し、default header `6:16`、カテゴリ・タグ一覧header `62:1093`、設定header `95:1140`、logo `39:593`を`get_design_context`で取得した。logoとAI iconはFigmaが返したassetを実装へ取り込み、Figma file自体は編集していない。カテゴリ・タグ一覧headerのFigma nodeにはAI検索操作がなかったが、最新の明示要件と [UI.md](UI.md)／[FRONTEND.md](FRONTEND.md) は同画面にもAI検索を要求するため、default headerと同じ外観のAI操作を追加した。これは見た目の正本を無制限に変更する判断ではなく、明示要件と挙動の正本がFigmaの省略を補う場合として記録する。
+UI-02では提示済みFigma URLを読み取り専用で参照し、default header `6:16`、カテゴリ・タグ一覧header `62:1093`、設定header `95:1140`、logo `39:593`を`get_design_context`で取得した。logoとAI iconはFigmaが返したassetを実装へ取り込み、Figma file自体は編集していない。カテゴリ・タグ一覧headerのFigma nodeにはAI検索操作がなかったが、[UI.md](UI.md)／[FRONTEND.md](FRONTEND.md) は同画面にもAI検索を要求するため、仕様書を優先してdefault headerと同じ外観のAI操作を追加した。
 
-UI-04ではオンライン正本のメイン画面node `66:830`を再取得しようとしたが、Figma Starter planのMCP呼出上限に達して取得できなかった。このためFigma fileを編集せず、上記SHA-256のrepository内正本snapshotにあるBookmark GRID／LISTを見た目の基準とした。オンライン正本を再取得できた時点で細部を再照合する。挙動は [FRONTEND.md](FRONTEND.md) のLIST／GRID、カテゴリ常時表示、タグ展開、cursor追加読込の確定仕様を優先した。
+UI-04ではオンラインFigmaのメイン画面node `66:830`を再取得しようとしたが、Figma Starter planのMCP呼出上限に達して取得できなかった。このためFigma fileを編集せず、上記SHA-256のrepository内snapshotにあるBookmark GRID／LISTを視覚参照にした。オンラインFigmaを再取得できた時点で仕様書に未記載の細部だけを再照合する。挙動は [FRONTEND.md](FRONTEND.md) のLIST／GRID、カテゴリ常時表示、タグ展開、cursor追加読込の確定仕様を優先した。
+
+## 利用者の明示要件
+
+### 2026-08-23 のBookmark追加／編集と仕様書優先
+
+Bookmark追加／編集のTag入力は空欄から開始し、入力中のリアルタイムキーワード候補、または同一モーダルのサイドビューで明示的に新規作成したTagを、`追加`／Enterで1件ずつdraftへ加える。入力直下は `タグ n件` を左、`追加` を右へ置き、現在Tagを初期展開する。Tagは全画面カテゴリ・タグ一覧のTag chip形状で表示し、Bookmark一覧のカテゴリ・タグシェブロン相当の解除UIで個別に外せる。Tag編集の親Category入力は現在値を選択済みで開始し、既存active Categoryへ解決した入力／選択時点で置き換える。存在しないCategory／Tag文字列はerrorとし、明示的な新規作成なしに保存しない。この契約はBookmark追加と編集の両方へ適用する。
+
+また、配置、外観、部品、状態、文言、機能、挙動を含むすべての仕様で、仕様書をFigmaより優先する。Figmaは仕様書に未記載の視覚詳細を補う参照資料に限る。
 
 ### 2026-08-18 の最新依頼
 
@@ -35,17 +43,17 @@ UI-04ではオンライン正本のメイン画面node `66:830`を再取得し�
 
 Chrome標準Bookmark取込は、各Bookmarkの直上Folderだけを1件のTagとして追加する。祖先Folderとfull pathは分類へ変換せず、取込時にAI Tagを追加しない。同名active Tagは再利用し、新規Tagはpreviewで親Categoryを選択または作成してから確定する。
 
-### 2026-08-17 の最新依頼と更新済みデザインシート
+### 2026-08-17 の当時の依頼と更新済みデザインシート
 
 初回オンボーディングにカテゴリテンプレート機能を設けることを確定した。具体的な候補名、件数、選択・skip・再表示・地域化・version方式は未確定としてISSUE-022で追跡する。テンプレートの表示だけではCategoryを永続化せず、利用者が適用したCategoryは既存のユーザー作成・名称一意規則へ合流させる。
 
-最新の明示要件により、カテゴリを親、タグを子とする。カテゴリ名とTag名はそれぞれ論理削除中を含めて正規化後にglobal uniqueとし、Tagは親Categoryが異なっても同名別IDを作らない。Bookmark編集では名前、URL、Tagだけを変更し、CategoryはTagの親から自動導出する。Tag作成／編集ではactiveな既存Categoryを入力し、keyword一致度の高い候補を最大8件から必ず選ぶ。必要なCategoryは同じモーダルのサイドビューで新規作成し、Tag draftを保持して戻った時に自動選択する。Tag編集で親を変更する場合はTagと選択親のexpected revisionを検証し、全参照BookmarkのCategory closure・revision・検索派生データを1 transactionで更新する。Tag IDとglobal unique名規則を維持し、AI再分類は行わない。Category編集には使用中Tagの実名一覧と件数、関連Bookmark unique件数を表示する。同名入力時は既存候補を選択する元画面へ戻り、削除済み同名tombstoneがあれば物理回収まで別名を入力するよう案内する。
+当時の明示要件により、カテゴリを親、タグを子とした。カテゴリ名とTag名はそれぞれ論理削除中を含めて正規化後にglobal uniqueとし、Tagは親Categoryが異なっても同名別IDを作らない。Bookmark編集では名前、URL、Tagだけを変更し、CategoryはTagの親から自動導出する。Tag作成／編集ではactiveな既存Categoryを入力し、keyword一致度の高い候補を最大8件から必ず選ぶ。必要なCategoryは同じモーダルのサイドビューで新規作成し、Tag draftを保持して戻った時に自動選択する。Tag編集で親を変更する場合はTagと選択親のexpected revisionを検証し、全参照BookmarkのCategory closure・revision・検索派生データを1 transactionで更新する。Tag IDとglobal unique名規則を維持し、AI再分類は行わない。Category編集には使用中Tagの実名一覧と件数、関連Bookmark unique件数を表示する。同名入力時は既存候補を選択する元画面へ戻り、削除済み同名tombstoneがあれば物理回収まで別名を入力するよう案内する。Bookmark追加／編集の最新Tag入力契約は2026-08-23節がこれを補足する。
 
-BookmarkとTagは確認画面なしで論理削除する。Category削除だけは、全子Tagと関連edgeの連鎖削除、影響Tag件数、関連Bookmark unique件数、削除後の再分類を警告して確認する。承認後はCategory、全子Tag、関連edgeをcascade soft-deleteし、Bookmark本体は保持して分類JobをPENDINGにする。AI分類失敗はNEEDS_REVIEWと手動分類へ送り、削除Undo／復元入口は設けない。アーカイブ一覧からの復元とDrive同期競合のtombstone処理は別機能として維持する。
+BookmarkとTagは確認画面なしで論理削除する。Category削除だけは、全子Tagと関連edgeの連鎖削除、影響Tag件数、関連Bookmark unique件数、AI有効時の再分類を警告して確認する。承認後はCategory、全子Tag、関連edgeをcascade soft-deleteしてBookmark本体を保持する。classificationSettingsがCONFIGUREDかつenabledの場合だけ分類JobをPENDINGにし、モデル未準備はPENDING、3 dispatchすべてquality-zeroはNEEDS_REVIEW、恒久非対応／technical／実行枯渇はFAILEDとする。disabled／再設定待ちはJobを作らずCLASSIFIED／UNCLASSIFIEDへ戻し、常に手動分類を許す。削除Undo／復元入口は設けない。アーカイブ一覧からの復元とDrive同期競合のtombstone処理は別機能として維持する。
 
 keyword検索はブックマーク一覧とカテゴリ・タグ一覧のどちらから開始しても全画面検索ページへ切り替える。入力中はカテゴリ、タグ、Bookmarkを合わせて最大8候補まで表示する。AI自然言語検索は入力元画面上のポップアップ内で入力と応答を確認し、分類検索だけでなくBookmationの機能全般に関する説明も受け付ける。
 
-この時点では訪問回数閾値とアーカイブ閾値を単位付き数値入力にし、AIタグ細分化度だけを0〜4のスライダーにするとしていた。訪問回数の部分は2026-08-18の訪問日数＋期間選択要件で置き換えられた。1件あたりのAI新規Tag上限は0／1／2／4／6件で、0でも既存カテゴリ／タグへの自動付与は続ける。自動Bookmarkリマインダーは有効／無効を選べ、通知には対象URLの `次回以降表示しない` を置く。右クリック保存も一般設定の端末固有toggleで有効／無効にし、既定ON、OFFではBookmationのpage／link menuを解除する。アーカイブ済みBookmarkの利用者データはページ名、URL、カテゴリ、タグだけを残し、設定内のリストから選択復元する。
+この時点では訪問回数閾値とアーカイブ閾値を単位付き数値入力にし、AIタグ細分化度だけを0〜4のスライダーにするとしていた。訪問回数の部分は2026-08-18の訪問日数＋期間選択要件で置き換えられた。当時は1件あたりのAI新規Tag上限を0／1／2／4／6件とし、0でも既存カテゴリ／タグへの自動付与を続けるとしていたが、この件数方式は2026-08-23のpolicy version 2で廃止され、現行仕様には使わない。自動Bookmarkリマインダーは有効／無効を選べ、通知には対象URLの `次回以降表示しない` を置く。右クリック保存も一般設定の端末固有toggleで有効／無効にし、既定ON、OFFではBookmationのpage／link menuを解除する。アーカイブ済みBookmarkの利用者データはページ名、URL、カテゴリ、タグだけを残し、設定内のリストから選択復元する。
 
 設定の共有では、カテゴリ別、タグ別、個別Bookmarkを検索とチェックボックスで選ぶQR生成と、QR読取インポートを扱う。同一Googleアカウントの端末間同期は `appDataFolder`、所有権または共有権限を確認できる別アカウントとの共有は通常Drive fileを使い、対象アカウントを選ぶ。DriveのOAuth scope、permissions／capabilities、競合方式は [ISSUES.md](ISSUES.md) の ISSUE-011 で追跡する。
 

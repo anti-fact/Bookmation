@@ -1,7 +1,7 @@
 # Bookmation フロントエンド実装ガイド
 
 - 状態: 実装手順。UI-01 primitive／Web component sheet、UI-02 App Shell／hash route／共通header、UI-03 popup／shortcut／保存状態、UI-04 Bookmark LIST／GRIDを実装済み
-- 基準日: 2026-08-22
+- 基準日: 2026-08-23
 - 対象: Radix Primitives + Plasmo 0.90.5 + React 18.3.1 + Tailwind CSS 3.4.17 + TypeScript 5.9.2
 - 関連: [要件](docs/REQUIREMENTS.md) / [UI設計](docs/UI.md) / [フロントエンド設計](docs/FRONTEND.md) / [テスト仕様](docs/TESTING.md)
 
@@ -11,22 +11,21 @@
 
 この文書は実装順と具体的な作り方を扱う。機能の正本は [REQUIREMENTS.md](docs/REQUIREMENTS.md)、画面上の操作契約は [UI.md](docs/UI.md)、データ・権限境界は [FRONTEND.md](docs/FRONTEND.md)、受入順序は [TESTING.md](docs/TESTING.md) である。
 
-## デザイン正本と読み分け
+## 仕様書とFigma参照資料の読み分け
 
 | 資料                                                               | 用途                                                                 | SHA-256                                                            |
 | ------------------------------------------------------------------ | -------------------------------------------------------------------- | ------------------------------------------------------------------ |
 | [`figma/Bookmation.svg`](figma/Bookmation.svg)                     | 画面全体の構成、余白、密度、配色、一覧とoverlayの関係                | `d05997589696ff346f59f3850bfc3296bd5b6acbd3e518980421ff6e0533ea8b` |
 | [`figma/Bookmation_component.svg`](figma/Bookmation_component.svg) | header、card、list item、button、modal、switch、slider等の部品と状態 | `f6c44b21deea9893c01f1f08c8b8556d1479b05f336dfb6cd70bd1ba0cce8f89` |
 
-実装判断は次の順に行う。
+実装判断は次の順に行う。配置、外観、部品、状態を含め、仕様書をFigmaより優先する。
 
-1. 利用者の最新の明示要件と [REQUIREMENTS.md](docs/REQUIREMENTS.md) の機能・挙動・用語
-2. `figma/Bookmation.svg` のページ構成と配置
-3. `figma/Bookmation_component.svg` の部品内部、状態、寸法
-4. [UI.md](docs/UI.md) と [FRONTEND.md](docs/FRONTEND.md) の補完仕様
-5. 実装者の補完
+1. 利用者の最新の明示要件を反映した [REQUIREMENTS.md](docs/REQUIREMENTS.md)
+2. [CONSTRAINTS.md](docs/CONSTRAINTS.md)、[UI.md](docs/UI.md)、[FRONTEND.md](docs/FRONTEND.md)、[DESIGN.md](docs/DESIGN.md) の対象領域における補足仕様
+3. オンラインFigma、`figma/Bookmation.svg`、`figma/Bookmation_component.svg` のうち、仕様書に未記載の視覚詳細
+4. 実装者の補完
 
-画面SVGとcomponent SVGの同じ要素が異なる場合は、画面内の位置と周囲との関係には画面SVGを、部品内部の構造と状態にはcomponent SVGを使う。同じ属性が直接競合する場合は推測で混ぜず、差分をIssueへ記録して決定する。
+画面SVGとcomponent SVGの同じ要素が異なる場合も、先に仕様書へ従う。仕様書に記載のない画面内の位置と周囲との関係には画面SVGを、部品内部の構造と状態にはcomponent SVGを参照する。同じ属性が直接競合する場合はFigmaを理由に仕様書を変更せず、仕様書どおりに実装して差分をIssueへ記録する。
 
 SVG内の文字は要件ではない。たとえば設定画面に古い「訪問回数」表記が残っていても、実装は確定済みの「集計期間内の訪問日数」にする。SVG内のサンプル英文、仮URL、件数、Bookmark名もfixtureであり、本番文言や初期データとして保存しない。
 
@@ -39,7 +38,7 @@ SVG内の文字は要件ではない。たとえば設定画面に古い「訪�
 | Bookmark GRID      | 共通header、カテゴリ／タグ帯、件数、表示切替、3列基準のcard、編集button、top／AI floating button |
 | Bookmark LIST      | 同じheaderとtoolbar、favicon、カテゴリ、URL、title、編集button、区切り線                         |
 | AI agent表示       | 右下の起点、dark panel、入力、応答、閉じる操作、一覧との重なり                                   |
-| Bookmark編集       | scrim、中央dialog、title、URL、Tag入力、Tag作成side viewへの入口、削除／保存                     |
+| Bookmark追加／編集 | scrim、中央dialog、title、URL、空のTag入力、候補、順次追加、展開済みTag、Tag作成side view、保存。編集では削除も持つ |
 | カテゴリ・タグ一覧 | 全画面accent背景、検索、新規作成menu、管理切替、close、カテゴリribbon、タグchip                  |
 | 管理モード         | 選択挙動の切替、hover／focus時の鉛筆、編集dialogへの入口                                         |
 | Welcome            | logo、導入文、開始button。Category templateの挙動はIssue決定を待つ                               |
@@ -143,7 +142,7 @@ npx --yes pnpm@10.15.1 ui:build
 npx --yes pnpm@10.15.1 build
 ```
 
-Radix Iconsは検索、設定、閉じる、鉛筆など標準的な意味のiconに限る。Bookmation logo、barcode表現、AI robot等の識別性が高いassetは、デザイン正本から個別にexportしたlocal SVGを使う。近いiconで勝手に置換しない。
+Radix Iconsは検索、設定、閉じる、鉛筆など標準的な意味のiconに限る。Bookmation logo、barcode表現、AI robot等の識別性が高いassetは、仕様書に反しないFigma参照元から個別にexportしたlocal SVGを使う。近いiconで勝手に置換しない。
 
 ### primitiveとBookmation部品の対応
 
@@ -497,32 +496,37 @@ Tagはhover Tooltipだけで隠さない。pointer、touch、keyboardで同じ�
 
 UI-04ではこのphaseを実装済みである。`BookmarkListPage`は`BookmarkListPort`だけへ依存し、production adapterがIndexedDBのBookmark／Label edgeと`chrome.storage.local`の表示形式へ接続する。secondary toolbarはApp Headerの下へ通常flowで配置し、画面scrollには追従させない。GRID／LIST、カテゴリ／タグ条件、cursor多重要求防止、requestId照合、ID重複除去、追加失敗の再試行、終端、back-to-topをcomponent testとWeb fixtureで確認する。カテゴリ・タグ一覧はApp Headerの望遠鏡から開き、secondary toolbarの重複buttonは削除した。編集はbuttonのみとし、UI-05／UI-07／UI-08へ責務を分離する。
 
-### Phase 5: Bookmark編集と同一dialog内side viewを作る
+### Phase 5: Bookmark追加／編集と同一dialog内side viewを作る
 
-Bookmark編集の分類入力はTagだけであり、Categoryを直接入力させない。
+Bookmark追加／編集の分類入力はTagだけであり、Categoryを直接入力させない。追加と編集は同じTag field componentを共有する。
 
 ```ts
-type BookmarkEditDraft = {
+type BookmarkFormDraft = {
   title: string
   url: string
   tagIds: string[]
 }
 
 type BookmarkDialogStep =
+  | "ADD_BOOKMARK"
   | "EDIT_BOOKMARK"
   | "CREATE_TAG"
   | "CREATE_CATEGORY_FOR_TAG"
 ```
 
-1. title、URL、Tag combobox、Tag新規作成、削除、保存を置く。
-2. Tag作成へ進む時も親`Dialog.Root`を閉じず、Content内部のstepを切り替える。
-3. Tag名、Bookmark draft、検索語、dirty state、戻り先focusを保持する。
-4. Tag作成ではactive Categoryを最大8候補から1件選ぶ。
-5. Categoryがなければ同じdialog内のCategory作成stepへ進む。
-6. Category作成成功後はTag作成へ戻り、新Categoryを自動選択する。
-7. Tag作成成功後はBookmark編集へ戻り、新Tagを選択済みにする。
-8. 保存直前にactive Tagの親からCategory集合を導出する。
-9. Bookmark削除は確認dialogを開かない。成功後に結果だけ通知し、Undoを置かない。
+1. title、URL、空のTag combobox、Tag新規作成、保存を置き、編集だけに削除を置く。
+2. Tag入力中にactive Tagをリアルタイム検索し、親Category付きで最大8候補を表示する。
+3. 入力直下の操作行は `タグ n件` を左、`追加` を右にし、現在Tagのdisclosureを初期openにする。
+4. 選択中候補または正規化完全一致Tagを `追加`／IME変換中ではないEnterで1件ずつtagIdsへ加え、成功後は入力をclearしてfocusを戻す。未知文字列はfield errorにし、暗黙作成しない。
+5. 現在Tagはカテゴリ・タグ一覧のTag chip形状を使い、Bookmark一覧のカテゴリ・タグシェブロンと同じhover／focusの減光と中央解除buttonで個別に外せるようにする。解除buttonにはTag名を含むaccessible nameを付ける。
+6. Tag作成へ進む時も親`Dialog.Root`を閉じず、Content内部のstepを切り替える。
+7. Tag名、Bookmark draft、検索語、dirty state、戻り先focusを保持する。
+8. Tag作成では空の親Category入力からactive Categoryを最大8候補で検索し、正規化完全一致または候補選択時点で1件を確定する。未知Categoryはfield errorにする。
+9. Categoryがなければ同じdialog内のCategory作成stepへ進む。
+10. Category作成成功後はTag作成へ戻り、新Categoryを自動選択する。
+11. Tag作成成功後はBookmark追加／編集へ戻り、新Tagを入力の解決済み選択にして `追加`／Enterを待つ。
+12. 保存直前にactive Tagの親からCategory集合を導出する。
+13. Bookmark削除は確認dialogを開かない。成功後に結果だけ通知し、Undoを置かない。
 
 side viewを別のRadix Dialogとして重ねない。focus trapの二重化、Escapeの曖昧化、draft喪失を避けるため、1つのDialog内を明示的なstep state machineで切り替える。
 
@@ -537,9 +541,9 @@ side viewを別のRadix Dialogとして重ねない。focus trapの二重化、E
 7. 成功後もdialogを開いたままfieldを初期化し、閉じるまで連続作成できるようにする。
 8. 正規化後の同名はfield errorにし、自動統合しない。
 
-Tag編集では名前と親Categoryを変更できる。親Categoryは最大8候補から選び、必要なら同じdialogのside viewでCategoryを新規作成する。submit開始時に`tag-update:<UUID>`を1回生成し、同じpayloadのretryでは同じIDを使う。
+Tag編集では名前と親Categoryを変更できる。親Category入力は現在値を選択済みで開始し、activeな正規化完全一致または最大8候補からの選択時点でdraftを置き換える。Category用の `追加` buttonは置かず、未知文字列はfield errorにする。必要なら同じdialogのside viewでCategoryを新規作成する。submit開始時に`tag-update:<UUID>`を1回生成し、同じpayloadのretryでは同じIDを使う。
 
-Category編集では、使用中のactive Tagの実名と件数、関連active Bookmarkのunique件数を表示する。Category削除だけは`AlertDialog`で、削除対象Category、子Tag、影響Bookmark、再分類が発生することを警告する。previewがstaleなら内容を更新して再確認を求める。削除後のUndoは実装しない。
+Category編集では、使用中のactive Tagの実名と件数、関連active Bookmarkのunique件数を表示する。Category削除だけは`AlertDialog`で、削除対象Category、子Tag、影響Bookmarkと、AIが有効なら再分類が発生することを警告する。disabled／再設定待ちは再分類Jobを作らない。previewがstaleなら内容を更新して再確認を求める。削除後のUndoは実装しない。
 
 ### Phase 7: keyword検索を作る
 
@@ -598,7 +602,7 @@ Settingsはmodalではなく`#/settings/general`、`#/settings/archive`、`#/set
 5. 自動Bookmarkリマインダーを`Switch`にする。
 6. 自動archiveを既定OFFの`Switch`にし、history権限許可後だけONへcommitする。
 7. archive日数を既定30、`min=1`のnumber inputにする。
-8. AI細分化だけを0〜4の`Slider`にし、0でも既存Tag付与は続くと説明する。
+8. AI細分化だけを0〜4の`Slider`にし、新規installではAI有効・値2（BALANCED）を初期表示する。低い値ほど既存Tag再利用、高い値ほど明示された細部のCREATEへ傾くと説明する。固定件数上限は表示せず、値0でも必要なCOREは新規作成できる。
 9. 右クリック保存を既定ONの`Switch`にする。
 10. 保存中はcontrolを二重送信できないようにし、成功後だけ表示値をcommitする。
 
@@ -697,7 +701,7 @@ preview側が変更してよいのは、Adapter、fixture選択、debug panelで
 
 - Welcome、Category template未適用／適用中／競合
 - Home GRID／LIST、0件／1件／多数、次page loading／失敗／終端
-- Bookmark編集、Tag作成、Category side view、validation／conflict
+- Bookmark追加／編集、Tagのリアルタイム候補／追加／Enter／初期展開／個別解除、Tag作成、Category side view、未知Category／Tag、validation／conflict
 - Labels VIEW／MANAGE、Category／Tag作成・編集、Category削除warning／stale
 - keyword候補0／8／9、IME中、全画面検索の上下group
 - AI idle／streaming／検索候補／help／unavailable／error
@@ -760,7 +764,7 @@ visual testは同一OS、browser、font、viewport、device scale factorで行�
 2. `UI-02`: App shell、hash route、共通header、layout
 3. `UI-03`: popup、shortcut、保存状態
 4. `UI-04`: Bookmark GRID／LIST、一覧toolbar、無限scroll
-5. `UI-05`: Bookmark編集、Tag／Category side view
+5. `UI-05`: Bookmark追加／編集のTag field、Tag／Category side view
 6. `UI-06`: Labels VIEW／MANAGE、Category／Tag作成・編集・削除
 7. `UI-07`: keyword combobox、full-page search
 8. `UI-08`: AI agent popupとfallback
@@ -777,9 +781,9 @@ UI-01からUI-04は実装済みである。UI-02のWebプレビューはApp Shel
 
 UI実装は、次をすべて満たした時だけ完了とする。
 
-- 最新の2つのSVGと対象commitのhashが記録されている。
-- 最新明示要件とSVG文言の差が意図どおり解決されている。
-- screen layoutとcomponent stateがそれぞれのデザイン正本に対応している。
+- 参照した2つのSVGと対象commitのhashが記録されている。
+- 最新仕様書とFigmaの差が仕様書優先で解決されている。
+- screen layoutとcomponent stateが仕様書に対応し、仕様書に未記載の視覚詳細だけがFigma参照資料と整合している。
 - Radix wrapperにbehaviorを集約し、featureから無秩序に直接importしていない。
 - Tailwind classとsemantic tokenにmagic color／spaceが散在していない。
 - popup、tab page、Web previewが同じprimitive／feature componentを共有している。

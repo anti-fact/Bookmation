@@ -41,15 +41,15 @@ TASK-004 以降、利用者は popup や URL 入力から保存した Bookmark �
 ## 対象範囲
 
 - 対象:
-  - P0 必須 Object Store 9 件の作成と index 定義
+  - P0 必須 Object Store 10 件（AI分類設定正本 `classificationSettings` を含む）の作成と index 定義
   - `schemaMeta` による DB 版管理と中断可能な migration **骨格**
   - Port 定義と IndexedDB Adapter（Repository 実装）
   - JSON document の read/write schema 検証、size 上限、unknown version 隔離
-  - Bookmark + PENDING ClassificationJob の同一 transaction 保存
+  - Bookmark + `classificationSettings` 正本の同一 transaction 保存と、AI 有効時だけの PENDING ClassificationJob
   - Label 名称の Normalizer v1 適用、tombstone 中の名称予約、namespace 分離 unique
   - `(bookmarkId, labelId)` edge と `creationRequestId` の冪等
   - `UpdateTag`（`tag-update:` requestId + `tagMutationReceipts` + Bookmark fan-out、**AI 再分類 Job なし**）
-  - `DeleteCategoryCascade`（`category-delete:` requestId + 影響 Bookmark への PENDING Job）
+  - `DeleteCategoryCascade`（`category-delete:` requestId + AI 有効時だけ影響 Bookmark への PENDING Job）
   - Bookmark / Tag の確認なし soft-delete、Category の cascade soft-delete
   - SearchDocument の再構築・回収 **境界**（最小実装）
   - cursor ページング（`savedAt + id` 等）と Repository 契約テスト
@@ -80,7 +80,7 @@ TASK-004 以降、利用者は popup や URL 入力から保存した Bookmark �
 - 子 Tag tombstone が残る間、**親 Category の物理 GC を拒否**。
 - Bookmark の Category 集合は **active Tag の親から自動導出**。Category 直接編集は拒否。
 - **Tag 親変更**は Tag / 選択親の expected revision と submit 開始時に 1 回発行する `tag-update:` requestId を検証。全参照 Bookmark の Category closure・revision・検索派生データ・mutation receipt を **原子的** に更新。同 request 再送は同じ `UpdateTagResult` へ収束。別 payload で requestId 再利用は拒否。**AI 再分類 Job は作らない**。
-- **Category 連鎖削除**は `category-delete:` namespace。警告確認後に Category / 全子 Tag / 関連 edge を cascade soft-delete。Bookmark 本体は保持し、影響 Bookmark ごとに **PENDING 再分類 Job** を 1 transaction で作成。AI 失敗時は `NEEDS_REVIEW`。
+- **Category 連鎖削除**は `category-delete:` namespace。警告確認後に Category / 全子 Tag / 関連 edge を cascade soft-deleteし、Bookmark 本体を保持する。classificationSettings が CONFIGURED かつ enabled の場合だけ、影響 Bookmark ごとの **PENDING 再分類 Job** を同じ transaction で作成する。AI 有効時は3 dispatchすべてquality-zeroの場合だけ `NEEDS_REVIEW`、technical failureを含むdispatch枯渇またはexecution枯渇は `FAILED` とする。disabled / 再設定待ちは Job を作らず残存active Tag有無から `CLASSIFIED` / `UNCLASSIFIED` にし、全状態で手動分類を許す。
 - Bookmark / Tag は **確認なし soft-delete**。削除 Undo 用 token / 期限 / 復元経路は **作らない**。
 
 ## 実装方針
@@ -116,7 +116,8 @@ src/
 | `bookmarks` | （urlHash は non-unique。normalizedUrl は Repository で比較） |
 | `labels` | `byCategoryUniqueName`, `byTagUniqueName`, `byCreationRequestId` |
 | `bookmarkLabels` | `byBookmarkAndLabel` |
-| `classificationJobs` | `byBookmarkAndRequest`（設計どおり） |
+| `classificationJobs` | `byActiveInputKey`, `byRequestId` |
+| `classificationSettings` | key-addressed |
 | `tagMutationReceipts` | requestId を key path |
 | `bookmarkRevisions` | — |
 | `searchDocuments` | — |
@@ -129,10 +130,10 @@ non-unique index（`bySavedAt`, `byParentCategory`, `byLabel`, `byBookmark` 等�
 
 | 操作 | 含める Store（P0） |
 | --- | --- |
-| 新規 Bookmark 保存 | `bookmarks`, `classificationJobs`, `bookmarkRevisions`, `searchDocuments` |
-| Tag edge 更新 | `bookmarkLabels`, `bookmarks`（revision）, `searchDocuments` |
+| 新規 Bookmark 保存 | `bookmarks`, `labels`, `bookmarkLabels`, `classificationSettings`, `classificationJobs`, `bookmarkRevisions`, `searchDocuments` |
+| Tag edge 更新 | `labels`, `bookmarkLabels`, `bookmarks`, `classificationJobs`, `bookmarkRevisions`, `searchDocuments` |
 | UpdateTag | `labels`, `bookmarkLabels`, `bookmarks`, `bookmarkRevisions`, `searchDocuments`, `tagMutationReceipts` |
-| DeleteCategoryCascade | `labels`, `bookmarkLabels`, `bookmarks`, `classificationJobs`, `bookmarkRevisions`, `searchDocuments` |
+| DeleteCategoryCascade | `labels`, `bookmarkLabels`, `bookmarks`, `classificationJobs`, `classificationSettings`, `bookmarkRevisions`, `searchDocuments` |
 | Tag / Bookmark soft-delete | 上記と同様に fan-out 対象を 1 transaction |
 
 P1 の `syncOutbox` は Port に optional hook を留めるか、M4/M5 では **未実装** とし、transaction コメントで拡張点を明示する。
@@ -163,13 +164,13 @@ P1 の `syncOutbox` は Port に optional hook を留めるか、M4/M5 では **
 - 期待結果: `  Ｐｙｔｈｏｎ　入門 ` → 正規化保存、tombstone 同名 → `LABEL_NAME_CONFLICT` 相当、active Tag は active 親必須。
 - 失敗時: 競合時は Store へ write せず DomainError を返す。
 
-### M3: edge 冪等と Bookmark + PENDING Job の同一 transaction
+### M3: edge 冪等と Bookmark + AI 設定正本の同一 transaction
 
-- 成果: `(bookmarkId, labelId)` edge と `creationRequestId` の再送が重複レコードを増やさず、Bookmark 保存と PENDING Job が常に同時 commit または同時 rollback する。
+- 成果: `(bookmarkId, labelId)` edge と `creationRequestId` の再送が重複レコードを増やさず、Bookmark 保存と新規 install 既定（revision 1、CONFIGURED、AI 有効、細分化度 2、BALANCED）の `classificationSettings` 正本を同じ transaction で扱う。CONFIGURED かつ enabled の場合だけ PENDING Jobを同時 commit／rollbackし、disabled／再設定待ちはJobなしで保存する。
 - 変更箇所: `bookmark-label-repository.ts`, `classification-job-repository.ts`, unit-of-work。
 - 実行: `pnpm test`
-- 期待結果: 同一 creationRequestId 再送 → 1 件、Job だけ成功 Bookmark 失敗 → 両方 rollback。
-- 失敗時: 部分 Job 公開なし（TASK-004 の「AI 待ちでも Bookmark は残る」の前提）。
+- 期待結果: 同一 creationRequestId 再送 → 1 件、AI有効時にJobだけ成功／Bookmark失敗 → 両方rollback、AI無効時はJob 0件でBookmarkがCLASSIFIED／UNCLASSIFIED。
+- 失敗時: 部分 Job 公開なし。AI設定にかかわらずBookmark保存を失わない。
 
 ### M4: UpdateTag（receipt 収束・Bookmark fan-out・AI Job なし）
 
@@ -179,12 +180,12 @@ P1 の `syncOutbox` は Port に optional hook を留めるか、M4/M5 では **
 - 期待結果: fan-out 途中失敗 → 全件 rollback；**ClassificationJob は新規作成しない**。
 - 失敗時: `REQUEST_ID_REUSED`, `REVISION_CONFLICT` を Domain エラーで返す。
 
-### M5: Category cascade 削除と PENDING 再分類 Job
+### M5: Category cascade 削除とAI設定gate付き再分類
 
-- 成果: `category-delete:` requestId と impact fingerprint 検証後、Category / 全子 Tag / edge を cascade soft-delete し、影響 Bookmark ごとに PENDING Job を 1 件だけ作成。Bookmark 本体は残る。
+- 成果: `category-delete:` requestId と impact fingerprint 検証後、Category / 全子 Tag / edge を cascade soft-deleteしてBookmark本体を残す。classificationSettingsがCONFIGUREDかつenabledの場合だけ影響BookmarkごとにPENDING Jobを1件作り、disabled／再設定待ちはJobを作らず残存active Tag有無からCLASSIFIED／UNCLASSIFIEDにする。
 - 変更箇所: `delete-category-cascade.ts`、Job 作成ロジック。
 - 実行: `pnpm test`（fingerprint 不一致 → 無変更、完了済み request 再送 → no-op）
-- 期待結果: AI 失敗想定時は Bookmark `NEEDS_REVIEW` へ遷移可能な状態を残す。
+- 期待結果: AI有効時は3 quality-zeroでBookmark `NEEDS_REVIEW`、technical／execution枯渇で `FAILED` へ遷移可能な状態を残す。AI無効／再設定待ちはJob 0件で、どちらも手動分類できる。
 - 失敗時: 削除 Undo 経路は作らない。
 
 ### M6: SearchDocument 境界・cursor 一覧・migration 骨格
@@ -231,7 +232,7 @@ P1 の `syncOutbox` は Port に optional hook を留めるか、M4/M5 では **
 - [ ] AIエージェントE2E: **対象外**（TASK-013）。IndexedDB 永続化の成功根拠に Web プレビューを使わない（[TESTING.md](../TESTING.md)）。
 - [ ] 手動検証: 任意。Chrome DevTools で Store 存在確認。必須証拠は自動テスト。
 - [ ] 人間受入: TASK-003 完了時は BE-02 チェックリストと Issue #7 完了条件の照合を [WORKLOG.md](../WORKLOG.md) に記録する。TASK-012 の人間受入は含めない。
-- [ ] 状態fixture: Normalizer v1 golden、tombstone 同名拒否、edge 再送、Tag 親変更 0/1/多数 Bookmark、revision 競合、同 request 再送 / 別 payload 拒否、Category cascade fingerprint 不一致、削除 Undo 経路なし、migration 中断 — を Repository テストで再現する。
+- [ ] 状態fixture: Normalizer v1 golden、tombstone 同名拒否、edge 再送、Tag 親変更 0/1/多数 Bookmark、revision 競合、同 request 再送 / 別 payload 拒否、新規installのAI設定既定、AI enabled／disabled／再設定待ち別の保存とCategory cascade、fingerprint 不一致、削除 Undo 経路なし、migration 中断 — を Repository テストで再現する。
 - [ ] エラー経路: transaction 失敗時は部分データを公開せず、既存 commit 済みデータを破壊しない。
 - [ ] 文書: 実装完了時に [TASKS.md](../TASKS.md) TASK-003 チェック、[BACKEND_TASKS.md](../../BACKEND_TASKS.md) BE-02 状態を更新する。
 

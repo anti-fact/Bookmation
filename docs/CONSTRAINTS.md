@@ -1,11 +1,11 @@
 # 制約
 
 - 状態: 固定条件と実装境界
-- 基準日: 2026-08-19
+- 基準日: 2026-08-23
 
 ## 判断の境界
 
-- 機能・挙動は最新の明示要件、画面構成・外観は `figma/Bookmation.svg`、部品と状態は `figma/Bookmation_component.svg` を正本とする。
+- 配置、外観、部品、状態、文言、機能、挙動、用語は [REQUIREMENTS.md](REQUIREMENTS.md) と対象領域の仕様書を正本とし、Figmaとrepository内SVGより優先する。Figmaは仕様書に未記載の視覚詳細を補う参照資料に限る。
 - 削除済みの旧企画 PDF は情報が古いため、現行要件の根拠に使わない。
 - 参考サイトは着想に限り、正本を上書きしない。
 - Plasmo + React + Tailwind CSS + TypeScript の実装版は `package.json` と `pnpm-lock.yaml` を正本とする。UI behavior primitiveにはRadix Primitivesを採用し、導入版は依存追加PRでexactに固定する。package manager は pnpm。推奨 Node は `.nvmrc` の 22。
@@ -18,7 +18,7 @@
 3. カテゴリを親、タグを子とする。activeなTagは1件のactiveな親Categoryに所属する。tombstone Tagはdeleted親Categoryを参照できる。親Categoryの物理GCは、そのIDを参照する全子Tag tombstoneが消滅するまでblockする。
 4. 1件のBookmarkに複数Tagを付与でき、同じLabel IDを複数Bookmarkで再利用できる。BookmarkのCategory集合はactiveなTagの親から自動導出し、直接編集させない。Tag割当transactionは親Category edgeを整合させ、最後の子Tag edgeが外れた時は不要になった派生Category edgeも外す。
 5. カテゴリはユーザーだけが作成し、正規化名が同じカテゴリは論理削除中を含めて1件だけとする。
-6. Tagは論理削除中を含め、親Categoryをまたいで正規化名をglobal uniqueにし、同名の別IDを許さない。AIは既存ユーザー定義タグを優先し、不足時だけ細分化度の範囲内で作る。
+6. Tagは論理削除中を含め、親Categoryをまたいで正規化名をglobal uniqueにし、同名の別IDを許さない。AIへは完全一致、同義語、正式名／略称、翻訳、表記揺れを全細分化度で再利用するよう指示し、細分化度に応じた再利用傾向と重要度範囲でだけ新規作成させる。信頼側が強制できる意味重複防止は同じID／normalizedNameまでとし、異名同義の遵守は固定oracleによる実モデル品質評価で判定する。
 7. 同じ `(bookmarkId, labelId)` edge は冪等性のため1件とする。
 8. ホームは最近追加を `savedAt` 降順で表示する。
 9. 一覧表示は LIST / GRID だけとし、弁当、列数選択、ブックマーク表示数変更プルダウンを設けない。
@@ -27,9 +27,9 @@
 12. ブックマーク一覧とカテゴリ・タグ一覧は同じ統合検索を使う。keyword結果は全画面検索ページへ切り替えて表示し、AI自然言語検索は入力元画面上のポップアップ内で入力と応答を完結させる。
 13. keyword／AIのどちらもカテゴリ、タグ、Bookmarkを検索し、カテゴリ・タグを上、Bookmarkを下に置く。AI候補は各グループ内で複数の無順位集合として表示し、score、順位、先頭への自動遷移を使わない。
 14. 一覧は cursor による無限スクロールで追加し、両一覧にトップへ戻る操作を置く。
-15. 各Bookmarkにedit操作を置き、name、URL、Tagだけをモーダルで扱う。Categoryは選択中Tagの親から自動導出して読取表示し、直接入力を置かない。Bookmark deleteでは確認画面を挟まない。
+15. Bookmark追加／編集モーダルではname、URL、Tagだけを扱う。Categoryは選択中Tagの親から自動導出して読取表示し、直接入力を置かない。Bookmark deleteでは確認画面を挟まない。
 16. popup は保存／ホームの2操作、実キーまたは未割当、Chrome管理画面への変更案内を表示する。
-17. AI 細分化度は設定画面の0〜4スライダーだけで変更し、過去データを自動再分類しない。1件あたりのAI新規Tag上限は順に0／1／2／4／6件とし、0でも既存カテゴリ／タグへの自動付与を継続する。
+17. AI細分化度は設定画面の0〜4スライダーだけで変更し、過去データを自動再分類しない。値は既存Tagを再利用する意味範囲とCREATE可能な重要度を制御し、固定件数上限には変換しない。0／1は`CORE`、2は`MAJOR`まで、3は`SUPPORTING`まで、4は`DETAIL`までCREATEでき、値0でも中心主題を表す既存Tagがない時は必要最小限の`CORE`を作成できる。正常候補は件数で切り捨てず全て採用する。
 18. AI が使えなくても保存、編集、keyword検索、手動整理を継続できる。
 19. 頻繁に訪問する未保存サイトは、自動Bookmarkリマインダーが有効で、選択期間内の訪問日数が設定閾値へ到達した時だけ知らせ、利用者が `はい` を選んだ場合だけ専用Bookmarkへ保存する。同日複数訪問は1日とし、`いいえ` はそのcanonical URLの集計基準を応答時刻へresetする。`次回以降表示しない` を選んだURLは候補から除外し、無断保存しない。
 20. 訪問集計期間は1週間／1ヶ月／1年のプルダウンとし、当日を含む直近7／30／365暦日へ対応させる。訪問日数の既定値は設けず、期間変更時も数値入力を空にして1〜7／1〜30／1〜365へ制限する。アーカイブ閾値は既定30日の単位付き数値入力とし、AI細分化度だけをスライダーにする。
@@ -44,11 +44,11 @@
 29. 人間の受入確認より先に、AIエージェントがビルド済み拡張機能をPlaywrightで確認し、report、screenshot、trace、skipを含む証拠を残す。
 30. WebプレビューとAIエージェント確認は人間の最終受入を代替しない。人間は同じcommit／buildを確認し、承認または差戻しを記録する。
 31. `runtime.onInstalled` の `reason=INSTALL` だけを初回ウェルカム表示の起点にし、`UPDATE` や開発時reloadでは再表示しない。開始完了後は最近追加したBookmark一覧を通常ホームにする。
-32. カテゴリ・タグ一覧の新規作成は種類をプルダウンで選んでモーダルを開き、閉じるまで連続作成できる。Tag作成にはactiveな既存Categoryの選択を必須とし、入力中に一致度の高い候補を最大8件表示する。Category／Tagとも正規化後の同名作成を拒否し、既存候補を選択する元画面へ戻るか別名を入力するよう案内する。
-33. Bookmark編集ではTagだけを分類入力とし、説明横の新規作成から同一モーダル内のTag作成サイドビューへ切り替える。Tag作成にはCategory新規作成ボタンを置き、同じモーダルのCategory作成サイドビューへ進む。各遷移で入力draftを保持し、Category作成後はTag作成へ戻って新規Categoryを自動選択する。
-34. カテゴリ・タグ一覧の管理ボタンで管理モードへ切り替える。管理中はカテゴリリボン／タグチップの選択で編集モーダルを開き、鉛筆はhover／focus時だけ補助表示する。Category編集にはactiveな使用中Tagの実名一覧と件数、および関連Bookmarkのunique件数を表示する。Tag編集ではactiveな既存Categoryを入力し、最大8候補から選択するか、同じモーダルのCategory作成サイドビューで新規作成する。draftを保持し、作成後は新規Categoryを自動選択する。
-35. BookmarkとTagは確認画面なしで論理削除する。Category削除だけは、全子Tagと関連edgeが連鎖削除され、Bookmarkが再分類されること、および影響するTag件数とBookmark unique件数を警告して確認する。承認後はCategory、全子Tag、関連edgeを1 transactionでsoft-deleteし、Bookmark本体を残して影響Bookmarkの分類Jobを `PENDING` にする。AI分類失敗は `NEEDS_REVIEW` と手動分類へ送り、削除後のUndo toast、token、期限、復元入口は設けない。
-36. 統合検索、カテゴリ入力、タグ入力のautocompleteは入力中のkeyword一致度で既存候補を最大8件表示し、8件超を一度に展開しない。
+32. カテゴリ・タグ一覧の新規作成は種類をプルダウンで選んでモーダルを開き、閉じるまで連続作成できる。Tag作成にはactiveな既存Categoryの選択を必須とし、入力中に一致度の高い候補を最大8件表示する。存在しないCategory文字列を暗黙作成せずfield errorにする。Category／Tagとも正規化後の同名作成を拒否し、既存候補を選択する元画面へ戻るか別名を入力するよう案内する。
+33. Bookmark追加／編集ではTagだけを分類入力とする。Tag入力は空欄から開始し、リアルタイム候補または同一モーダル内のサイドビューで新規作成したTagを、`追加` またはIME変換中ではないEnterで1件ずつdraftへ追加する。入力直下は `タグ n件` を左、`追加` を右にし、現在Tagを初期展開して全画面カテゴリ・タグ一覧のTag chip形状とBookmark一覧のカテゴリ・タグシェブロン相当の解除UIで個別に外せるようにする。未知Tagの自由入力はfield errorとし、暗黙作成しない。Tag作成にはCategory新規作成ボタンを置き、同じモーダルのCategory作成サイドビューへ進む。各遷移で入力draftを保持し、Category作成後はTag作成へ戻って新規Categoryを自動選択する。
+34. カテゴリ・タグ一覧の管理ボタンで管理モードへ切り替える。管理中はカテゴリリボン／タグチップの選択で編集モーダルを開き、鉛筆はhover／focus時だけ補助表示する。Category編集にはactiveな使用中Tagの実名一覧と件数、および関連Bookmarkのunique件数を表示する。Tag編集の親Category入力は現在のCategoryを選択済みで開始し、activeな既存Categoryとの正規化完全一致または最大8候補からの選択時点でdraftを置き換える。Category用の `追加` 操作は置かず、未知文字列はfield errorにする。同じモーダルのCategory作成サイドビューで新規作成でき、draftを保持し、作成後は新規Categoryを自動選択する。
+35. BookmarkとTagは確認画面なしで論理削除する。Category削除だけは、全子Tagと関連edgeが連鎖削除され、AI有効時はBookmarkが再分類されること、および影響するTag件数とBookmark unique件数を警告して確認する。承認後はCategory、全子Tag、関連edgeを1 transactionでsoft-deleteしてBookmark本体を残す。classificationSettingsがCONFIGUREDかつenabledの場合だけ影響Bookmarkの分類Jobを `PENDING` にし、モデル未取得／download中／AI Host不在ならPENDING、3 dispatchすべてquality-zeroならNEEDS_REVIEW、恒久非対応、executionAttempt上限、technical failure込みのdispatch枯渇ならFAILEDとする。disabled／再設定待ちはJobを作らず残存active Tag有無からCLASSIFIED／UNCLASSIFIEDにする。いずれも手動分類を許し、削除後のUndo toast、token、期限、復元入口は設けない。
+36. 統合検索、Category入力、Tag入力のautocompleteは入力中にリアルタイムのkeyword検索を行い、一致度順の既存候補を最大8件表示し、8件超を一度に展開しない。自由入力文字列をCategory／Tag IDとして保存しない。
 37. Category／Tag名称正規化v1はprojectにvendoredしたUnicode 15.1.0のNFKCデータ、`White_Space` property、`Default_Ignorable_Code_Point` property、`CaseFolding.txt` のstatus C＋F mappingだけを使う。rawの`Cs`／Default Ignorable拒否、NFKC、TAB／LFを含む空白のtrim／単一ASCII空白化、残存`Cc`／`Cs`／Default Ignorable拒否、locale非依存case fold、最終再検証の順で決定的に適用し、空になった名前を保存しない。runtime ICUや端末Unicode版へ依存せず、生成assetのhashは実装時に生成・固定する。検索queryのtoken正規化とは別契約にする。
 38. Category／Tagの論理削除tombstoneは一意名を予約し、同名の別ID作成を防ぐ。名前を再利用できるのは物理回収後だけである。
 39. P1 Drive競合はimmutableな `syncSnapshots` と明示的なresolution planで扱う。競合がopenの間は参照snapshotをGCせず、解決後も30日保持する。Label IDまたはBookmark-Label edgeを暗黙にremapしない。
@@ -60,14 +60,16 @@
 - P0 は Chrome Prompt API 候補を使う端末内 AI とし、外部 LLM へ自動 fallback しない。
 - LanguageModel は Web Worker から利用できないため、MV3 Service Worker で availability、session、prompt を実行しない。
 - 対応を実証したトップレベル拡張ページだけを AI Host にする。Offscreen Document 対応を仮定しない。
-- AI 出力は候補 ID、kind、origin、revision、件数、文字列を再検証する。
-- AIはカテゴリを作成・改名・削除できない。
+- AI出力は全体の外形と、各候補のID、kind、origin、revision、親、importance、根拠、文字列を再検証する。不正候補だけを棄却し、正常候補が1件以上なら同じ試行の全正常候補を原子的に適用する。
+- AIは1回の分類でactiveな既存Categoryを厳密に1件だけ選び、全AI Tag候補をその配下に限定する。Categoryを作成・改名・削除できない。既存の手動Tag由来の別Categoryは保持する。
+- 受信済みモデル出力の正常候補0件だけをquality-zeroとし、残りdispatch枠がある場合だけ次を試す。試行間で候補を結合または多数決せず、3 dispatchすべてquality-zeroの場合だけ `NEEDS_REVIEW` とする。timeout、応答切断、truncated、結果喪失はtechnical failureとし、technical failure込みで3枠を使い切ればFAILEDとする。
+- 最大3回はGemini Nanoへのdispatchを `DISPATCH_RESERVED` として永続commitした `modelAttempt` の上限である。reservation直後にHostが停止して実callできなかった可能性があっても安全側に消費済みとする。所有者なし／期限切れleaseの所有権取得transaction成功だけを別の `executionAttempt` で数え、同じ失効前leaseの更新、結果再送、同じpendingApplyのDB retryでは増やさない。3回目leaseが有効な間は完了を許し、4回目claimが必要な場合だけ新ownerなしのfinalizerでattempt／token／activeInputKeyを閉じる。各処理はdurable migration gate不在と設定stateを先に判定し、disabled／再設定待ちはfingerprintを作らず旧JobをCANCELED_SETTINGSへ閉じる。CONFIGUREDかつenabledでsnapshotがstaleなら現在値から新Jobをget-or-createし、モデル不正として再試行しない。
 - AI自然言語ポップアップはBookmark／カテゴリ／タグの探索に加えてBookmationの機能全般の説明を受け付けるが、説明から破壊的操作や設定変更を自動実行しない。
 - 日本語対応、必要 Chrome、モデル準備、ユーザー activation は実装スパイクで確認する。
 
 ## データと権限
 
-- 正本はIndexedDB上の版付きJSON互換ドキュメント、少量設定は `chrome.storage.local` のJSON互換値とする。SQL/RDBを前提にしない。
+- 正本はIndexedDB上の版付きJSON互換ドキュメントとし、AI分類設定もJobと同じtransactionで読めるversion付き正本を置く。少量の一般設定とAI設定UI mirrorは `chrome.storage.local` のJSON互換値とする。SQL/RDBを前提にしない。
 - JSON文書には `schemaVersion` を持たせ、`undefined`、関数、循環参照、非有限数、BigIntを保存しない。画像BlobはID参照にして別Storeへ分離する。
 - P0 の初期権限候補は `storage`、`activeTab`、`host_permissions`（`https://*/*` と `http://*/*`、URL 指定保存のメタデータ fetch 専用）。`commands` は2操作を manifest 宣言する。
 - P1では `contextMenus` と定期判定用 `alarms` を宣言し、`history`、`notifications`、`bookmarks`、`identity` / Drive OAuthは機能の開始時に目的を説明して必要な範囲だけ要求する。リマインダー開始時は履歴・通知、自動archive toggleのON操作時は履歴だけを要求する。自動archiveはhistory許可前にONへ保存せず、後から権限が消えた場合もOFFへ戻す。P0へ無条件追加しない。
