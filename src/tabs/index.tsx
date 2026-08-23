@@ -2,6 +2,7 @@ import * as React from "react"
 
 import "~/style.css"
 
+import { createChromeGeneralSettingsPort } from "~/adapters/chrome-general-settings-port"
 import { createIndexedDbBookmarkListPort } from "~/adapters/indexeddb-bookmark-list-port"
 import { AppProviders } from "~/ui/app/AppProviders"
 import { AppErrorBoundary } from "~/ui/app/ErrorBoundary"
@@ -15,11 +16,18 @@ export default function DashboardTab() {
       }),
     []
   )
+  const generalSettingsPort = React.useMemo(
+    () => createChromeGeneralSettingsPort(chrome),
+    []
+  )
 
   return (
     <AppProviders>
       <AppErrorBoundary>
-        <ExtensionApp bookmarkListPort={bookmarkListPort} />
+        <ExtensionApp
+          bookmarkListPort={bookmarkListPort}
+          generalSettingsPort={generalSettingsPort}
+        />
       </AppErrorBoundary>
     </AppProviders>
   )
