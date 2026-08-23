@@ -128,11 +128,8 @@ export function FrequentVisitReminderSettings({
         disabled={pending || !enabled}
         label="訪問の集計期間"
         onValueChange={(value) => {
-          const nextWindow = value as FrequentVisitWindow
-          setWindow(nextWindow)
-          setDayThreshold("")
           void applyPatch({
-            frequentVisitWindow: nextWindow,
+            frequentVisitWindow: value as FrequentVisitWindow,
             frequentVisitDayThreshold: null,
           })
         }}

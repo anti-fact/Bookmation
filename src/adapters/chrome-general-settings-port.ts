@@ -31,7 +31,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function decodeWindow(value: unknown): FrequentVisitWindow | null {
-  if (value === null) {
+  if (value === null || value === undefined) {
     return null
   }
   if (
@@ -45,29 +45,30 @@ function decodeWindow(value: unknown): FrequentVisitWindow | null {
 }
 
 function decodeSnapshot(data: unknown): GeneralSettingsSnapshot {
-  if (!isRecord(data) || typeof data.contextMenuBookmarkEnabled !== "boolean") {
+  if (!isRecord(data)) {
     throw new GeneralSettingsPortError(
       "INVALID_RESPONSE",
       "設定を読み込めませんでした。"
     )
   }
-  const frequentVisitReminderEnabled =
-    typeof data.frequentVisitReminderEnabled === "boolean"
-      ? data.frequentVisitReminderEnabled
-      : false
-  const frequentVisitWindow = decodeWindow(data.frequentVisitWindow)
-  const frequentVisitDayThreshold =
-    data.frequentVisitDayThreshold === null
-      ? null
-      : typeof data.frequentVisitDayThreshold === "number"
-        ? data.frequentVisitDayThreshold
-        : null
 
   return {
-    contextMenuBookmarkEnabled: data.contextMenuBookmarkEnabled,
-    frequentVisitReminderEnabled,
-    frequentVisitWindow,
-    frequentVisitDayThreshold,
+    contextMenuBookmarkEnabled:
+      typeof data.contextMenuBookmarkEnabled === "boolean"
+        ? data.contextMenuBookmarkEnabled
+        : true,
+    frequentVisitReminderEnabled:
+      typeof data.frequentVisitReminderEnabled === "boolean"
+        ? data.frequentVisitReminderEnabled
+        : false,
+    frequentVisitWindow: decodeWindow(data.frequentVisitWindow),
+    frequentVisitDayThreshold:
+      data.frequentVisitDayThreshold === null ||
+      data.frequentVisitDayThreshold === undefined
+        ? null
+        : typeof data.frequentVisitDayThreshold === "number"
+          ? data.frequentVisitDayThreshold
+          : null,
   }
 }
 
@@ -88,6 +89,12 @@ function decodeMessageResponse(
       throw new GeneralSettingsPortError(
         response.error.code,
         "Bookmation の履歴権限を許可してください。Chrome アカウントの同期設定とは別です。"
+      )
+    }
+    if (response.error.code === "REMINDER_CONFIG_INVALID") {
+      throw new GeneralSettingsPortError(
+        response.error.code,
+        "選択した期間に合う訪問日数を入力してください。"
       )
     }
     throw new GeneralSettingsPortError(

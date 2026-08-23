@@ -112,6 +112,30 @@ describe("createChromeGeneralSettingsPort", () => {
     })
   })
 
+  it("accepts partial reminder snapshots from older background handlers", async () => {
+    const chromeApi = createChromeApi()
+    vi.mocked(chromeApi.runtime.sendMessage).mockResolvedValue({
+      ok: true,
+      requestId: "reminder-partial",
+      data: {
+        frequentVisitReminderEnabled: true,
+        frequentVisitWindow: "LAST_365_DAYS",
+        frequentVisitDayThreshold: 40,
+      },
+    })
+
+    const port = createChromeGeneralSettingsPort(chromeApi, () => "reminder-partial")
+
+    await expect(
+      port.updateReminderSettings({ frequentVisitDayThreshold: 40 }),
+    ).resolves.toEqual({
+      contextMenuBookmarkEnabled: true,
+      frequentVisitReminderEnabled: true,
+      frequentVisitWindow: "LAST_365_DAYS",
+      frequentVisitDayThreshold: 40,
+    })
+  })
+
   it("maps REMINDER_PERMISSION_DENIED to a user-facing permission message", async () => {
     const chromeApi = createChromeApi()
     vi.mocked(chromeApi.runtime.sendMessage).mockResolvedValue({
@@ -125,5 +149,20 @@ describe("createChromeGeneralSettingsPort", () => {
     await expect(
       port.updateReminderSettings({ frequentVisitReminderEnabled: true }),
     ).rejects.toThrow("Bookmation の履歴権限を許可してください")
+  })
+
+  it("maps REMINDER_CONFIG_INVALID to a user-facing validation message", async () => {
+    const chromeApi = createChromeApi()
+    vi.mocked(chromeApi.runtime.sendMessage).mockResolvedValue({
+      ok: false,
+      requestId: "reminder-3",
+      error: { code: "REMINDER_CONFIG_INVALID" },
+    })
+
+    const port = createChromeGeneralSettingsPort(chromeApi, () => "reminder-3")
+
+    await expect(
+      port.updateReminderSettings({ frequentVisitDayThreshold: 40 }),
+    ).rejects.toThrow("選択した期間に合う訪問日数を入力してください。")
   })
 })

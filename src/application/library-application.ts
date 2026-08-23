@@ -6,7 +6,7 @@ import { createChromeReminderPermissionsPort } from "~/adapters/chrome-reminder-
 import { safeLogError } from "~/adapters/security/log-redaction"
 import { CATEGORY_TEMPLATE_CATALOG } from "~/catalogs/category-templates"
 import type { ExtensionMessageResponse } from "~/extension/messages"
-import { isDomainError } from "~/domain"
+import { isDomainError, DomainErrorCode } from "~/domain"
 
 import { handleClassificationJobMessage } from "./classification-job-application"
 import { handleVisitReminder } from "./handle-visit-reminder"
@@ -110,6 +110,17 @@ export function createLibraryApplication(
               requestId: request.requestId,
               ok: false,
               error: { code: "REMINDER_PERMISSION_DENIED" },
+            }
+          }
+          if (
+            isDomainError(error) &&
+            (error.code === DomainErrorCode.SETTINGS_FREQUENT_VISIT_DAY_THRESHOLD_INVALID ||
+              error.code === DomainErrorCode.SETTINGS_FREQUENT_VISIT_WINDOW_INVALID)
+          ) {
+            return {
+              requestId: request.requestId,
+              ok: false,
+              error: { code: "REMINDER_CONFIG_INVALID" },
             }
           }
           throw error

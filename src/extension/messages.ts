@@ -165,6 +165,7 @@ export type ExtensionMessageErrorCode =
   | "ACTION_NOT_AVAILABLE"
   | "INTERNAL_ERROR"
   | "REMINDER_PERMISSION_DENIED"
+  | "REMINDER_CONFIG_INVALID"
   | DomainErrorCode
 
 export type ExtensionMessageResponse =
