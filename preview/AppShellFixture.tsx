@@ -14,6 +14,11 @@ import {
   type GeneralSettingsPort
 } from "~/ui/features/settings/general-settings-port"
 import type { ShareSettingsPort } from "~/ui/features/settings/share-settings-port"
+import type {
+  BookmarkImportPort,
+  ShareWorkflowPort,
+  VisitReminderPort
+} from "~/ui/features/workflows/workflow-ports"
 
 const fixtureRoutes = [
   ["ホーム", "#/home"],
@@ -129,6 +134,156 @@ const onboardingPort: OnboardingPort = {
   }),
   skip: async () => onboardingState("COMPLETED"),
   start: async () => onboardingState("IN_PROGRESS")
+}
+
+const visitReminderPort: VisitReminderPort = {
+  loadCandidate: async () =>
+    new URLSearchParams(window.location.search).get("fixture") === "reminder"
+      ? {
+          id: "reminder-react",
+          title: "Reactリファレンス",
+          url: "https://react.dev/reference/react",
+          visitedDayCount: 5,
+          windowLabel: "直近1週間"
+        }
+      : null,
+  save: async () => undefined,
+  dismiss: async () => undefined
+}
+
+const bookmarkImportPort: BookmarkImportPort = {
+  prepare: async () => ({
+    categories: [
+      { id: "category-development", name: "開発", revision: 1 },
+      { id: "category-reading", name: "あとで読む", revision: 1 }
+    ],
+    groups: [
+      {
+        bookmarks: [
+          { id: "chrome-react", title: "React", url: "https://react.dev/" }
+        ],
+        folderName: "Frontend",
+        id: "folder-frontend",
+        resolution: {
+          kind: "NEW",
+          parentCategoryId: null,
+          tagName: "Frontend"
+        },
+        sourcePath: "ブックマーク バー / Work / Frontend"
+      },
+      {
+        bookmarks: [
+          {
+            id: "chrome-ts",
+            title: "TypeScript",
+            url: "https://www.typescriptlang.org/"
+          }
+        ],
+        folderName: "TypeScript",
+        id: "folder-typescript",
+        resolution: {
+          categoryName: "開発",
+          kind: "REUSE",
+          tagName: "TypeScript"
+        },
+        sourcePath: "その他のブックマーク / TypeScript"
+      },
+      {
+        bookmarks: [
+          {
+            id: "chrome-invalid",
+            title: "Example",
+            url: "https://example.com/"
+          }
+        ],
+        folderName: "",
+        id: "folder-invalid",
+        resolution: {
+          kind: "INVALID",
+          reason: "フォルダ名が空のため取り込めません。"
+        },
+        sourcePath: "ブックマーク バー / （名前なし）"
+      }
+    ]
+  }),
+  createCategory: async (name) => ({
+    id: crypto.randomUUID(),
+    name,
+    revision: 1
+  }),
+  confirm: async ({ groups }) => ({
+    failed: [],
+    importedCount: groups.filter((group) => !group.skip).length,
+    skippedCount: groups.filter((group) => group.skip).length
+  })
+}
+
+const shareWorkflowPort: ShareWorkflowPort = {
+  loadSelection: async () => [
+    {
+      bookmarkIds: ["bookmark-react", "bookmark-ts"],
+      id: "category-development",
+      kind: "CATEGORY",
+      label: "開発"
+    },
+    {
+      bookmarkIds: ["bookmark-react"],
+      id: "tag-react",
+      kind: "TAG",
+      label: "React"
+    },
+    {
+      bookmarkIds: ["bookmark-ts"],
+      id: "bookmark-ts",
+      kind: "BOOKMARK",
+      label: "TypeScript Handbook"
+    }
+  ],
+  exportBookmarks: async (ids, format) =>
+    format === "QR" && ids.length > 1
+      ? { status: "QR_CAPACITY_EXCEEDED" }
+      : {
+          status: "READY",
+          message: `${ids.length}件を${format}へ出力しました。`
+        },
+  readQr: async (source) =>
+    source === "CAMERA"
+      ? { status: "CAMERA_DENIED" }
+      : {
+          bookmarkCount: 3,
+          categoryCount: 2,
+          duplicateCount: 1,
+          previewId: "qr-preview",
+          status: "PREVIEW",
+          tagCount: 4
+        },
+  confirmQrImport: async () => ({
+    failedCount: 0,
+    importedCount: 2,
+    skippedCount: 1
+  }),
+  loadDriveState: async () => ({
+    accountEmail: null,
+    conflictSummary: null,
+    fileName: null,
+    mode: null,
+    status: "DISCONNECTED"
+  }),
+  connectDrive: async (mode) => ({
+    accountEmail: "demo@example.com",
+    conflictSummary:
+      mode === "SHARED_FILE" ? "同じ項目が両方で更新されています。" : null,
+    fileName: mode === "SHARED_FILE" ? "bookmation-share.json" : null,
+    mode,
+    status: mode === "SHARED_FILE" ? "CONFLICT" : "CONNECTED"
+  }),
+  resolveDriveConflict: async () => ({
+    accountEmail: "demo@example.com",
+    conflictSummary: null,
+    fileName: "bookmation-share.json",
+    mode: "SHARED_FILE",
+    status: "CONNECTED"
+  })
 }
 
 export function AppShellFixture() {
@@ -327,11 +482,14 @@ export function AppShellFixture() {
         <ExtensionApp
           aiAssistantPort={aiAssistantPort}
           archiveSettingsPort={archiveSettingsPort}
+          bookmarkImportPort={bookmarkImportPort}
           generalSettingsPort={generalSettingsPort}
           labelManagementPort={labelManagementPort}
           onboardingPort={onboardingPort}
           searchPort={fixtureSearchPort}
           shareSettingsPort={shareSettingsPort}
+          shareWorkflowPort={shareWorkflowPort}
+          visitWorkflowPort={visitReminderPort}
         />
       </AppErrorBoundary>
 
@@ -364,6 +522,12 @@ export function AppShellFixture() {
               href="?view=popup&fixture=assigned"
             >
               UI-03 popup
+            </a>
+            <a
+              className="rounded-bm-field border border-bm-border bg-bm-panel px-2 py-1 text-bm-on-panel outline-none focus-visible:ring-2 focus-visible:ring-bm-focus"
+              href="?view=app-shell&fixture=reminder#/home"
+            >
+              UI-11 reminder
             </a>
             <a
               className="rounded-bm-field border border-bm-border bg-bm-panel px-2 py-1 text-bm-on-panel outline-none focus-visible:ring-2 focus-visible:ring-bm-focus"

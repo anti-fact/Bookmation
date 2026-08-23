@@ -68,6 +68,16 @@ import {
 import { VisitReminderDialog } from "~/ui/features/visit-reminder/VisitReminderDialog"
 import { Button } from "~/ui/primitives"
 import { joinClassNames } from "~/ui/primitives/class-names"
+import { SettingsWorkflowSection } from "~/ui/features/workflows/SettingsWorkflowSection"
+import { VisitReminder } from "~/ui/features/workflows/VisitReminder"
+import {
+  emptyBookmarkImportPort,
+  emptyShareWorkflowPort,
+  emptyVisitReminderPort as emptyWorkflowVisitReminderPort,
+  type BookmarkImportPort,
+  type ShareWorkflowPort,
+  type VisitReminderPort as WorkflowVisitReminderPort
+} from "~/ui/features/workflows/workflow-ports"
 
 import { useAppRuntime, useHashRouteStore } from "./AppProviders"
 import {
@@ -298,6 +308,7 @@ function RouteHeader({
 }
 
 type RouteBodyProps = {
+  bookmarkImportPort: BookmarkImportPort
   archiveSettingsPort: ArchiveSettingsPort
   bookmarkListRevision: number
   bookmarkListPort: BookmarkListPort
@@ -316,6 +327,7 @@ type RouteBodyProps = {
   route: HashRoute
   runtime: ReturnType<typeof useAppRuntime>
   searchPort: SearchPort
+  shareWorkflowPort: ShareWorkflowPort
   shareSettingsPort: ShareSettingsPort
 }
 
@@ -398,6 +410,7 @@ function WelcomeScreen({
 
 // UI-02では画面遷移の骨組みを実装し、後続機能の領域はプレースホルダーにします。
 function RouteBody({
+  bookmarkImportPort,
   archiveSettingsPort,
   bookmarkListRevision,
   bookmarkListPort,
@@ -412,6 +425,7 @@ function RouteBody({
   route,
   runtime,
   searchPort,
+  shareWorkflowPort,
   shareSettingsPort
 }: RouteBodyProps) {
   if (route.kind === "labels") {
@@ -523,7 +537,13 @@ function RouteBody({
             <ArchiveSettingsSection port={archiveSettingsPort} />
           )}
           {route.section === "share" && (
-            <ShareSettingsSection port={shareSettingsPort} />
+            <div className="space-y-8">
+              <ShareSettingsSection port={shareSettingsPort} />
+              <SettingsWorkflowSection
+                bookmarkImportPort={bookmarkImportPort}
+                shareWorkflowPort={shareWorkflowPort}
+              />
+            </div>
           )}
         </section>
       </div>
@@ -580,6 +600,7 @@ function RouteBody({
 
 export function ExtensionApp({
   aiAssistantPort = emptyAiAssistantPort,
+  bookmarkImportPort = emptyBookmarkImportPort,
   archiveSettingsPort = emptyArchiveSettingsPort,
   bookmarkFormPort = emptyBookmarkFormPort,
   bookmarkListPort = emptyBookmarkListPort,
@@ -588,9 +609,12 @@ export function ExtensionApp({
   onboardingPort = emptyOnboardingPort,
   searchPort = emptySearchPort,
   shareSettingsPort = emptyShareSettingsPort,
+  shareWorkflowPort = emptyShareWorkflowPort,
+  visitWorkflowPort = emptyWorkflowVisitReminderPort,
   visitReminderPort = emptyVisitReminderPort
 }: {
   aiAssistantPort?: AiAssistantPort
+  bookmarkImportPort?: BookmarkImportPort
   archiveSettingsPort?: ArchiveSettingsPort
   bookmarkFormPort?: BookmarkFormPort
   bookmarkListPort?: BookmarkListPort
@@ -599,6 +623,8 @@ export function ExtensionApp({
   onboardingPort?: OnboardingPort
   searchPort?: SearchPort
   shareSettingsPort?: ShareSettingsPort
+  shareWorkflowPort?: ShareWorkflowPort
+  visitWorkflowPort?: WorkflowVisitReminderPort
   visitReminderPort?: VisitReminderPort
 }) {
   const routeStore = useHashRouteStore()
@@ -891,6 +917,7 @@ export function ExtensionApp({
           </p>
         ) : null}
         <RouteBody
+          bookmarkImportPort={bookmarkImportPort}
           archiveSettingsPort={archiveSettingsPort}
           bookmarkListPort={bookmarkListPort}
           bookmarkListRevision={bookmarkListRevision}
@@ -908,6 +935,7 @@ export function ExtensionApp({
           runtime={runtime}
           searchPort={searchPort}
           shareSettingsPort={shareSettingsPort}
+          shareWorkflowPort={shareWorkflowPort}
         />
       </AppShell>
       <BookmarkDialog
@@ -932,6 +960,7 @@ export function ExtensionApp({
           port={aiAssistantPort}
         />
       ) : null}
+      <VisitReminder port={visitWorkflowPort} />
       <VisitReminderDialog
         onClose={() => {
           setVisitReminderOpen(false)

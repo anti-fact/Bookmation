@@ -1181,6 +1181,33 @@ install時だけwelcomeを開き、Category templateの選択を途中再開し�
 - reminder回答、Chrome標準Bookmark import、QR reader／Drive操作のdialogはUI-11で実装する。
 - repository管理された実拡張E2E、任意権限prompt、人間による実Chrome受入は未実施である。
 
+## 2026-08-23 — UI-11 reminder／import／共有dialog
+
+### 目的
+
+訪問候補への回答、Chrome標準Bookmark取込、QR／CSV／Drive共有を、利用者操作から開始する独立dialogとして実装する。
+
+### 変更
+
+- `VisitReminder`を追加し、タイトル、URL、期間内訪問日数、はい／いいえ、URL単位の`次回から表示しない`を表示した。保存／dismiss commandが成功するまでdialogを保持し、`いいえ`のresetとsuppressionをPort入力で区別した。
+- `ChromeBookmarkImportDialog`を追加し、開始操作後だけpreviewを取得する。Bookmarkを直上Folderでgroup化し、既存Tag再利用、新規Tagの親Category必須、Category作成、invalid groupのskip、取込結果を扱う。祖先pathは出所表示だけにした。
+- `ShareWorkflowPanel`を追加し、Category／Tag／Bookmark選択をBookmark ID集合へ展開してdedupeした。QR／CSVの固定選択、QR容量超過後のCSV誘導、カメラ拒否時の画像fallback、不正payload、重複付きpreview、取込結果を別状態にした。
+- Drive dialogで同一accountの`appDataFolder`同期と別accountの通常共有fileを別操作にし、接続状態、権限不足、競合、ローカル／Drive選択を表示した。
+- App Shellへ各Portを注入し、共有設定ルートと`fixture=reminder`でproduction componentの状態を確認できるWeb fixtureを追加した。権限要求はrender時に実行しない。
+
+### 検証
+
+- `pnpm typecheck`: 成功。
+- `pnpm test`: 74 files／392 tests成功（UI-10統合後）。
+- UI-11変更対象のESLint: 成功。
+- `pnpm ui:build`、`pnpm build`: 成功。Web buildには既知のchunk size警告がある。
+- `git diff --check`: 成功。
+
+### 残課題
+
+- TASK-101、TASK-103、TASK-104、TASK-105のApplication／Repository／Chrome権限adapterは未着手であり、production entryは空Portを使う。Web fixtureとcomponent testではdialog状態とPort契約だけを検証した。
+- repository管理された実拡張E2E、camera／bookmarks／Driveの実権限、人間による実Chrome受入は未実施である。
+
 ## 追記テンプレート
 
 ```markdown
