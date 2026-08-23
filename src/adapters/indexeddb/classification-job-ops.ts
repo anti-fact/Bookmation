@@ -9,22 +9,42 @@ import {
   CLASSIFICATION_JOB_MAX_ATTEMPTS,
   DomainError,
   DomainErrorCode,
+  nextRevision,
   type ClassificationApplyOutcome,
   type EpochMs,
-  type Id,
+  type Id
 } from "~/domain"
 
 import { stripUndefinedFields } from "./document-validation"
-import { getActiveBookmarkOrThrow, putBookmark } from "./edge-helpers"
+import {
+  getActiveBookmarkOrThrow,
+  getEdgeByPair,
+  getLabelOrThrow,
+  listActiveCategoryAndTagIds,
+  listEdgesForBookmark,
+  putBookmark,
+  putEdge,
+  syncCategoryEdgesFromTags
+} from "./edge-helpers"
 import type { BookmationDatabase } from "./open-database"
 import type {
   PersistedActiveBookmarkRecord,
+  PersistedBookmarkLabelRecord,
+  PersistedBookmarkRevisionRecord,
   PersistedClassificationJobRecord,
-  BookmarkClassificationState,
+  BookmarkClassificationState
 } from "./persisted-types"
+import { buildBookmarkSearchDocument } from "./search-document-builder"
 import { CLASSIFICATION_JOB_INDEXES, STORES } from "./stores"
 
-const JOB_TX_STORES = [STORES.classificationJobs, STORES.bookmarks] as const
+const JOB_TX_STORES = [
+  STORES.classificationJobs,
+  STORES.bookmarks,
+  STORES.labels,
+  STORES.bookmarkLabels,
+  STORES.bookmarkRevisions,
+  STORES.searchDocuments
+] as const
 
 export interface ClaimClassificationJobInput {
   executorInstanceId: Id
@@ -59,15 +79,23 @@ type JobTx = IDBPTransaction<
   "readwrite"
 >
 
-async function putJob(tx: JobTx, job: PersistedClassificationJobRecord): Promise<void> {
+async function putJob(
+  tx: JobTx,
+  job: PersistedClassificationJobRecord
+): Promise<void> {
   await tx
     .objectStore(STORES.classificationJobs)
     .put(
-      stripUndefinedFields(job as unknown as Record<string, unknown>) as unknown as PersistedClassificationJobRecord,
+      stripUndefinedFields(
+        job as unknown as Record<string, unknown>
+      ) as unknown as PersistedClassificationJobRecord
     )
 }
 
-function assertLeaseValid(job: PersistedClassificationJobRecord, now: EpochMs): void {
+function assertLeaseValid(
+  job: PersistedClassificationJobRecord,
+  now: EpochMs
+): void {
   if (
     job.leaseExpiresAt === null ||
     job.leaseExpiresAt <= now ||
@@ -77,7 +105,9 @@ function assertLeaseValid(job: PersistedClassificationJobRecord, now: EpochMs): 
   }
 }
 
-function bookmarkStateForOutcome(outcome: ClassificationApplyOutcome): BookmarkClassificationState {
+function bookmarkStateForOutcome(
+  outcome: ClassificationApplyOutcome
+): BookmarkClassificationState {
   switch (outcome) {
     case "SUCCEEDED":
       return "CLASSIFIED"
@@ -93,20 +123,25 @@ function bookmarkStateForOutcome(outcome: ClassificationApplyOutcome): BookmarkC
 async function findSucceededJobByFingerprint(
   tx: JobTx,
   fingerprint: string,
-  excludeJobId: Id,
+  excludeJobId: Id
 ): Promise<PersistedClassificationJobRecord | undefined> {
   const matches = await tx
     .objectStore(STORES.classificationJobs)
     .index(CLASSIFICATION_JOB_INDEXES.byFingerprint)
     .getAll(fingerprint)
-  return matches.find((job) => job.state === "SUCCEEDED" && job.id !== excludeJobId)
+  return matches.find(
+    (job) => job.state === "SUCCEEDED" && job.id !== excludeJobId
+  )
 }
 
-async function recoverStaleJobsInTransaction(tx: JobTx, now: EpochMs): Promise<number> {
+async function recoverStaleJobsInTransaction(
+  tx: JobTx,
+  now: EpochMs
+): Promise<number> {
   const store = tx.objectStore(STORES.classificationJobs)
   const index = store.index(CLASSIFICATION_JOB_INDEXES.byStateUpdatedAt)
   const runningJobs = await index.getAll(
-    IDBKeyRange.bound(["RUNNING", 0], ["RUNNING", Number.MAX_SAFE_INTEGER]),
+    IDBKeyRange.bound(["RUNNING", 0], ["RUNNING", Number.MAX_SAFE_INTEGER])
   )
 
   let recovered = 0
@@ -125,7 +160,7 @@ async function recoverStaleJobsInTransaction(tx: JobTx, now: EpochMs): Promise<n
         updatedAt: now,
         leaseExpiresAt: null,
         executorInstanceId: null,
-        executionContext: null,
+        executionContext: null
       }
       await putJob(tx, failedJob)
 
@@ -134,7 +169,7 @@ async function recoverStaleJobsInTransaction(tx: JobTx, now: EpochMs): Promise<n
         await putBookmark(tx, {
           ...bookmark,
           classificationState: "FAILED",
-          updatedAt: now,
+          updatedAt: now
         })
       }
       recovered += 1
@@ -149,7 +184,7 @@ async function recoverStaleJobsInTransaction(tx: JobTx, now: EpochMs): Promise<n
       leaseExpiresAt: null,
       executorInstanceId: null,
       executionContext: null,
-      startedAt: null,
+      startedAt: null
     }
     await putJob(tx, pendingJob)
     recovered += 1
@@ -160,7 +195,7 @@ async function recoverStaleJobsInTransaction(tx: JobTx, now: EpochMs): Promise<n
 
 async function findPendingJob(
   tx: JobTx,
-  jobId?: Id,
+  jobId?: Id
 ): Promise<PersistedClassificationJobRecord | undefined> {
   const store = tx.objectStore(STORES.classificationJobs)
   if (jobId) {
@@ -170,14 +205,19 @@ async function findPendingJob(
 
   const pendingJobs = await store
     .index(CLASSIFICATION_JOB_INDEXES.byStateUpdatedAt)
-    .getAll(IDBKeyRange.bound(["PENDING", 0], ["PENDING", Number.MAX_SAFE_INTEGER]))
-  pendingJobs.sort((left, right) => left.updatedAt - right.updatedAt || left.id.localeCompare(right.id))
+    .getAll(
+      IDBKeyRange.bound(["PENDING", 0], ["PENDING", Number.MAX_SAFE_INTEGER])
+    )
+  pendingJobs.sort(
+    (left, right) =>
+      left.updatedAt - right.updatedAt || left.id.localeCompare(right.id)
+  )
   return pendingJobs[0]
 }
 
 export async function recoverStaleClassificationJobs(
   db: BookmationDatabase,
-  now: EpochMs,
+  now: EpochMs
 ): Promise<number> {
   const tx = db.transaction(JOB_TX_STORES, "readwrite")
   const recovered = await recoverStaleJobsInTransaction(tx, now)
@@ -187,7 +227,7 @@ export async function recoverStaleClassificationJobs(
 
 export async function claimClassificationJob(
   db: BookmationDatabase,
-  input: ClaimClassificationJobInput,
+  input: ClaimClassificationJobInput
 ): Promise<ClaimClassificationJobResult | null> {
   const tx = db.transaction(JOB_TX_STORES, "readwrite")
   await recoverStaleJobsInTransaction(tx, input.now)
@@ -195,7 +235,9 @@ export async function claimClassificationJob(
   const pending = await findPendingJob(tx, input.jobId)
   if (!pending) {
     if (input.jobId) {
-      const existing = await tx.objectStore(STORES.classificationJobs).get(input.jobId)
+      const existing = await tx
+        .objectStore(STORES.classificationJobs)
+        .get(input.jobId)
       if (existing && existing.state !== "PENDING") {
         throw new DomainError(DomainErrorCode.CLASSIFICATION_JOB_CLAIM_CONFLICT)
       }
@@ -217,7 +259,7 @@ export async function claimClassificationJob(
     leaseExpiresAt: input.now + CLASSIFICATION_JOB_LEASE_MS,
     executionContext: "TOP_LEVEL_EXTENSION_DOCUMENT",
     startedAt: pending.startedAt ?? input.now,
-    updatedAt: input.now,
+    updatedAt: input.now
   }
   await putJob(tx, runningJob)
 
@@ -227,7 +269,7 @@ export async function claimClassificationJob(
       : {
           ...bookmark,
           classificationState: "PENDING" as const,
-          updatedAt: input.now,
+          updatedAt: input.now
         }
   if (pendingBookmark !== bookmark) {
     await putBookmark(tx, pendingBookmark)
@@ -239,31 +281,34 @@ export async function claimClassificationJob(
 
 export async function getClassificationJob(
   db: BookmationDatabase,
-  jobId: Id,
+  jobId: Id
 ): Promise<PersistedClassificationJobRecord | undefined> {
   return db.get(STORES.classificationJobs, jobId)
 }
 
 export async function getLatestClassificationJobForBookmark(
   db: BookmationDatabase,
-  bookmarkId: Id,
+  bookmarkId: Id
 ): Promise<PersistedClassificationJobRecord | undefined> {
   const jobs = await db.getAllFromIndex(
     STORES.classificationJobs,
     CLASSIFICATION_JOB_INDEXES.byBookmarkCreatedAt,
-    IDBKeyRange.bound([bookmarkId, 0], [bookmarkId, Number.MAX_SAFE_INTEGER]),
+    IDBKeyRange.bound([bookmarkId, 0], [bookmarkId, Number.MAX_SAFE_INTEGER])
   )
   if (jobs.length === 0) {
     return undefined
   }
-  jobs.sort((left, right) => right.createdAt - left.createdAt || right.id.localeCompare(left.id))
+  jobs.sort(
+    (left, right) =>
+      right.createdAt - left.createdAt || right.id.localeCompare(left.id)
+  )
   return jobs[0]
 }
 
 export async function cancelClassificationJob(
   db: BookmationDatabase,
   jobId: Id,
-  now: EpochMs,
+  now: EpochMs
 ): Promise<PersistedClassificationJobRecord> {
   const tx = db.transaction(JOB_TX_STORES, "readwrite")
   const job = await tx.objectStore(STORES.classificationJobs).get(jobId)
@@ -283,7 +328,7 @@ export async function cancelClassificationJob(
     leaseExpiresAt: null,
     executorInstanceId: null,
     executionContext: null,
-    errorCode: null,
+    errorCode: null
   }
   await putJob(tx, canceledJob)
 
@@ -291,7 +336,7 @@ export async function cancelClassificationJob(
   await putBookmark(tx, {
     ...bookmark,
     classificationState: "UNCLASSIFIED",
-    updatedAt: now,
+    updatedAt: now
   })
 
   await tx.done
@@ -301,7 +346,7 @@ export async function cancelClassificationJob(
 export async function retryClassificationJob(
   db: BookmationDatabase,
   jobId: Id,
-  now: EpochMs,
+  now: EpochMs
 ): Promise<PersistedClassificationJobRecord> {
   const tx = db.transaction(JOB_TX_STORES, "readwrite")
   const job = await tx.objectStore(STORES.classificationJobs).get(jobId)
@@ -322,7 +367,7 @@ export async function retryClassificationJob(
     leaseExpiresAt: null,
     executorInstanceId: null,
     executionContext: null,
-    updatedAt: now,
+    updatedAt: now
   }
   await putJob(tx, pendingJob)
 
@@ -330,7 +375,7 @@ export async function retryClassificationJob(
   await putBookmark(tx, {
     ...bookmark,
     classificationState: "PENDING",
-    updatedAt: now,
+    updatedAt: now
   })
 
   await tx.done
@@ -339,12 +384,8 @@ export async function retryClassificationJob(
 
 export async function applyClassificationResultShell(
   db: BookmationDatabase,
-  input: ApplyClassificationResultShellInput,
+  input: ApplyClassificationResultShellInput
 ): Promise<ApplyClassificationResultShellResult> {
-  if (input.tagIds && input.tagIds.length > 0) {
-    throw new DomainError(DomainErrorCode.CLASSIFICATION_JOB_APPLY_REJECTED, "Tag application is BE-08")
-  }
-
   const tx = db.transaction(JOB_TX_STORES, "readwrite")
   const job = await tx.objectStore(STORES.classificationJobs).get(input.jobId)
   if (!job) {
@@ -378,10 +419,40 @@ export async function applyClassificationResultShell(
     throw new DomainError(DomainErrorCode.CLASSIFICATION_JOB_APPLY_REJECTED)
   }
 
+  const selectedTagIds = [...new Set(input.tagIds ?? [])]
+  if (
+    selectedTagIds.length !== (input.tagIds?.length ?? 0) ||
+    (input.outcome === "SUCCEEDED" && selectedTagIds.length === 0) ||
+    (input.outcome !== "SUCCEEDED" && selectedTagIds.length > 0) ||
+    selectedTagIds.length > job.maxAssignedTags
+  ) {
+    throw new DomainError(DomainErrorCode.CLASSIFICATION_JOB_APPLY_REJECTED)
+  }
+
+  const selectedParentCategoryIds = new Set<Id>()
+  for (const tagId of selectedTagIds) {
+    const tag = await getLabelOrThrow(tx, tagId)
+    if (
+      tag.kind !== "TAG" ||
+      tag.deletedAt !== null ||
+      tag.parentCategoryId === null
+    ) {
+      throw new DomainError(DomainErrorCode.CLASSIFICATION_JOB_APPLY_REJECTED)
+    }
+    const parent = await getLabelOrThrow(tx, tag.parentCategoryId)
+    if (parent.kind !== "CATEGORY" || parent.deletedAt !== null) {
+      throw new DomainError(DomainErrorCode.CLASSIFICATION_JOB_APPLY_REJECTED)
+    }
+    selectedParentCategoryIds.add(parent.id)
+  }
+  if (input.outcome === "SUCCEEDED" && selectedParentCategoryIds.size !== 1) {
+    throw new DomainError(DomainErrorCode.CLASSIFICATION_JOB_APPLY_REJECTED)
+  }
+
   const existingSucceeded = await findSucceededJobByFingerprint(
     tx,
     job.inputFingerprint,
-    job.id,
+    job.id
   )
   if (existingSucceeded) {
     assertValidStateTransition(job.state, "SUCCEEDED")
@@ -393,13 +464,13 @@ export async function applyClassificationResultShell(
       leaseExpiresAt: null,
       executorInstanceId: null,
       executionContext: null,
-      errorCode: null,
+      errorCode: null
     }
     await putJob(tx, dedupedJob)
     const dedupedBookmark: PersistedActiveBookmarkRecord = {
       ...bookmark,
       classificationState: "CLASSIFIED",
-      updatedAt: input.now,
+      updatedAt: input.now
     }
     await putBookmark(tx, dedupedBookmark)
     await tx.done
@@ -410,21 +481,92 @@ export async function applyClassificationResultShell(
   const terminalJob: PersistedClassificationJobRecord = {
     ...job,
     state: input.outcome,
-    errorCode: input.errorCode ?? (input.outcome === "FAILED" ? "CLASSIFICATION_FAILED" : null),
+    errorCode:
+      input.errorCode ??
+      (input.outcome === "FAILED" ? "CLASSIFICATION_FAILED" : null),
     finishedAt: input.now,
     updatedAt: input.now,
     leaseExpiresAt: null,
     executorInstanceId: null,
-    executionContext: null,
+    executionContext: null
   }
   await putJob(tx, terminalJob)
 
+  const before = await listActiveCategoryAndTagIds(tx, bookmark.id)
+
+  if (input.outcome === "SUCCEEDED") {
+    const selected = new Set(selectedTagIds)
+    const edges = await listEdgesForBookmark(tx, bookmark.id)
+    for (const edge of edges) {
+      if (edge.deletedAt !== null || edge.assignedBy !== "AI") continue
+      const label = await getLabelOrThrow(tx, edge.labelId)
+      if (label.kind === "TAG" && !selected.has(label.id)) {
+        await putEdge(tx, {
+          ...edge,
+          deletedAt: input.now,
+          revision: nextRevision(edge.revision),
+          updatedAt: input.now
+        })
+      }
+    }
+
+    for (const tagId of selectedTagIds) {
+      const existing = await getEdgeByPair(tx, bookmark.id, tagId)
+      if (existing?.deletedAt === null) continue
+      if (existing) {
+        await putEdge(tx, {
+          ...existing,
+          assignedBy: "AI",
+          classificationJobId: job.id,
+          deletedAt: null,
+          revision: nextRevision(existing.revision),
+          updatedAt: input.now
+        })
+        continue
+      }
+      const edge: PersistedBookmarkLabelRecord = {
+        schemaVersion: 1,
+        id: crypto.randomUUID(),
+        bookmarkId: bookmark.id,
+        labelId: tagId,
+        assignedBy: "AI",
+        confidence: null,
+        classificationJobId: job.id,
+        createdAt: input.now,
+        updatedAt: input.now,
+        revision: 1,
+        deletedAt: null
+      }
+      await putEdge(tx, edge)
+    }
+    await syncCategoryEdgesFromTags(tx, bookmark, input.now, "AI")
+  }
+
+  const after = await listActiveCategoryAndTagIds(tx, bookmark.id)
   const updatedBookmark: PersistedActiveBookmarkRecord = {
     ...bookmark,
     classificationState: bookmarkStateForOutcome(input.outcome),
-    updatedAt: input.now,
+    revision: nextRevision(bookmark.revision),
+    updatedAt: input.now
   }
   await putBookmark(tx, updatedBookmark)
+  await tx
+    .objectStore(STORES.searchDocuments)
+    .put(buildBookmarkSearchDocument(updatedBookmark, input.now))
+
+  const revision: PersistedBookmarkRevisionRecord = {
+    schemaVersion: 1,
+    id: crypto.randomUUID(),
+    bookmarkId: bookmark.id,
+    bookmarkRevision: updatedBookmark.revision,
+    reason: "AI_CLASSIFICATION",
+    before: { ...before, archiveState: "ACTIVE" },
+    after: { ...after, archiveState: "ACTIVE" },
+    actor: "AI",
+    createdAt: input.now,
+    updatedAt: input.now
+  }
+  await tx.objectStore(STORES.bookmarkRevisions).put(revision)
 
   await tx.done
   return { job: terminalJob, bookmark: updatedBookmark, deduplicated: false }

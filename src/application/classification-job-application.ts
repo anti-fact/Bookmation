@@ -1,10 +1,13 @@
 import type { LocalDataLayer } from "~/adapters"
-import type { JsonValue, ClassificationApplyOutcome } from "~/domain"
+import type { ClassificationApplyOutcome } from "~/domain"
 import {
   serializeBookmarkForClaim,
-  serializeClassificationJob,
+  serializeClassificationJob
 } from "~/adapters/indexeddb/mappers/classification-job"
-import type { ExtensionMessageRequest, ExtensionMessageResponse } from "~/extension/messages"
+import type {
+  ExtensionMessageRequest,
+  ExtensionMessageResponse
+} from "~/extension/messages"
 
 function record(value: unknown): Record<string, unknown> | null {
   return value !== null && typeof value === "object" && !Array.isArray(value)
@@ -28,7 +31,7 @@ function isApplyOutcome(value: unknown): value is ClassificationApplyOutcome {
 /** BE-06 classification job message handlers。 */
 export async function handleClassificationJobMessage(
   layer: LocalDataLayer,
-  request: ExtensionMessageRequest,
+  request: ExtensionMessageRequest
 ): Promise<ExtensionMessageResponse | null> {
   const payload = record(request.payload)
   if (!payload) {
@@ -36,28 +39,44 @@ export async function handleClassificationJobMessage(
   }
 
   if (request.action === "claim-classification-job") {
-    if (typeof payload.executorInstanceId !== "string" || payload.executorInstanceId.length === 0) {
+    if (
+      typeof payload.executorInstanceId !== "string" ||
+      payload.executorInstanceId.length === 0
+    ) {
       return invalid(request.requestId)
     }
     const claimed = await layer.claimClassificationJob({
       executorInstanceId: payload.executorInstanceId,
-      jobId: typeof payload.jobId === "string" ? payload.jobId : undefined,
+      jobId: typeof payload.jobId === "string" ? payload.jobId : undefined
     })
     if (!claimed) {
       return {
         requestId: request.requestId,
         ok: true,
-        data: { job: null, bookmark: null, labels: [] },
+        data: { job: null, bookmark: null, labels: [] }
       }
     }
+    const labels = await layer.listLabelCandidates(
+      "",
+      undefined,
+      Number.MAX_SAFE_INTEGER
+    )
     return {
       requestId: request.requestId,
       ok: true,
       data: {
         job: serializeClassificationJob(claimed.job),
         bookmark: serializeBookmarkForClaim(claimed.bookmark),
-        labels: [],
-      },
+        labels: labels.map((label) => ({
+          id: label.id,
+          kind: label.kind,
+          name: label.name,
+          origin: label.origin,
+          parentCategoryId: label.parentCategoryId,
+          parentCategoryName: label.parentCategoryName,
+          revision: label.revision
+        }))
+      }
     }
   }
 
@@ -78,8 +97,9 @@ export async function handleClassificationJobMessage(
       executorInstanceId: payload.executorInstanceId,
       bookmarkRevision: payload.bookmarkRevision,
       outcome: payload.outcome,
-      errorCode: typeof payload.errorCode === "string" ? payload.errorCode : null,
-      tagIds,
+      errorCode:
+        typeof payload.errorCode === "string" ? payload.errorCode : null,
+      tagIds
     })
     return {
       requestId: request.requestId,
@@ -87,8 +107,8 @@ export async function handleClassificationJobMessage(
       data: {
         job: serializeClassificationJob(result.job),
         bookmark: serializeBookmarkForClaim(result.bookmark),
-        deduplicated: result.deduplicated,
-      },
+        deduplicated: result.deduplicated
+      }
     }
   }
 
@@ -97,19 +117,21 @@ export async function handleClassificationJobMessage(
       typeof payload.jobId === "string"
         ? await layer.getClassificationJob(payload.jobId)
         : typeof payload.bookmarkId === "string"
-          ? await layer.getLatestClassificationJobForBookmark(payload.bookmarkId)
+          ? await layer.getLatestClassificationJobForBookmark(
+              payload.bookmarkId
+            )
           : undefined
     if (!job) {
       return {
         requestId: request.requestId,
         ok: true,
-        data: { job: null },
+        data: { job: null }
       }
     }
     return {
       requestId: request.requestId,
       ok: true,
-      data: { job: serializeClassificationJob(job) },
+      data: { job: serializeClassificationJob(job) }
     }
   }
 
@@ -121,7 +143,7 @@ export async function handleClassificationJobMessage(
     return {
       requestId: request.requestId,
       ok: true,
-      data: { job: serializeClassificationJob(job) },
+      data: { job: serializeClassificationJob(job) }
     }
   }
 
@@ -133,7 +155,7 @@ export async function handleClassificationJobMessage(
     return {
       requestId: request.requestId,
       ok: true,
-      data: { job: serializeClassificationJob(job) },
+      data: { job: serializeClassificationJob(job) }
     }
   }
 
