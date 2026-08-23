@@ -4,6 +4,7 @@ import { AppProviders, createBrowserAppRuntime } from "~/ui/app/AppProviders"
 import { AppErrorBoundary } from "~/ui/app/ErrorBoundary"
 import { ExtensionApp } from "~/ui/app/ExtensionApp"
 import { createBrowserHashRouteStore } from "~/ui/app/hash-route"
+import type { AiAssistantPort } from "~/ui/features/ai-assistant/ai-assistant-port"
 import type { LabelManagementPort } from "~/ui/features/labels/label-management-port"
 import type { SearchPort } from "~/ui/features/search/search-port"
 
@@ -65,6 +66,39 @@ const fixtureSearchPort: SearchPort = {
       parentCategoryId: null
     }
   ]
+}
+
+const aiAssistantPort: AiAssistantPort = {
+  ask: async (input, options) => {
+    options?.onProgress?.("streaming")
+    return {
+      aiAvailable: true,
+      answerText: input.includes("共有")
+        ? "未実装: QR、CSV、Google Driveによる共有は現在開発中です。"
+        : "2件の候補が見つかりました。",
+      candidates: input.includes("共有")
+        ? []
+        : [
+            {
+              entityType: "LABEL",
+              id: "tag-typescript",
+              kind: "TAG",
+              name: "TypeScript",
+              parentCategoryId: "category-development",
+              revision: 1
+            },
+            {
+              entityType: "BOOKMARK",
+              id: "bookmark-typescript-handbook",
+              normalizedUrl: "https://www.typescriptlang.org/docs/handbook/",
+              revision: 1,
+              title: "TypeScript Handbook"
+            }
+          ],
+      intent: input.includes("共有") ? "PRODUCT_HELP" : "SEARCH_LIBRARY",
+      query: input.includes("共有") ? null : "TypeScript"
+    }
+  }
 }
 
 export function AppShellFixture() {
@@ -144,6 +178,7 @@ export function AppShellFixture() {
     <AppProviders routeStore={routeStore} runtime={runtime}>
       <AppErrorBoundary>
         <ExtensionApp
+          aiAssistantPort={aiAssistantPort}
           labelManagementPort={labelManagementPort}
           searchPort={fixtureSearchPort}
         />

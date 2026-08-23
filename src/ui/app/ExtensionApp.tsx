@@ -7,6 +7,11 @@ import { ArchiveIcon, GearIcon, Share2Icon } from "@radix-ui/react-icons"
 
 import { AppHeader } from "~/ui/components/AppHeader"
 import { AppShell } from "~/ui/components/AppShell"
+import { AiAgentPopup } from "~/ui/features/ai-assistant/AiAgentPopup"
+import {
+  emptyAiAssistantPort,
+  type AiAssistantPort
+} from "~/ui/features/ai-assistant/ai-assistant-port"
 import { BookmarkListPage } from "~/ui/features/bookmarks/BookmarkListPage"
 import {
   BookmarkDialog,
@@ -537,12 +542,14 @@ function RouteBody({
 }
 
 export function ExtensionApp({
+  aiAssistantPort = emptyAiAssistantPort,
   bookmarkFormPort = emptyBookmarkFormPort,
   bookmarkListPort = emptyBookmarkListPort,
   generalSettingsPort = emptyGeneralSettingsPort,
   labelManagementPort = emptyLabelManagementPort,
   searchPort = emptySearchPort
 }: {
+  aiAssistantPort?: AiAssistantPort
   bookmarkFormPort?: BookmarkFormPort
   bookmarkListPort?: BookmarkListPort
   generalSettingsPort?: GeneralSettingsPort
@@ -751,6 +758,15 @@ export function ExtensionApp({
         open={bookmarkDialogMode !== null}
         port={bookmarkFormPort}
       />
+      {route.kind === "home" ||
+      route.kind === "bookmarks" ||
+      route.kind === "labels" ? (
+        <AiAgentPopup
+          onLabelSelect={(filter) => navigate({ filter, kind: "bookmarks" })}
+          onSearch={(query) => navigate({ kind: "search", query })}
+          port={aiAssistantPort}
+        />
+      ) : null}
     </>
   )
 }
