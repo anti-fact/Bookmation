@@ -338,6 +338,31 @@ describe("ExtensionApp", () => {
     ).not.toBeNull()
   })
 
+  it("opens the same AI assistant from bookmark and labels screens", () => {
+    const { emit } = renderApp(
+      { kind: "home" },
+      {
+        aiAssistantPort: {
+          ask: vi.fn()
+        }
+      }
+    )
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "AIアシスタントを開く" })
+    )
+    expect(
+      screen.getByRole("dialog", { name: "AIアシスタント" })
+    ).not.toBeNull()
+    fireEvent.click(
+      screen.getByRole("button", { name: "AIアシスタントを閉じる" })
+    )
+    act(() => emit({ kind: "labels" }))
+    expect(
+      screen.getByRole("button", { name: "AIアシスタントを開く" })
+    ).not.toBeNull()
+  })
+
   it("renders the canonical Figma welcome layout and starts from its action", () => {
     const { store } = renderApp({ kind: "welcome" })
 

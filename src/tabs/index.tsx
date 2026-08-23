@@ -2,6 +2,7 @@ import * as React from "react"
 
 import "~/style.css"
 
+import { createBrowserAiAssistantPort } from "~/adapters/browser-ai-assistant-port"
 import { createChromeBookmarkFormPort } from "~/adapters/chrome-bookmark-form-port"
 import { createChromeGeneralSettingsPort } from "~/adapters/chrome-general-settings-port"
 import { createChromeLabelManagementPort } from "~/adapters/chrome-label-management-port"
@@ -12,6 +13,10 @@ import { AppErrorBoundary } from "~/ui/app/ErrorBoundary"
 import { ExtensionApp } from "~/ui/app/ExtensionApp"
 
 export default function DashboardTab() {
+  const aiAssistantPort = React.useMemo(
+    () => createBrowserAiAssistantPort(),
+    []
+  )
   const bookmarkFormPort = React.useMemo(
     () => createChromeBookmarkFormPort(),
     []
@@ -37,6 +42,7 @@ export default function DashboardTab() {
     <AppProviders>
       <AppErrorBoundary>
         <ExtensionApp
+          aiAssistantPort={aiAssistantPort}
           bookmarkFormPort={bookmarkFormPort}
           bookmarkListPort={bookmarkListPort}
           generalSettingsPort={generalSettingsPort}

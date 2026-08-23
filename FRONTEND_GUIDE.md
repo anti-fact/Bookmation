@@ -584,6 +584,8 @@ AI入口はBookmark一覧とカテゴリ・タグ一覧の両方に置き、同�
 
 AI panelにデザイン上の英語sampleがあっても、本番placeholderとhelpは日本語の文言catalogから供給する。
 
+UI-08では、Bookmark一覧とカテゴリ・タグ一覧で共有する`AiAgentPopup`を実装済みである。desktopでは右下の非modal panel、狭幅では同じstateをfull-height dialogとして表示し、処理中／応答生成中／完了／失敗、再試行、reset、closeを同一面に置く。トップレベル画面のadapterだけがPrompt APIを呼び、AIが使えない場合は`search-library`の字句検索または版付きCapability Catalogへ縮退する。モデル出力からmutationや候補IDを実行せず、検索候補はService Workerが返した現行recordだけをLabel、Bookmarkの順へ中立に並べる。
+
 ### Phase 9: WelcomeとCategory templateを作る
 
 1. `reason=INSTALL`でだけ`#/welcome`を開く。

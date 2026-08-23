@@ -148,14 +148,14 @@
 - [x] ブックマーク一覧とカテゴリ・タグ一覧のどちらからでも、同じフルページ検索画面へ切り替える。
 - [x] keyword入力中に一致度の高いLabel / Bookmark候補をGoogle検索型の候補リストとして最大8件表示し、選択で対象へ移動する。
 - [x] カテゴリ・タグ結果を上、Bookmark結果を下に表示し、IME、0件、8件、9件以上、古いresponseを扱う。
-- [ ] `AiAgentPopup` 内で自然言語の入力と応答確認を完結させ、Label / Bookmark候補集合を生成する。
-- [ ] AI入力はBookmark探索に限らず、設定、保存、分類、共有、アーカイブ復元などBookmationの機能全般の説明を受け付ける。
+- [x] `AiAgentPopup` 内で自然言語の入力と応答確認を完結させ、Label / Bookmark候補集合を生成する。
+- [x] AI入力はBookmark探索に限らず、設定、保存、分類、共有、アーカイブ復元などBookmationの機能全般の説明を受け付ける。
 - [ ] AI は提示済み ID から選択だけを行い、候補外ID、重複、古いrevisionを拒否する。
-- [ ] AIの検索結果はカテゴリ・タグを上、Bookmarkを下に表示する。AI結果はrank、score、best表現を出さない。
-- [ ] AI配列順を捨て、中立な安定順で描画する。
-- [ ] IME、0件、古いresponse、AI不可時の lexical fallback を実装する。
-- [ ] query、展開語、自由文理由を永続化しない。
-- 現在地: UI-07で共通keyword comboboxと全画面結果を実装済み。現行backendの検索応答は最大8件・cursorなしであり、AI popupとAI検索結果はUI-08で接続する。
+- [x] AIの検索結果はカテゴリ・タグを上、Bookmarkを下に表示する。AI結果はrank、score、best表現を出さない。
+- [x] AI配列順を捨て、中立な安定順で描画する。
+- [x] IME、0件、古いresponse、AI不可時の lexical fallback を実装する。
+- [x] query、展開語、自由文理由を永続化しない。
+- 現在地: UI-07で共通keyword comboboxと全画面結果、UI-08で非永続のAI panel、Prompt API意図分類、版付き機能案内、字句fallbackを実装済み。モデルに候補IDを生成させず、Service Workerが返した現行候補だけを表示する。提示候補からAIがID集合を選ぶ二段階backend契約は未接続である。
 - 完了条件: 両入口のフルページkeyword検索、最大8候補、AIポップアップでの検索／機能案内、固定グループ順、無順位AI候補のcomponent / integration testが通る。
 
 ### TASK-010: Security / media / permissions

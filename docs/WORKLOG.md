@@ -1095,6 +1095,34 @@ Bookmark一覧とカテゴリ・タグ一覧の検索入口を、同じ候補操
 - AI popup、自然言語検索、機能案内、AI unavailable時の応答はUI-08で実装する。
 - repository管理された実拡張E2Eと人間による実Chrome受入は未実施である。
 
+## 2026-08-23 — UI-08 AIアシスタントpopup
+
+### 目的
+
+Bookmark一覧とカテゴリ・タグ一覧の画面上で、自然言語検索とBookmationの機能案内を完結させる。
+
+### 変更
+
+- desktop右下の非modal panelと狭幅full-height dialogを同じ`AiAgentPopup` stateで実装し、入力、処理中、応答生成中、回答、候補、再試行、reset、closeを同一面へ配置した。
+- `AiAssistantPort`とbrowser adapterを追加し、トップレベル画面でのみPrompt APIによるcanonical intent分類と検索語展開を行うようにした。会話、query、回答は永続化しない。
+- Prompt API利用不可／準備中／不正応答では、検索を既存`search-library` message、機能説明を版付きCapability Catalogへ縮退する。AI不可と候補0件を別表示にした。
+- 検索候補はService Workerの現行recordだけを受け入れ、カテゴリ／タグを上、Bookmarkを下に中立順で表示する。rank、score、best表現とmutation commandは持たない。
+- App Shellへfake AI Portを追加し、production entryへbrowser adapterを接続した。
+
+### 検証
+
+- `pnpm typecheck`: 成功。
+- AI popup／adapter／App Shell対象test: 成功。
+- `pnpm test`: 67 files／373 tests成功。
+- UI-08変更対象のESLint: 成功。
+- `pnpm ui:build`、`pnpm build`: 成功。
+- `git diff --check`: 成功。
+
+### 残課題
+
+- AIへ提示済み候補からID集合を選ばせ、Service Workerで再検証する二段階backend契約は未接続である。現時点はモデルへ候補IDを渡さず、trustedな字句検索候補をそのまま表示する。
+- repository管理された実拡張E2E、実Prompt APIモデル、人間による実Chrome受入は未実施である。
+
 ## 追記テンプレート
 
 ```markdown
