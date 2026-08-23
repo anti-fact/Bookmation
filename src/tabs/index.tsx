@@ -11,6 +11,7 @@ import { createChromeVisitReminderPort } from "~/adapters/chrome-visit-reminder-
 import { createIndexedDbBookmarkListPort } from "~/adapters/indexeddb-bookmark-list-port"
 import { createChromeSearchPort } from "~/adapters/chrome-search-port"
 import { AppProviders } from "~/ui/app/AppProviders"
+import { ClassificationHost } from "~/ui/app/ClassificationHost"
 import { AppErrorBoundary } from "~/ui/app/ErrorBoundary"
 import { ExtensionApp } from "~/ui/app/ExtensionApp"
 
@@ -51,6 +52,7 @@ export default function DashboardTab() {
   return (
     <AppProviders>
       <AppErrorBoundary>
+        <ClassificationHost />
         <ExtensionApp
           aiAssistantPort={aiAssistantPort}
           bookmarkFormPort={bookmarkFormPort}
