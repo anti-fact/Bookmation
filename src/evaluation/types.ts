@@ -64,6 +64,12 @@ export interface ClassificationPromptInputV2 {
     id: Id
     name: string
     revision: number
+    tags: Array<{
+      id: Id
+      name: string
+      origin: "USER" | "AI" | "IMPORT" | "SHARE"
+      revision: number
+    }>
   }>
   existingTags: Array<{
     id: Id

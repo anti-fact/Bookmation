@@ -3,11 +3,9 @@
  */
 import type { IDBPTransaction } from "idb"
 import {
-  assertLabelInvariants,
   DomainError,
   DomainErrorCode,
   nextRevision,
-  proposalCreationRequestId,
   type ApplicableCandidate,
   type EpochMs,
   type Id,
@@ -20,7 +18,6 @@ import {
   getLabelOrThrow,
   putBookmark,
   putEdge,
-  putLabel,
   syncCategoryEdgesFromTags,
 } from "./edge-helpers"
 import type { BookmationDatabase, BookmationDbSchema } from "./open-database"
@@ -28,7 +25,6 @@ import type {
   PersistedActiveBookmarkRecord,
   PersistedBookmarkLabelRecord,
   PersistedClassificationJobRecord,
-  PersistedLabelRecord,
 } from "./persisted-types"
 import { STORES } from "./stores"
 
@@ -146,6 +142,7 @@ export async function applyValidatedClassificationResult(
       if (
         tag.kind !== "TAG" ||
         tag.deletedAt !== null ||
+        tag.origin !== "USER" ||
         tag.parentCategoryId !== input.categoryId
       ) {
         throw new DomainError(
@@ -155,59 +152,10 @@ export async function applyValidatedClassificationResult(
       }
       tagId = tag.id
     } else {
-      const creationRequestId = proposalCreationRequestId(
-        job.id,
-        candidate.proposalKey,
+      throw new DomainError(
+        DomainErrorCode.CLASSIFICATION_JOB_APPLY_REJECTED,
+        "AI Tag CREATE is disabled; only USER Tag REUSE is allowed",
       )
-      const existingByRequest = await tx
-        .objectStore(STORES.labels)
-        .index("byCreationRequestId")
-        .get(creationRequestId)
-      if (existingByRequest) {
-        tagId = existingByRequest.id
-      } else {
-        const byName = await tx
-          .objectStore(STORES.labels)
-          .index("byTagUniqueName")
-          .get(candidate.normalizedName)
-        if (byName && byName.deletedAt === null) {
-          if (byName.parentCategoryId !== input.categoryId) {
-            throw new DomainError(
-              DomainErrorCode.CLASSIFICATION_JOB_APPLY_REJECTED,
-              "CREATE collided outside selected category",
-            )
-          }
-          tagId = byName.id
-        } else if (byName) {
-          throw new DomainError(
-            DomainErrorCode.DUPLICATE_NORMALIZED_NAME,
-            candidate.normalizedName,
-          )
-        } else {
-          tagId = newId("tag")
-          const record: PersistedLabelRecord = {
-            schemaVersion: 1,
-            id: tagId,
-            name: candidate.normalizedName,
-            normalizedName: candidate.normalizedName,
-            nameNormalizationVersion: 1,
-            tagUniqueName: candidate.normalizedName,
-            kind: "TAG",
-            parentCategoryId: input.categoryId,
-            origin: "AI",
-            creationRequestId,
-            sortOrder: 0,
-            createdAt: input.now,
-            updatedAt: input.now,
-            revision: 1,
-            deletedAt: null,
-            cascadeDeleteRequestId: null,
-          }
-          assertLabelInvariants(record, category)
-          await putLabel(tx, record)
-          createdTagIds.push(tagId)
-        }
-      }
     }
 
     const existingEdge = await getEdgeByPair(tx, bookmark.id, tagId)

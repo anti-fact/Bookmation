@@ -10,7 +10,7 @@ const baseInput = {
   ...emptyPromptMeta(),
   policy: policyV2FromGranularity(2),
   bookmark: { title: "t", normalizedUrl: "https://example.test/x" },
-  categories: [{ id: "cat", name: "Cat", revision: 1 }],
+  categories: [{ id: "cat", name: "Cat", revision: 1, tags: [] }],
   existingTags: [],
   retryContext: null,
 }

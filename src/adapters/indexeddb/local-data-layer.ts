@@ -1484,7 +1484,9 @@ export class LocalDataLayer {
         name: c.name,
         revision: c.revision,
       })),
-      existingTags: activeTags.map((t) => {
+      existingTags: activeTags
+        .filter((t) => t.origin === "USER")
+        .map((t) => {
         const parent = categoryById.get(t.parentCategoryId!)!
         return {
           id: t.id,

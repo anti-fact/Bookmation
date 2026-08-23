@@ -36,7 +36,7 @@ describe("TASK-008 apply + evaluation consistency", () => {
     }
   })
 
-  it("validates then applies CREATE and REUSE in one transaction", async () => {
+  it("validates then applies USER Tag REUSE only (AI CREATE disabled)", async () => {
     const bookmarkId = uuid()
     const jobId = uuid()
     const now = 1_000
@@ -75,7 +75,6 @@ describe("TASK-008 apply + evaluation consistency", () => {
     })
     expect(claimed?.job.state).toBe("RUNNING")
     expect(isPolicyV2(claimed!.job.policy)).toBe(true)
-    expect(claimed!.job.maxAssignedTags).toBe(0)
 
     const promptInput = buildClassificationPromptInput({
       policy: policyFromGranularity(2),
@@ -119,7 +118,6 @@ describe("TASK-008 apply + evaluation consistency", () => {
             evidenceText: "Testing",
             confidence: 0.8,
           },
-          { invalid: true },
         ],
       },
       promptInput,
@@ -136,10 +134,13 @@ describe("TASK-008 apply + evaluation consistency", () => {
         },
       ],
       policy: policyFromGranularity(2),
+      // 本番既定: CREATE 禁止。REUSE のみ残る。
     })
 
     expect(validated.outcome).toBe("APPLIED")
-    expect(validated.applicableCandidates).toHaveLength(2)
+    expect(validated.applicableCandidates).toHaveLength(1)
+    expect(validated.applicableCandidates[0]?.action).toBe("REUSE")
+    expect(validated.diagnosticReasonCodes).toContain("IMPORTANCE_NOT_ALLOWED")
 
     const applied = await layer.applyValidatedClassificationResult({
       jobId,
@@ -152,12 +153,7 @@ describe("TASK-008 apply + evaluation consistency", () => {
 
     expect(applied.job.state).toBe("SUCCEEDED")
     expect(applied.bookmark.classificationState).toBe("CLASSIFIED")
-    expect(applied.createdTagIds).toHaveLength(1)
-    expect(applied.appliedTagIds).toContain(existingTag.id)
-
-    const created = await layer.getLabel(applied.createdTagIds[0]!)
-    expect(created?.origin).toBe("AI")
-    expect(created?.normalizedName).toBe("vitest")
-    expect(created?.parentCategoryId).toBe(category.id)
+    expect(applied.createdTagIds).toHaveLength(0)
+    expect(applied.appliedTagIds).toEqual([existingTag.id])
   })
 })

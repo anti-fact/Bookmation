@@ -214,13 +214,13 @@ export function ClassificationHostPanel() {
           Dashboard（top-level）だけで Prompt API を呼び、PENDING Job を1件分類します。
           Service Worker では実行しません。Category が無いと
           <code className="mx-1">CATEGORY_INVALID</code>
-          になるため、先にテスト用ラベルを投入してください。
+          になるため、先にテスト用カテゴリを投入し、Tag は利用者 UI から作成してください。
         </p>
       </div>
 
       <div className="flex flex-wrap gap-2">
         <Button type="button" variant="outline" onClick={() => void seedLabels()} disabled={busy}>
-          テスト用ラベルを投入
+          テスト用カテゴリを投入
         </Button>
         <Button type="button" variant="outline" onClick={() => void refreshCapability()} disabled={busy}>
           可用性を確認
@@ -261,10 +261,43 @@ export function ClassificationHostPanel() {
           <div className="flex gap-2">
             <dt className="font-medium">result:</dt>
             <dd className="break-all font-mono text-xs">
-              {JSON.stringify(lastResult)}
+              {JSON.stringify({
+                ...lastResult,
+                debug: undefined,
+              })}
             </dd>
           </div>
         )}
+        {lastResult &&
+          "debug" in lastResult &&
+          lastResult.debug && (
+            <>
+              <div className="flex flex-col gap-1">
+                <dt className="font-medium">bookmark (evidence check):</dt>
+                <dd className="break-all font-mono text-xs whitespace-pre-wrap rounded border border-gray-200 bg-gray-50 p-2">
+                  {JSON.stringify(lastResult.debug.bookmark, null, 2)}
+                </dd>
+              </div>
+              <div className="flex flex-col gap-1">
+                <dt className="font-medium">validation:</dt>
+                <dd className="break-all font-mono text-xs whitespace-pre-wrap rounded border border-gray-200 bg-gray-50 p-2">
+                  {JSON.stringify(lastResult.debug.validation, null, 2)}
+                </dd>
+              </div>
+              <div className="flex flex-col gap-1">
+                <dt className="font-medium">model parsed:</dt>
+                <dd className="max-h-64 overflow-auto break-all font-mono text-xs whitespace-pre-wrap rounded border border-gray-200 bg-gray-50 p-2">
+                  {JSON.stringify(lastResult.debug.parsed, null, 2)}
+                </dd>
+              </div>
+              <div className="flex flex-col gap-1">
+                <dt className="font-medium">model rawText:</dt>
+                <dd className="max-h-48 overflow-auto break-all font-mono text-xs whitespace-pre-wrap rounded border border-gray-200 bg-gray-50 p-2">
+                  {lastResult.debug.rawText}
+                </dd>
+              </div>
+            </>
+          )}
       </dl>
     </section>
   )

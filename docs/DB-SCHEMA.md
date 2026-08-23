@@ -521,7 +521,7 @@ interface ClassificationJobRecordV2 {
   bookmarkRevision: number
   bookmarkStateBeforeJob: Exclude<BookmarkClassificationState, "PENDING">
   settingsVersion: number
-  promptVersion: "gemini-nano-tag-classifier-v2"
+  promptVersion: "gemini-nano-tag-classifier-v6"
   responseSchemaVersion: 2
   candidateQueryVersion: "all-active-labels-v1"
   policy: ClassificationPolicySnapshotV2

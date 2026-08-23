@@ -69,6 +69,7 @@ export type ClassificationHostRunResult =
       jobId: string
       acceptedCount: number
       rejectedCount: number
+      debug: ClassificationHostAttemptDebug
     }
   | {
       status: "TERMINAL"
@@ -76,8 +77,88 @@ export type ClassificationHostRunResult =
       outcome: "FAILED" | "NEEDS_REVIEW"
       errorCode: string
       attemptOutcome: string
+      debug: ClassificationHostAttemptDebug | null
     }
-  | { status: "ERROR"; code: string; message: string }
+  | {
+      status: "ERROR"
+      code: string
+      message: string
+      debug: ClassificationHostAttemptDebug | null
+    }
+
+/** Host デバッグ用。モデル生応答と検証要約（本番 Job 永続化には使わない）。 */
+export type ClassificationHostAttemptDebug = {
+  rawText: string
+  parsed: unknown
+  bookmark: {
+    title: string
+    normalizedUrl: string
+  }
+  validation: {
+    responseDisposition: string
+    outcome: string
+    rawCandidateCount: number
+    modelDecisionCategoryId: string | null
+    candidateSchemaInvalidIndexes: number[]
+    diagnosticReasonCodes: readonly string[]
+    acceptedCount: number
+    rejectedCount: number
+  }
+}
+
+const MAX_DEBUG_RAW_TEXT_CHARS = 16_384
+
+function buildAttemptDebug(args: {
+  rawText: string
+  parsed: unknown
+  bookmarkTitle: string
+  bookmarkNormalizedUrl: string
+  validated: {
+    responseDisposition: string
+    outcome: string
+    rawCandidateCount: number
+    modelDecisionCategoryId: string | null
+    candidateSchemaInvalidIndexes: number[]
+    diagnosticReasonCodes: readonly string[]
+    acceptedCount: number
+    rejectedCount: number
+  }
+}): ClassificationHostAttemptDebug {
+  const rawText =
+    args.rawText.length > MAX_DEBUG_RAW_TEXT_CHARS
+      ? `${args.rawText.slice(0, MAX_DEBUG_RAW_TEXT_CHARS)}…[truncated]`
+      : args.rawText
+  return {
+    rawText,
+    parsed: args.parsed,
+    bookmark: {
+      title: args.bookmarkTitle,
+      normalizedUrl: args.bookmarkNormalizedUrl,
+    },
+    validation: {
+      responseDisposition: args.validated.responseDisposition,
+      outcome: args.validated.outcome,
+      rawCandidateCount: args.validated.rawCandidateCount,
+      modelDecisionCategoryId: args.validated.modelDecisionCategoryId,
+      candidateSchemaInvalidIndexes: [
+        ...args.validated.candidateSchemaInvalidIndexes,
+      ],
+      diagnosticReasonCodes: [...args.validated.diagnosticReasonCodes],
+      acceptedCount: args.validated.acceptedCount,
+      rejectedCount: args.validated.rejectedCount,
+    },
+  }
+}
+
+function logAttemptDebug(jobId: string, debug: ClassificationHostAttemptDebug): void {
+  console.info("[Bookmation] Classification Host model response", {
+    jobId,
+    bookmark: debug.bookmark,
+    rawText: debug.rawText,
+    parsed: debug.parsed,
+    validation: debug.validation,
+  })
+}
 
 function toSnapshotTags(tags: HostLabelTag[]): SnapshotTag[] {
   return tags.map((t) => ({
@@ -128,6 +209,7 @@ export async function runOneClassificationJob(args: {
       outcome: "FAILED",
       errorCode: "CLASSIFICATION_POLICY_INVALID",
       attemptOutcome: "GLOBAL_INVALID",
+      debug: null,
     }
   }
 
@@ -157,6 +239,14 @@ export async function runOneClassificationJob(args: {
       snapshotTags: toSnapshotTags(claimed.existingTags),
       policy: claimed.policy,
     })
+    const debug = buildAttemptDebug({
+      rawText: output.rawText,
+      parsed: output.parsed,
+      bookmarkTitle: claimed.bookmarkTitle,
+      bookmarkNormalizedUrl: claimed.bookmarkNormalizedUrl,
+      validated,
+    })
+    logAttemptDebug(claimed.jobId, debug)
 
     if (
       validated.outcome === "APPLIED" &&
@@ -175,6 +265,7 @@ export async function runOneClassificationJob(args: {
         jobId: claimed.jobId,
         acceptedCount: validated.acceptedCount,
         rejectedCount: validated.rejectedCount,
+        debug,
       }
     }
 
@@ -202,6 +293,7 @@ export async function runOneClassificationJob(args: {
       outcome,
       errorCode,
       attemptOutcome: validated.outcome,
+      debug,
     }
   } catch (error) {
     const code =
@@ -219,6 +311,7 @@ export async function runOneClassificationJob(args: {
       status: "ERROR",
       code,
       message: error instanceof Error ? error.message : String(error),
+      debug: null,
     }
   }
 }

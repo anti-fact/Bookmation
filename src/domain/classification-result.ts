@@ -84,6 +84,11 @@ export interface ValidateClassificationResultInput {
   /** snapshot 上の Tag（tombstone 含む名前予約照合用） */
   snapshotTags: ReadonlyArray<SnapshotTag>
   policy: ClassificationPolicySnapshotV2
+  /**
+   * AI による Tag CREATE を許すか。本番 Host は false（既定）。
+   * evaluation／単体試験で CREATE 経路を検証するときだけ true。
+   */
+  allowAiCreateTags?: boolean
 }
 
 export interface ValidateClassificationResultOutput {
@@ -109,10 +114,35 @@ function evidencePresent(
   title: string,
   normalizedUrl: string,
 ): boolean {
+  if (evidenceText.length === 0) return false
+  // ASCII の大文字小文字だけ無視する（Tag名をevidenceに使う問題は解消しない）。
+  const needle = evidenceText.toLowerCase()
   return (
-    evidenceText.length > 0 &&
-    (title.includes(evidenceText) || normalizedUrl.includes(evidenceText))
+    title.toLowerCase().includes(needle) ||
+    normalizedUrl.toLowerCase().includes(needle)
   )
+}
+
+/**
+ * confidence を 0〜1 の有限 number へ正規化する。
+ * Prompt API が JSON number を string で返す場合だけ許容し、
+ * 空・非数・範囲外・余分な文字付きは拒否する。
+ */
+function parseConfidence(value: unknown): number | null {
+  if (typeof value === "number") {
+    if (!Number.isFinite(value) || value < 0 || value > 1) return null
+    return value
+  }
+  if (typeof value !== "string") return null
+  const trimmed = value.trim()
+  if (trimmed.length === 0) return null
+  // 先頭の任意の空白を除き、通常の10進リテラルだけ（"0.8"、"1"、"0"）。
+  if (!/^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$/.test(trimmed)) {
+    return null
+  }
+  const parsed = Number(trimmed)
+  if (!Number.isFinite(parsed) || parsed < 0 || parsed > 1) return null
+  return parsed
 }
 
 function parseTagDecision(raw: unknown): TagDecision | null {
@@ -130,19 +160,14 @@ function parseTagDecision(raw: unknown): TagDecision | null {
     if (typeof raw["tagId"] !== "string" || raw["tagId"].length === 0) return null
     if (!IMPORTANCES.has(raw["importance"] as TagImportance)) return null
     if (typeof raw["evidenceText"] !== "string") return null
-    if (
-      typeof raw["confidence"] !== "number" ||
-      raw["confidence"] < 0 ||
-      raw["confidence"] > 1
-    ) {
-      return null
-    }
+    const confidence = parseConfidence(raw["confidence"])
+    if (confidence === null) return null
     return {
       action: "REUSE",
       tagId: raw["tagId"] as Id,
       importance: raw["importance"] as TagImportance,
       evidenceText: raw["evidenceText"] as string,
-      confidence: raw["confidence"] as number,
+      confidence,
     }
   }
   if (raw["action"] === "CREATE") {
@@ -157,19 +182,14 @@ function parseTagDecision(raw: unknown): TagDecision | null {
     if (typeof raw["name"] !== "string" || raw["name"].length === 0) return null
     if (!IMPORTANCES.has(raw["importance"] as TagImportance)) return null
     if (typeof raw["evidenceText"] !== "string") return null
-    if (
-      typeof raw["confidence"] !== "number" ||
-      raw["confidence"] < 0 ||
-      raw["confidence"] > 1
-    ) {
-      return null
-    }
+    const confidence = parseConfidence(raw["confidence"])
+    if (confidence === null) return null
     return {
       action: "CREATE",
       name: raw["name"] as string,
       importance: raw["importance"] as TagImportance,
       evidenceText: raw["evidenceText"] as string,
-      confidence: raw["confidence"] as number,
+      confidence,
     }
   }
   return null
@@ -353,10 +373,15 @@ export function validateClassificationModelResult(
 
   const drafts: Draft[] = []
   let rejected = invalidIndexes.length
+  const allowAiCreateTags = input.allowAiCreateTags === true
 
   for (const md of modelDecisionCandidates) {
     const { decision, sourceIndex } = md
-    if (!evidencePresent(decision.evidenceText, title, url)) {
+
+    // evidenceText 空は常に拒否。title/URL 実在チェックは CREATE のみ。
+    // REUSE は USER Tag ID／親の検証が信頼側の根拠であり、意味適合はモデル品質側。
+    // （Nano が Tag 名を evidence にコピーしても、抽象 Tag の REUSE を落とさない）
+    if (decision.evidenceText.length === 0) {
       codes.add("EVIDENCE_INVALID")
       rejected += 1
       continue
@@ -364,7 +389,7 @@ export function validateClassificationModelResult(
 
     if (decision.action === "REUSE") {
       const tag = tagsById.get(decision.tagId)
-      if (!tag || tag.deletedAt !== null) {
+      if (!tag || tag.deletedAt !== null || tag.origin !== "USER") {
         codes.add("REUSE_ID_INVALID")
         rejected += 1
         continue
@@ -386,6 +411,16 @@ export function validateClassificationModelResult(
     }
 
     // CREATE
+    if (!evidencePresent(decision.evidenceText, title, url)) {
+      codes.add("EVIDENCE_INVALID")
+      rejected += 1
+      continue
+    }
+    if (!allowAiCreateTags) {
+      codes.add("IMPORTANCE_NOT_ALLOWED")
+      rejected += 1
+      continue
+    }
     if (!isCreateImportanceAllowed(input.policy, decision.importance)) {
       codes.add("IMPORTANCE_NOT_ALLOWED")
       rejected += 1

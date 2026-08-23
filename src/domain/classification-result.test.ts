@@ -92,6 +92,7 @@ describe("validateClassificationModelResult", () => {
       },
       promptInput: basePrompt(),
       snapshotTags: snapshotTags(),
+      allowAiCreateTags: true,
       policy: policyFromGranularity(2),
     })
 
@@ -120,6 +121,7 @@ describe("validateClassificationModelResult", () => {
       },
       promptInput: basePrompt(),
       snapshotTags: snapshotTags(),
+      allowAiCreateTags: true,
       policy: policyFromGranularity(2),
     })
     expect(outsideReuse.outcome).toBe("ZERO_VALID")
@@ -142,6 +144,7 @@ describe("validateClassificationModelResult", () => {
       },
       promptInput: basePrompt(),
       snapshotTags: snapshotTags(),
+      allowAiCreateTags: true,
       policy: policyFromGranularity(2),
     })
     expect(createToReuse.outcome).toBe("APPLIED")
@@ -161,6 +164,7 @@ describe("validateClassificationModelResult", () => {
       },
       promptInput: basePrompt(),
       snapshotTags: snapshotTags(),
+      allowAiCreateTags: true,
       policy: policyFromGranularity(2),
     })
     expect(result.outcome).toBe("GLOBAL_INVALID")
@@ -185,10 +189,177 @@ describe("validateClassificationModelResult", () => {
       },
       promptInput: basePrompt(),
       snapshotTags: snapshotTags(),
+      allowAiCreateTags: true,
       policy: policyFromGranularity(2),
     })
     expect(result.outcome).toBe("ZERO_VALID")
     expect(result.diagnosticReasonCodes).toContain("IMPORTANCE_NOT_ALLOWED")
+  })
+
+  it("normalizes numeric-string confidence to number", () => {
+    const result = validateClassificationModelResult({
+      raw: {
+        outcome: "CLASSIFIED",
+        categoryId: "cat-tech",
+        reviewReasonCode: "NONE",
+        tagDecisions: [
+          {
+            action: "CREATE",
+            name: "Vitest",
+            importance: "CORE",
+            evidenceText: "Vitest",
+            confidence: "0.85",
+          },
+          {
+            action: "REUSE",
+            tagId: "tag-typescript",
+            importance: "MAJOR",
+            evidenceText: "Testing",
+            confidence: "0.7",
+          },
+        ],
+      },
+      promptInput: basePrompt(),
+      snapshotTags: snapshotTags(),
+      allowAiCreateTags: true,
+      policy: policyFromGranularity(2),
+    })
+    expect(result.outcome).toBe("APPLIED")
+    expect(result.candidateSchemaInvalidIndexes).toEqual([])
+    expect(result.applicableCandidates).toHaveLength(2)
+    expect(result.applicableCandidates[0]).toMatchObject({
+      action: "CREATE",
+      confidence: 0.85,
+    })
+    expect(result.applicableCandidates[1]).toMatchObject({
+      action: "REUSE",
+      confidence: 0.7,
+    })
+  })
+
+  it("rejects non-numeric confidence strings", () => {
+    const result = validateClassificationModelResult({
+      raw: {
+        outcome: "CLASSIFIED",
+        categoryId: "cat-tech",
+        reviewReasonCode: "NONE",
+        tagDecisions: [
+          {
+            action: "CREATE",
+            name: "Vitest",
+            importance: "CORE",
+            evidenceText: "Vitest",
+            confidence: "high",
+          },
+        ],
+      },
+      promptInput: basePrompt(),
+      snapshotTags: snapshotTags(),
+      allowAiCreateTags: true,
+      policy: policyFromGranularity(2),
+    })
+    expect(result.outcome).toBe("ZERO_VALID")
+    expect(result.candidateSchemaInvalidIndexes).toEqual([0])
+    expect(result.diagnosticReasonCodes).toContain("CANDIDATE_SCHEMA_INVALID")
+  })
+
+  it("matches evidenceText case-insensitively for ASCII", () => {
+    const result = validateClassificationModelResult({
+      raw: {
+        outcome: "CLASSIFIED",
+        categoryId: "cat-tech",
+        reviewReasonCode: "NONE",
+        tagDecisions: [
+          {
+            action: "CREATE",
+            name: "Vitest",
+            importance: "CORE",
+            evidenceText: "vitest",
+            confidence: 0.9,
+          },
+        ],
+      },
+      promptInput: basePrompt(),
+      snapshotTags: snapshotTags(),
+      allowAiCreateTags: true,
+      policy: policyFromGranularity(2),
+    })
+    expect(result.outcome).toBe("APPLIED")
+    expect(result.diagnosticReasonCodes).not.toContain("EVIDENCE_INVALID")
+  })
+
+  it("accepts REUSE even when evidenceText is a Tag name absent from title/url", () => {
+    const result = validateClassificationModelResult({
+      raw: {
+        outcome: "CLASSIFIED",
+        categoryId: "cat-tech",
+        reviewReasonCode: "NONE",
+        tagDecisions: [
+          {
+            action: "REUSE",
+            tagId: "tag-typescript",
+            importance: "CORE",
+            evidenceText: "コンテンツ",
+            confidence: 0.8,
+          },
+        ],
+      },
+      promptInput: basePrompt(),
+      snapshotTags: snapshotTags(),
+      policy: policyFromGranularity(2),
+    })
+    expect(result.outcome).toBe("APPLIED")
+    expect(result.diagnosticReasonCodes).not.toContain("EVIDENCE_INVALID")
+    expect(result.acceptedCount).toBe(1)
+  })
+
+  it("rejects CREATE when evidenceText is absent from title/url", () => {
+    const result = validateClassificationModelResult({
+      raw: {
+        outcome: "CLASSIFIED",
+        categoryId: "cat-tech",
+        reviewReasonCode: "NONE",
+        tagDecisions: [
+          {
+            action: "CREATE",
+            name: "コンテンツ",
+            importance: "CORE",
+            evidenceText: "コンテンツ",
+            confidence: 0.8,
+          },
+        ],
+      },
+      promptInput: basePrompt(),
+      snapshotTags: snapshotTags(),
+      allowAiCreateTags: true,
+      policy: policyFromGranularity(2),
+    })
+    expect(result.outcome).toBe("ZERO_VALID")
+    expect(result.diagnosticReasonCodes).toContain("EVIDENCE_INVALID")
+  })
+
+  it("rejects empty evidenceText on REUSE", () => {
+    const result = validateClassificationModelResult({
+      raw: {
+        outcome: "CLASSIFIED",
+        categoryId: "cat-tech",
+        reviewReasonCode: "NONE",
+        tagDecisions: [
+          {
+            action: "REUSE",
+            tagId: "tag-typescript",
+            importance: "CORE",
+            evidenceText: "",
+            confidence: 0.8,
+          },
+        ],
+      },
+      promptInput: basePrompt(),
+      snapshotTags: snapshotTags(),
+      policy: policyFromGranularity(2),
+    })
+    expect(result.outcome).toBe("ZERO_VALID")
+    expect(result.diagnosticReasonCodes).toContain("EVIDENCE_INVALID")
   })
 
   it("resolves dispatch budget terminal like evaluation", () => {

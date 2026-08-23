@@ -107,7 +107,7 @@ type ClassificationRetryReasonCode =
   | "DUPLICATE"
 
 interface ClassificationPromptInput {
-  promptVersion: "gemini-nano-tag-classifier-v2"
+  promptVersion: "gemini-nano-tag-classifier-v6"
   responseSchemaVersion: 2
   candidateQueryVersion: "all-active-labels-v1"
   maxPromptInputBytes: 262144
@@ -121,6 +121,12 @@ interface ClassificationPromptInput {
     id: Id
     name: string
     revision: number
+    tags: Array<{
+      id: Id
+      name: string
+      origin: "USER" | "AI" | "IMPORT" | "SHARE"
+      revision: number
+    }>
   }>
   existingTags: Array<{
     id: Id
@@ -146,7 +152,7 @@ interface BaseFingerprintPayload {
 ~~~
 
 - `categories` はJob snapshot内のactiveなUSER Categoryだけとする。
-- `candidateQueryVersion="all-active-labels-v1"` は意味検索や件数shortlistを行わない。全active USER CategoryをID順で `categories` に入れ、そのCategoryを親に持つ全active TagをUSER／AI／IMPORT／SHAREの順、各origin内ID順で `existingTags` に入れる。tombstoneをモデル候補には出さないが、CREATE検証時の名前予約照合には含める。active Tagの親がactive USER Category集合にない場合は入力不変条件違反でFAILEDとし、候補を黙って省かない。
+- `candidateQueryVersion="all-active-labels-v1"` は意味検索や件数shortlistを行わない。全active USER CategoryをID順で `categories` に入れ、そのCategoryを親に持つ全active TagをUSER／AI／IMPORT／SHAREの順、各origin内ID順で `existingTags` に入れる。同じ並びの Tag を、各 Category の `tags`（id、name、origin、revision）へも付ける。モデルが先頭 Category だけを見ないよう、有効 Tag 一覧を Category ごとに明示する。`existingTags` は tagId 照合用の全件一覧として残す。tombstoneをモデル候補には出さないが、CREATE検証時の名前予約照合には含める。active Tagの親がactive USER Category集合にない場合は入力不変条件違反でFAILEDとし、候補を黙って省かない。
 - 各model attemptの `ClassificationPromptInput` 全体をcanonical JSON v1で直列化し、UTF-8 byte長がJobの `maxPromptInputBytes=262144` またはProviderの入力quotaを超える場合、v2では候補を切り捨てずdispatch前の `INPUT_CONTEXT_TOO_LARGE`／FAILEDとする。再試行ではretryContextもbyte長へ含める。将来shortlistを導入する場合はcandidateQueryVersionとpolicy versionを上げ、同等Tagを落とさない再利用規則を別途定義する。
 - base input fingerprintは、上記の `BaseFingerprintPayload` をcanonical JSON v1へして生成する。`promptInput` は `retryContext` だけを除いた実モデル入力であるため、prompt version、response schema version、candidate query version、maxPromptInputBytes、maxModelResponseBytes、policy、bookmarkのtitle／normalizedUrl、およびモデルへ渡す順序どおりのCategory／Tag全fieldを含む。外側にはfingerprint version、`bookmarkId`、`bookmarkRevision`、`settingsVersion` を含める。`updatedAt` だけをrevisionの代用にしない。
 - `retryContext`、Job state、lease、`modelAttempt`、`executionAttempt` は同じbase入力の意味を変えないためfingerprintから除外する。
@@ -229,8 +235,8 @@ type ValidatedModelClassificationResult =
 - `tagDecisions` には業務上の `maxItems` を置かない。
 - raw応答は保存前・JSON parse前に `TextEncoder` のUTF-8で測り、Job snapshotの `maxModelResponseBytes=262144` 以下だけを受ける。262144 bytesを超えた応答は候補を途中まで採用せず `MODEL_RESPONSE_SIZE_EXCEEDED` のtechnical failureとする。Provider側のより小さい出力quotaで切れた場合は `MODEL_RESPONSE_TRUNCATED` とし、どちらもTag件数上限へ読み替えない。
 - `REUSE` は候補内Tag IDだけ、`CREATE` は新しい名称だけを返す。各候補にCategoryや親変更を返させず、全候補の親は結果の `categoryId` で一意に決める。
-- `evidenceText` はtitleまたはnormalizedUrlに実在する、判断根拠となった短い文字列とする。
-- `confidence` は0〜1の診断値であり、ランキング、上位N件採用、件数打切り、自動適用閾値には使わない。
+- `evidenceText` は判断根拠となった短い非空文字列とする。CREATEでは titleまたはnormalizedUrlに実在することを信頼側が ASCII 大文字小文字無視で照合する。REUSEでは非空だけを要求し、title／URL照合は行わない（意味適合はモデル品質）。existingTags／categories の name をCREATEの根拠の代わりに捏造しない。
+- `confidence` は0〜1の診断値であり、ランキング、上位N件採用、件数打切り、自動適用閾値には使わない。candidate schemaでは JSON number、および有限な10進リテラルだけを表す string（例: `"0.8"`）を 0〜1 の number へ正規化して受け付ける。空文字、非数、範囲外、余分な文字付きの string は候補 schema 不正とする。
 - `proposalKey` と `creationRequestId` はモデルに生成させない。検証後、信頼済みコードがCategory IDと正規化名から安定生成する。
 
 Prompt APIの `responseConstraint` はenvelopeだけを固定する。top-levelの全propertyを `required`、`additionalProperties: false` とし、`outcome` ごとの `categoryId`、`tagDecisions` が配列であること、`reviewReasonCode` を制約する。一方、`CLASSIFIED.tagDecisions` のitemsはresponseConstraintで構造やIDを制約せず、件数上限も置かない。これは1件の候補不正で応答全体を失わないための意図的な境界である。
@@ -239,7 +245,9 @@ Prompt APIの `responseConstraint` はenvelopeだけを固定する。top-level�
 
 ## Gemini Nanoへ渡す固定プロンプト
 
-次を `gemini-nano-tag-classifier-v2` の固定system promptとする。実行時には、この後へ `ClassificationPromptInput` をcanonical JSON v1で直列化したJSONデータだけを渡す。別のproperty順で再serializeしない。
+本番 Host は Tag の CREATE を禁止し、origin=USER の既存 Tag の REUSE のみを適用する。evaluation が CREATE 経路を検証するときだけ `allowAiCreateTags: true` を渡す。
+
+次を `gemini-nano-tag-classifier-v6` の固定system promptとする。実行時には、この後へ `ClassificationPromptInput` をcanonical JSON v1で直列化したJSONデータだけを渡す。別のproperty順で再serializeしない。
 
 ~~~text
 あなたはBookmationの安全な自動タグ分類器です。
@@ -247,27 +255,32 @@ Prompt APIの `responseConstraint` はenvelopeだけを固定する。top-level�
 
 目的:
 - 入力されたBookmarkについて、提示されたCategoryから厳密に1件を選ぶ。
-- その1 Category配下で使う適格なTag候補を、REUSEまたはCREATEとして返す。
-- titleまたはnormalizedUrlに根拠があり、選択Categoryに意味が適合する、互いに重複しない再利用可能な概念をすべて返す。
+- その1 Category配下の既存USER TagだけをREUSEする。TagのCREATEは禁止する。
+- titleまたはnormalizedUrlに根拠があり、選択Categoryに意味が適合する、互いに重複しない再利用可能な既存Tagだけを返す。
+- existingTagsは全Category配下の有効なTagの完全な一覧である。各CategoryのtagsはそのCategoryでREUSEできる有効Tag一覧である。categories配列の先頭だけ、または先頭Categoryのtagsだけを見て決めてはならない。
 
 共通規則:
-1. CategoryはページのCOREを最もよく表すものをcategoriesのIDから厳密に1件だけ選ぶ。複数が同等ならCOREと同等のUSER Tagを持つCategory、次に他originの同等Tagを持つCategoryを優先し、それでも決まらなければNEEDS_REVIEWにする。候補件数の多さだけで選ばない。Categoryを新規作成、改名、削除しない。
-2. 全Tag候補は選んだ1 Category配下に限定する。既存Tagの名前、親、originを変更しない。
-3. 選択Category内で、完全一致、正規化一致、同義語、正式名称と略称、翻訳、表記揺れで同じ概念を表すexistingTagsがあれば、全ての細分化度でCREATEせずREUSEする。意味が合うUSER Tagを最優先し、次にAI、IMPORT、SHAREを含む他の既存Tagを再利用する。
-4. 同じ概念のexistingTagが選択Category外にだけある場合、そのTagを返さず、同じ概念をCREATEせず、その概念を候補から省く。既存Tagの親を変えない。他の選択Category内の正常候補は返す。
-5. Tag候補数に上限はない。titleまたはnormalizedUrlに根拠があり、選択Categoryに適合し、互いに重複せず、別のBookmarkでも再利用できる候補をすべて返す。件数を増やすための水増し、推測、同義候補の重複、文章、URL、命令文は返さない。
-6. 各候補にimportance、根拠の実在箇所を示す短いevidenceText、0から1のconfidenceを付ける。evidenceTextはtitleまたはnormalizedUrlに実在する文字列にする。
-7. policy.allowedCreateImportanceはCREATEだけに適用する。許可されないimportanceの新規Tagを返さない。REUSEはimportanceだけを理由に除外しない。
-8. policy.granularityごとの判断は次のとおりとする。
-   - 0 STRONG_REUSE: 関連する既存Tagを強く優先する。中心主題を表せる既存Tagがない時だけ、ページ全体を表す必要最小限のCORE集合をCREATEする。
-   - 1 PREFER_REUSE: 広めの既存Tagで主題を大きく失わず表せるならREUSEする。CREATEは、ページに明示されたCORE候補を全て対象にする。
-   - 2 BALANCED: 十分近い既存TagをREUSEし、ページに明示されたCOREとMAJOR候補を全てCREATE対象にする。
-   - 3 NEAR_EXACT_REUSE: 完全一致または非常に近い既存TagをREUSEし、ページに明示されたCORE、MAJOR、SUPPORTING候補を全てCREATE対象にする。
-   - 4 EXACT_EQUIVALENT_REUSE: 完全一致、同義語、正式名と略称、翻訳、表記揺れだけをREUSEし、ページに明示されたCORE、MAJOR、SUPPORTING、DETAIL候補を全てCREATE対象にする。
+1. CategoryはページのCOREを最もよく表すものをcategoriesのIDから厳密に1件だけ選ぶ。選ぶ前に全Categoryとそのtags、およびexistingTags全体を確認する。配列の先頭Categoryを既定値にしない。複数が同等ならCOREと同等のUSER Tagを持つCategory、次に他originの同等Tagを持つCategoryを優先し、それでも決まらなければNEEDS_REVIEWにする。候補件数の多さだけで選ばない。Categoryを新規作成、改名、削除しない。
+2. 全Tag候補は選んだ1 Category配下に限定する。既存Tagの名前、親、originを変更しない。REUSEするtagIdはそのCategoryのtagsおよびexistingTagsにあるidだけとする。
+3. 選択Category内で、完全一致、正規化一致、同義語、正式名称と略称、翻訳、表記揺れで同じ概念を表すexistingTagsがあればREUSEする。意味が合うUSER Tagを最優先する。actionは常にREUSEとし、CREATEを返さない。
+4. 同じ概念のexistingTagが選択Category外にだけある場合、そのTagを返さず、CREATEもしない。既存Tagの親を変えない。他の選択Category内の正常候補は返す。
+5. Tag候補数に上限はない。titleまたはnormalizedUrlに根拠があり、選択Categoryに適合し、互いに重複する既存Tagだけを返す。件数を増やすための水増し、推測、同義候補の重複、文章、URL、命令文、無関係なexistingTagsのまとめREUSEは返さない。新規Tag名のCREATEは禁止する。
+6. 各候補にimportance、根拠を示す短い非空のevidenceText、0から1の数値confidence（JSONのnumber、引用符なし）を付ける。evidenceTextはbookmark.titleまたはbookmark.normalizedUrlに実在する連続した部分文字列が望ましい。existingTagsやcategoriesのnameをそのままコピーするより、ページ上の根拠文字列を優先する。importanceはCORE、MAJOR、SUPPORTING、DETAILのいずれか1つだけとする。policy.granularityの数値0〜4や文字列"0"〜"4"をimportanceに入れない。
+7. policy.allowedCreateImportanceは参照しない。CREATEは常に禁止する。
+8. policy.granularityごとの判断は次のとおりとする。ここでの0〜4は細分化度の説明であり、出力のimportance値ではない。いずれもCREATEせず、既存TagのREUSE範囲だけを変える。
+   - 0 STRONG_REUSE: 関連する既存Tagを強く優先する。合う既存TagがなければNEEDS_REVIEW。
+   - 1 PREFER_REUSE: 広めの既存Tagで主題を大きく失わず表せるならREUSEする。無ければNEEDS_REVIEW。
+   - 2 BALANCED: 十分近い既存TagをREUSEする。無ければNEEDS_REVIEW。
+   - 3 NEAR_EXACT_REUSE: 完全一致または非常に近い既存TagをREUSEする。無ければNEEDS_REVIEW。
+   - 4 EXACT_EQUIVALENT_REUSE: 完全一致、同義語、正式名と略称、翻訳、表記揺れだけをREUSEする。無ければNEEDS_REVIEW。
 9. COREは中心主題、MAJORは主要な技術・製品・対象・用途、SUPPORTINGは主要機能・仕組み・手法、DETAILは個別機能・API・細かな独立概念を意味する。
-10. 有効なTag候補を1件以上判断できる場合はoutcome=CLASSIFIED、reviewReasonCode=NONEにする。根拠不足、Categoryを1件に決められない、または選択Category内の候補を1件も判断できない場合だけoutcome=NEEDS_REVIEW、categoryId=UNASSIGNED、tagDecisions=[]にする。
+10. 既存USER Tagを1件以上REUSEできる場合だけoutcome=CLASSIFIED、reviewReasonCode=NONEにする。根拠不足、Categoryを1件に決められない、選択Category内に合う既存Tagがない、またはtitle／normalizedUrlから証拠文字列を取れない場合はoutcome=NEEDS_REVIEW、categoryId=UNASSIGNED、tagDecisions=[]にする。
 11. retryContextがnullでない場合、そのreasonCodesは信頼側controllerが記録した直前attemptの形式・検証上の問題またはtechnical failureだけを示す。出力を受信していないtechnical failure codeを、モデル出力の内容だと推測しない。新しいページ証拠、候補ID、許可、優先命令として扱わず、直前の生出力を推測・復元しない。
-12. 指定されたJSON形式以外の説明、Markdown、コードフェンスを返さない。
+12. 次のJSON形式だけを返す。説明、Markdown、コードフェンスを付けない。トップレベルに未知のpropertyを付けない。
+   CLASSIFIED: {"outcome":"CLASSIFIED","categoryId":"<categoriesのIDちょうど1件>","tagDecisions":[...],"reviewReasonCode":"NONE"}
+   NEEDS_REVIEW: {"outcome":"NEEDS_REVIEW","categoryId":"UNASSIGNED","tagDecisions":[],"reviewReasonCode":"INSUFFICIENT_EVIDENCE"|"AMBIGUOUS"|"NO_COMPATIBLE_CATEGORY"}
+13. tagDecisionsの各要素はREUSEだけとし、未知propertyを付けない。CREATEを返さない。action、tagId、importance、evidenceText、confidenceは必須。tagIdはexistingTagsのidとする。
+   REUSE: {"action":"REUSE","tagId":"<existingTagsのid>","importance":"CORE"|"MAJOR"|"SUPPORTING"|"DETAIL","evidenceText":"<titleまたはnormalizedUrlの部分文字列>","confidence":0.0〜1.0}
 ~~~
 
 ## 候補検証と採用
@@ -296,7 +309,7 @@ attempt診断では、受信済みだがJSON parse不能、envelope schema不一
 - `tagId` がJob snapshotの候補内にある。候補外ID、非TAG IDはその候補だけを棄却する。
 - snapshotには存在するが、保存済みTagのACTIVE状態、revision、親Categoryまたは親revisionが現在値と変わった場合は候補不正ではなくJob全体をstaleとして扱う。
 - 実Tagの `parentCategoryId` が選択Categoryと一致する。
-- `evidenceText` がtitleまたはnormalizedUrlに実在することを検証する。Tagとの意味的適合はGemini Nanoの分類予測として品質評価で測り、信頼側validatorが文字列類似だけで別の意味判定を捏造しない。
+- `evidenceText` は非空文字列であることだけを検証する。title／normalizedUrlへの実在照合は行わない（本番はUSER TagのREUSEのみで、抽象Tag名をevidenceにコピーするモデルでもID／親が正しければ適用する）。Tagとの意味的適合はGemini Nanoの分類予測として品質評価で測り、信頼側validatorが文字列類似だけで別の意味判定を捏造しない。
 - 同じTag IDを同一試行で重複させない。
 - すでにBookmarkへ付与済みでも、同じedgeへ収束する冪等な正常候補として扱う。
 
@@ -304,7 +317,7 @@ attempt診断では、受信済みだがJSON parse不能、envelope schema不一
 
 - raw要素がcandidate schemaを満たすobjectであり、全field、action別field、型、未知property、importance、confidenceを検証できる。構造不正ならその要素だけを棄却する。
 - importanceがその細分化度の `allowedCreateImportance` に含まれる。
-- `evidenceText` がtitleまたはnormalizedUrlに実在することを検証する。名称との意味的適合はGemini Nanoの分類予測として品質評価で測る。
+- `evidenceText` がtitleまたはnormalizedUrlに実在することを検証する（ASCII 大文字小文字無視）。名称との意味的適合はGemini Nanoの分類予測として品質評価で測る。
 - Label Normalizer v1で有効な短い名詞句になり、URL、HTML、Markdown、コード、命令文、禁止文字を含まない。
 - 正規化後のactive Tag／tombstoneとの名前重複解決は、下記のcanonical化段階で行う。重複があり得ることだけで、この基礎検証段階の候補を先に捨てない。
 - 選択Categoryを親として作成できる。Categoryの新規作成や既存Tagの親変更を要求しない。
@@ -634,7 +647,7 @@ interface ClassificationEvaluationResultArtifactV1 {
   fixtureVersion: string
   fixtureSetSha256: string
   scorerVersion: "classification-eval-scorer-v2"
-  promptVersion: "gemini-nano-tag-classifier-v2"
+  promptVersion: "gemini-nano-tag-classifier-v6"
   responseSchemaVersion: 2
   candidateQueryVersion: "all-active-labels-v1"
   labelNormalizerVersion: 1

@@ -281,6 +281,24 @@ function validateFixture(fixture: ClassificationEvaluationFixtureV3): void {
     }
   }
 
+  for (const cat of fixture.baseInput.categories) {
+    const expectedTagIds = fixture.baseInput.existingTags
+      .filter((t) => t.parentCategoryId === cat.id)
+      .map((t) => t.id)
+    const actualTagIds = cat.tags.map((t) => t.id)
+    if (actualTagIds.join("\0") !== expectedTagIds.join("\0")) {
+      fail(
+        `${fixtureId}: category ${cat.id} tags must list that parent's existingTags`,
+      )
+    }
+    for (const nested of cat.tags) {
+      const source = tagById.get(nested.id)
+      if (!source) {
+        fail(`${fixtureId}: category ${cat.id} tag ${nested.id} not in existingTags`)
+      }
+    }
+  }
+
   const existingNormalized = new Set(
     fixture.baseInput.existingTags.map(
       (t) => normalizeLabelName(t.name).normalized,

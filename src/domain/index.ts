@@ -122,13 +122,15 @@ export {
   MAX_MODEL_RESPONSE_BYTES,
 } from "./classification-constants"
 export {
-  GEMINI_NANO_TAG_CLASSIFIER_V2_SYSTEM_PROMPT,
+  GEMINI_NANO_TAG_CLASSIFIER_SYSTEM_PROMPT,
   buildClassificationPromptInput,
   orderAllActiveLabelsV1,
 } from "./classification-prompt"
 export type {
   ClassificationPromptInput,
   ClassificationPromptCategory,
+  ClassificationPromptCategoryInput,
+  ClassificationPromptCategoryTag,
   ClassificationPromptTag,
   ClassificationRetryReasonCode,
 } from "./classification-prompt"

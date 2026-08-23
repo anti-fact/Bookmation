@@ -78,6 +78,14 @@ export function buildBaseInput(args: {
       id: c.id,
       name: c.name,
       revision: c.revision ?? 1,
+      tags: tags
+        .filter((t) => t.parentCategoryId === c.id)
+        .map((t) => ({
+          id: t.id,
+          name: t.name,
+          origin: t.origin ?? "USER",
+          revision: t.revision ?? 1,
+        })),
     })),
     existingTags: tags.map((t) => {
       const parent = cats.find((c) => c.id === t.parentCategoryId)!

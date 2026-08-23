@@ -4,7 +4,7 @@
  */
 import {
   canonicalizeUnknown,
-  GEMINI_NANO_TAG_CLASSIFIER_V2_SYSTEM_PROMPT,
+  GEMINI_NANO_TAG_CLASSIFIER_SYSTEM_PROMPT,
   MAX_MODEL_RESPONSE_BYTES,
   MAX_PROMPT_INPUT_BYTES,
   utf8ByteLength,
@@ -89,7 +89,7 @@ export function createGeminiNanoClassificationProvider(
         session = await lm.create({
           ...PROMPT_API_JA_OPTIONS,
           initialPrompts: [
-            { role: "system", content: GEMINI_NANO_TAG_CLASSIFIER_V2_SYSTEM_PROMPT },
+            { role: "system", content: GEMINI_NANO_TAG_CLASSIFIER_SYSTEM_PROMPT },
           ],
           signal: options.signal,
           monitor: options.onDownloadProgress
