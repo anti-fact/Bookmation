@@ -10,12 +10,14 @@ describe("manifest security", () => {
     ) as {
       manifest: {
         permissions: string[]
+        optional_permissions: string[]
         host_permissions: string[]
         commands: Record<string, unknown>
       }
     }
 
     expect(packageJson.manifest.permissions).toEqual(["storage", "activeTab", "contextMenus"])
+    expect(packageJson.manifest.optional_permissions).toEqual(["history", "notifications"])
     expect(packageJson.manifest.host_permissions).toEqual([
       "https://*/*",
       "http://*/*",

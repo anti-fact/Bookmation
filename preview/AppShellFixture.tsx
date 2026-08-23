@@ -8,6 +8,12 @@ import type { AiAssistantPort } from "~/ui/features/ai-assistant/ai-assistant-po
 import type { LabelManagementPort } from "~/ui/features/labels/label-management-port"
 import type { OnboardingPort } from "~/ui/features/onboarding/onboarding-port"
 import type { SearchPort } from "~/ui/features/search/search-port"
+import type { ArchiveSettingsPort } from "~/ui/features/settings/archive-settings-port"
+import {
+  DEFAULT_GENERAL_SETTINGS_SNAPSHOT,
+  type GeneralSettingsPort
+} from "~/ui/features/settings/general-settings-port"
+import type { ShareSettingsPort } from "~/ui/features/settings/share-settings-port"
 
 const fixtureRoutes = [
   ["ホーム", "#/home"],
@@ -195,15 +201,134 @@ export function AppShellFixture() {
       updateTag: async () => undefined
     }
   }, [])
+  const generalSettingsPort = React.useMemo<GeneralSettingsPort>(() => {
+    let current = DEFAULT_GENERAL_SETTINGS_SNAPSHOT
+    const update = async (next: Partial<typeof current>) => {
+      current = { ...current, ...next }
+      return current
+    }
+    return {
+      getSnapshot: async () => current,
+      setAutoArchiveEnabled: async (enabled) =>
+        update({ autoArchiveEnabled: enabled }),
+      setContextMenuBookmarkEnabled: async (enabled) =>
+        update({ contextMenuBookmarkEnabled: enabled }),
+      setFrequentVisitReminderEnabled: async (enabled) =>
+        update({ frequentVisitReminderEnabled: enabled }),
+      subscribePermissionChanges: () => () => undefined,
+      updateSettings: update
+    }
+  }, [])
+  const archiveSettingsPort = React.useMemo<ArchiveSettingsPort>(() => {
+    let snapshot = {
+      archived: [
+        {
+          categories: ["開発"],
+          id: "archive-react",
+          tags: ["React"],
+          title: "Reactリファレンス",
+          url: "https://react.dev/reference/react"
+        },
+        {
+          categories: ["資料"],
+          id: "archive-css",
+          tags: ["CSS"],
+          title: "CSS仕様",
+          url: "https://www.w3.org/Style/CSS/"
+        }
+      ],
+      historyIssues: [
+        {
+          code: "ARCHIVE_HISTORY_NOT_FOUND" as const,
+          id: "history-missing",
+          title: "履歴のないページ",
+          url: "https://example.com/no-history"
+        }
+      ]
+    }
+    return {
+      load: async () => snapshot,
+      restore: async (ids) => {
+        const failures = ids.includes("archive-css")
+          ? [
+              {
+                id: "archive-css",
+                reason: "タグが削除されているため復元できません。"
+              }
+            ]
+          : []
+        const restoredIds = ids.filter(
+          (id) => !failures.some((failure) => failure.id === id)
+        )
+        snapshot = {
+          ...snapshot,
+          archived: snapshot.archived.filter(
+            (item) => !restoredIds.includes(item.id)
+          )
+        }
+        return { failures, restoredIds, snapshot }
+      }
+    }
+  }, [])
+  const shareSettingsPort = React.useMemo<ShareSettingsPort>(
+    () => ({
+      connectDrive: async () => ({
+        drive: {
+          accountEmail: "demo@example.com",
+          fileName: null,
+          lastSyncedAt: "2026-08-23 12:00",
+          state: "CONNECTED",
+          unsyncedCount: 0
+        },
+        items: []
+      }),
+      exportBookmarks: async (ids, format) =>
+        format === "QR" && ids.length > 1
+          ? { status: "QR_CAPACITY_EXCEEDED" }
+          : {
+              status: "READY",
+              message: `${ids.length}件を${format}へ出力しました。`
+            },
+      load: async () => ({
+        drive: null,
+        items: [
+          {
+            bookmarkIds: ["bookmark-react", "bookmark-ts"],
+            id: "category-development",
+            kind: "CATEGORY",
+            label: "開発"
+          },
+          {
+            bookmarkIds: ["bookmark-react"],
+            id: "tag-react",
+            kind: "TAG",
+            label: "React"
+          },
+          {
+            bookmarkIds: ["bookmark-ts"],
+            description: "typescriptlang.org",
+            id: "bookmark-ts",
+            kind: "BOOKMARK",
+            label: "TypeScript Handbook"
+          }
+        ]
+      }),
+      openQrReader: async () => undefined
+    }),
+    []
+  )
 
   return (
     <AppProviders routeStore={routeStore} runtime={runtime}>
       <AppErrorBoundary>
         <ExtensionApp
           aiAssistantPort={aiAssistantPort}
+          archiveSettingsPort={archiveSettingsPort}
+          generalSettingsPort={generalSettingsPort}
           labelManagementPort={labelManagementPort}
           onboardingPort={onboardingPort}
           searchPort={fixtureSearchPort}
+          shareSettingsPort={shareSettingsPort}
         />
       </AppErrorBoundary>
 

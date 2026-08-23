@@ -1152,6 +1152,35 @@ install時だけwelcomeを開き、Category templateの選択を途中再開し�
 - ISSUE-022の初回後の再表示、名前編集、locale追加、catalog更新／再適用の詳細UXは未決であり実装していない。
 - repository管理された実拡張E2E、build済み拡張のinstall event、人間による実Chrome受入は未実施である。
 
+## 2026-08-23 — UI-10 Settings一般／archive／share
+
+### 目的
+
+設定をmodalではなく3区分のfull pageとして完成させ、設定値、Chrome権限、archive復元、共有対象選択のUI境界を定義する。
+
+### 変更
+
+- 一般設定へ訪問集計期間、既定値なしの訪問日数、リマインダー、自動archive、既定30日のarchive日数、0〜4のAI細分化、右クリック保存を追加した。期間変更時は訪問日数をclearし、7／30／365の上限を切り替える。
+- 一般設定snapshotと更新messageを全設定値へ拡張し、成功応答後だけ表示をcommitする。新規設定のAI細分化を2（標準）とし、破損済み値は従来どおり0へ縮退する。
+- `history`／`notifications`をoptional permissionとして宣言し、リマインダーと自動archiveを利用者操作内で確認・要求する。拒否時はOFFを維持し、Service Workerでの再検査とhistory後発取消時のOFF整合も追加した。
+- `ArchiveSettingsSection`を追加し、個別／全選択、選択件数、複数復元、成功項目だけの除去、部分失敗、`ARCHIVE_HISTORY_NOT_FOUND`の別表示を実装した。
+- `ShareSettingsSection`を追加し、Drive接続状態、カテゴリ／タグ／Bookmark検索選択、Bookmark ID dedupe、QR／CSV action、QR容量超過時の選択維持とCSV誘導、QR読取入口を実装した。
+- 一般設定から開発用Prompt API testerを除き、App Shell fixtureへ一般／archive／shareの状態を追加した。設定カテゴリ一覧の既存hover色は変更していない。
+
+### 検証
+
+- `pnpm typecheck`: 成功。
+- `pnpm test`: 71 files／386 tests成功。
+- UI-10変更対象のESLint: 成功。
+- `pnpm ui:build`、`pnpm build`: 成功。Web buildには既知のchunk size警告がある。
+- `git diff --check`: 成功。
+
+### 残課題
+
+- BE-14、TASK-103、TASK-104の永続処理は未着手である。productionのarchive／share Portは空状態で、画面状態と操作契約はWeb fixture／fake Portで検証した。
+- reminder回答、Chrome標準Bookmark import、QR reader／Drive操作のdialogはUI-11で実装する。
+- repository管理された実拡張E2E、任意権限prompt、人間による実Chrome受入は未実施である。
+
 ## 追記テンプレート
 
 ```markdown

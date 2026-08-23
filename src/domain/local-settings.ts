@@ -10,7 +10,7 @@
  * - `archiveAfterDays` 欠損/不正 → 30
  * - `autoArchiveEnabled` 欠損 → false
  * - `contextMenuBookmarkEnabled` 欠損 → true、boolean 以外 → false (縮退)
- * - `aiGranularity` は 0|1|2|3|4 のみ。不正値 → 0 (縮退)
+ * - `aiGranularity` は新規設定で2。不正値 → 0 (縮退)
  */
 import type { FrequentVisitWindow } from "./types"
 import { DomainError, DomainErrorCode } from "./errors"
@@ -70,7 +70,7 @@ export const DEFAULT_LOCAL_SETTINGS: Readonly<LocalSettings> = {
   autoArchiveEnabled: false,
   archiveAfterDays: 30,
   contextMenuBookmarkEnabled: true,
-  aiGranularity: 0,
+  aiGranularity: 2,
 }
 
 // ---------------------------------------------------------------------------
@@ -134,9 +134,13 @@ export function assertLocalSettingsValid(settings: LocalSettings): void {
         )
       }
     }
+  } else if (settings.frequentVisitDayThreshold !== null) {
+    throw new DomainError(
+      DomainErrorCode.SETTINGS_FREQUENT_VISIT_DAY_THRESHOLD_INVALID,
+      "frequentVisitDayThreshold must be null when frequentVisitWindow is null",
+    )
   }
 }
-
 // ---------------------------------------------------------------------------
 // Migration ヘルパー
 // ---------------------------------------------------------------------------
@@ -156,9 +160,12 @@ export function migrateLocalSettings(raw: unknown): LocalSettings {
 
   // aiGranularity: 0|1|2|3|4 のみ。不正値 → 0
   const aiGranularityRaw = r["aiGranularity"]
-  const aiGranularity: 0 | 1 | 2 | 3 | 4 = VALID_GRANULARITY.has(aiGranularityRaw as number)
-    ? (aiGranularityRaw as 0 | 1 | 2 | 3 | 4)
-    : 0
+  const aiGranularity: 0 | 1 | 2 | 3 | 4 =
+    aiGranularityRaw === undefined
+      ? 2
+      : VALID_GRANULARITY.has(aiGranularityRaw as number)
+        ? (aiGranularityRaw as 0 | 1 | 2 | 3 | 4)
+        : 0
 
   // archiveAfterDays: 欠損/不正 → 30
   const archiveDaysRaw = r["archiveAfterDays"]

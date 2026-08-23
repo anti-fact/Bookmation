@@ -56,6 +56,10 @@
       "activeTab",
       "contextMenus"
     ],
+    "optional_permissions": [
+      "history",
+      "notifications"
+    ],
     "host_permissions": [
       "https://*/*",
       "http://*/*"
