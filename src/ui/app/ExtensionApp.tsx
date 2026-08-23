@@ -20,14 +20,20 @@ import {
   emptyBookmarkListPort,
   type BookmarkListPort
 } from "~/ui/features/bookmarks/bookmark-list-port"
+import {
+  LabelsPage,
+  type LabelsCreateRequest
+} from "~/ui/features/labels/LabelsPage"
+import {
+  emptyLabelManagementPort,
+  type LabelManagementPort
+} from "~/ui/features/labels/label-management-port"
 import { GeneralSettingsSection } from "~/ui/features/settings/GeneralSettingsSection"
 import {
   emptyGeneralSettingsPort,
   type GeneralSettingsPort
 } from "~/ui/features/settings/general-settings-port"
-import {
-  Button
-} from "~/ui/primitives"
+import { Button } from "~/ui/primitives"
 import { joinClassNames } from "~/ui/primitives/class-names"
 
 import { useAppRuntime, useHashRouteStore } from "./AppProviders"
@@ -143,6 +149,8 @@ type RouteHeaderProps = {
   closeSurface: () => void
   navigate: NavigateRoute
   onBookmarkAddClick: () => void
+  onLabelsCreate: (kind: "category" | "tag") => void
+  onLabelsManageToggle: () => void
   onUnavailable: (message: string) => void
   route: HashRoute
 }
@@ -152,6 +160,8 @@ function RouteHeader({
   closeSurface,
   navigate,
   onBookmarkAddClick,
+  onLabelsCreate,
+  onLabelsManageToggle,
   onUnavailable,
   route
 }: RouteHeaderProps) {
@@ -208,11 +218,9 @@ function RouteHeader({
           {...commonProps}
           manageIcon={<img alt="" className="size-6" src={manageWrenchIcon} />}
           onClose={closeSurface}
-          onCreateCategoryClick={() =>
-            onUnavailable("カテゴリ作成は現在準備中です。")
-          }
-          onCreateTagClick={() => onUnavailable("タグ作成は現在準備中です。")}
-          onManageClick={() => onUnavailable("管理モードは現在準備中です。")}
+          onCreateCategoryClick={() => onLabelsCreate("category")}
+          onCreateTagClick={() => onLabelsCreate("tag")}
+          onManageClick={onLabelsManageToggle}
           onSearchClick={() =>
             onUnavailable("検索入力と候補は現在準備中です。")
           }
@@ -234,10 +242,16 @@ type RouteBodyProps = {
   bookmarkListPort: BookmarkListPort
   generalSettingsPort: GeneralSettingsPort
   headingRef: React.RefObject<HTMLHeadingElement>
+  labelCreateRequest: LabelsCreateRequest
+  labelManagementPort: LabelManagementPort
+  labelsManageMode: boolean
   navigate: NavigateRoute
-  onEditBookmark: (bookmark: Parameters<
-    React.ComponentProps<typeof BookmarkListPage>["onEdit"]
-  >[0]) => void
+  onLabelCreateRequestHandled: () => void
+  onEditBookmark: (
+    bookmark: Parameters<
+      React.ComponentProps<typeof BookmarkListPage>["onEdit"]
+    >[0]
+  ) => void
   route: HashRoute
   runtime: ReturnType<typeof useAppRuntime>
 }
@@ -305,12 +319,28 @@ function RouteBody({
   bookmarkListRevision,
   bookmarkListPort,
   headingRef,
+  labelCreateRequest,
+  labelManagementPort,
+  labelsManageMode,
   navigate,
+  onLabelCreateRequestHandled,
   onEditBookmark,
   generalSettingsPort,
   route,
   runtime
 }: RouteBodyProps) {
+  if (route.kind === "labels") {
+    return (
+      <LabelsPage
+        createRequest={labelCreateRequest}
+        manageMode={labelsManageMode}
+        onCreateRequestHandled={onLabelCreateRequestHandled}
+        onNavigate={(filter) => navigate({ filter, kind: "bookmarks" })}
+        port={labelManagementPort}
+      />
+    )
+  }
+
   if (route.kind === "settings") {
     return (
       <div className="grid grid-cols-[clamp(7rem,28vw,13rem)_0.125rem_minmax(0,1fr)] gap-2 sm:gap-4 lg:gap-6">
@@ -462,11 +492,13 @@ function RouteBody({
 export function ExtensionApp({
   bookmarkFormPort = emptyBookmarkFormPort,
   bookmarkListPort = emptyBookmarkListPort,
-  generalSettingsPort = emptyGeneralSettingsPort
+  generalSettingsPort = emptyGeneralSettingsPort,
+  labelManagementPort = emptyLabelManagementPort
 }: {
   bookmarkFormPort?: BookmarkFormPort
   bookmarkListPort?: BookmarkListPort
   generalSettingsPort?: GeneralSettingsPort
+  labelManagementPort?: LabelManagementPort
 }) {
   const routeStore = useHashRouteStore()
   const runtime = useAppRuntime()
@@ -487,6 +519,9 @@ export function ExtensionApp({
   const [bookmarkDialogMode, setBookmarkDialogMode] =
     React.useState<BookmarkDialogMode | null>(null)
   const [bookmarkListRevision, setBookmarkListRevision] = React.useState(0)
+  const [labelCreateRequest, setLabelCreateRequest] =
+    React.useState<LabelsCreateRequest>(null)
+  const [labelsManageMode, setLabelsManageMode] = React.useState(false)
   const [notice, setNotice] = React.useState<string | null>(null)
 
   // ブラウザ標準とアプリ独自のスクロール復元が競合しないようにします。
@@ -595,6 +630,10 @@ export function ExtensionApp({
             closeSurface={closeSurface}
             navigate={navigate}
             onBookmarkAddClick={() => setBookmarkDialogMode({ kind: "add" })}
+            onLabelsCreate={(kind) =>
+              setLabelCreateRequest({ id: Date.now(), kind })
+            }
+            onLabelsManageToggle={() => setLabelsManageMode((value) => !value)}
             onUnavailable={setNotice}
             route={route}
           />
@@ -624,7 +663,11 @@ export function ExtensionApp({
           bookmarkListRevision={bookmarkListRevision}
           generalSettingsPort={generalSettingsPort}
           headingRef={headingRef}
+          labelCreateRequest={labelCreateRequest}
+          labelManagementPort={labelManagementPort}
+          labelsManageMode={labelsManageMode}
           navigate={navigate}
+          onLabelCreateRequestHandled={() => setLabelCreateRequest(null)}
           onEditBookmark={(bookmark) =>
             setBookmarkDialogMode({ bookmark, kind: "edit" })
           }

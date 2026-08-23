@@ -101,17 +101,17 @@
 
 ### TASK-006: Full-screen Category / Tag UI
 
-- [ ] 親カテゴリと、その配下の子タグを扱う全画面一覧とsticky headerを作る。
+- [x] 親カテゴリと、その配下の子タグを扱う全画面一覧とsticky headerを作る。
 - [ ] フルページ検索とAI入力ポップアップを開くボタン、カテゴリ・タグ新規作成、名前付きcloseを置く。
-- [ ] 新規作成ボタンから種類をプルダウンで選び、作成modalを開く。閉じるまで連続作成できるようにする。
-- [ ] カテゴリ／タグ作成でtombstoneを含む各namespace内の正規化名重複を拒否する。有効項目なら元画面で選択し、削除済みなら物理回収まで別名を案内する。
-- [ ] タグ作成では空の親Category入力からactiveな既存Categoryをリアルタイム検索し、一致度の高い候補を最大8件から入力／選択時点で必須選択する。未知Category文字列はfield errorにし、親をまたいでも同名Tagを作らない。
-- [ ] Tag作成画面にCategory新規作成ボタンを置き、同じmodal内のside viewへ移る。Tag入力draftを保持し、Category作成後はTag作成へ戻って新規Categoryを自動選択する。
-- [ ] headerの管理ボタンで管理モードへ切り替え、カテゴリリボン／タグチップのhover・focus時だけ鉛筆を示し、選択で編集modalを開く。
-- [ ] Tag編集modalは名前、親Category、作成元、利用件数を表示し、名前と親を変更できるようにする。親Category入力は現在値を選択済みで開始し、activeな正規化完全一致または最大8候補からの選択時点で置き換える。Category用の `追加` buttonは置かず、未知文字列はfield errorにする。説明横の新規作成から同じmodal内のCategory作成side viewへ移り、Tag draftを保持して、作成後は新規Categoryを自動選択する。
-- [ ] Tag親変更の保存ではTag／選択親expected revisionと `tag-update:` requestIdを送り、Tag IDとglobal unique名規則を維持したまま、全参照BookmarkのCategory closure・revision・検索文書を1 transactionで更新する。同じrequest再送はmutation receiptの同じ `UpdateTagResult` へ収束し、別payload再利用を拒否する。競合・失敗は全件rollbackし、AI再分類を行わない。
-- [ ] Category編集modalに、使用中Tagの実名一覧と件数、関連Bookmarkのunique件数を表示する。
-- [ ] Bookmark／Tagは確認画面を挟まずsoft-deleteし、削除Undoの操作や復元経路を用意しない。
+- [x] 新規作成ボタンから種類をプルダウンで選び、作成modalを開く。閉じるまで連続作成できるようにする。
+- [x] カテゴリ／タグ作成でtombstoneを含む各namespace内の正規化名重複を拒否する。有効項目なら元画面で選択し、削除済みなら物理回収まで別名を案内する。
+- [x] タグ作成では空の親Category入力からactiveな既存Categoryをリアルタイム検索し、一致度の高い候補を最大8件から入力／選択時点で必須選択する。未知Category文字列はfield errorにし、親をまたいでも同名Tagを作らない。
+- [x] Tag作成画面にCategory新規作成ボタンを置き、同じmodal内のside viewへ移る。Tag入力draftを保持し、Category作成後はTag作成へ戻って新規Categoryを自動選択する。
+- [x] headerの管理ボタンで管理モードへ切り替え、カテゴリリボン／タグチップのhover・focus時だけ鉛筆を示し、選択で編集modalを開く。
+- [x] Tag編集modalは名前、親Category、作成元、利用件数を表示し、名前と親を変更できるようにする。親Category入力は現在値を選択済みで開始し、activeな正規化完全一致または最大8候補からの選択時点で置き換える。Category用の `追加` buttonは置かず、未知文字列はfield errorにする。説明横の新規作成から同じmodal内のCategory作成side viewへ移り、Tag draftを保持して、作成後は新規Categoryを自動選択する。
+- [x] Tag親変更の保存ではTag／選択親expected revisionと `tag-update:` requestIdを送り、Tag IDとglobal unique名規則を維持したまま、全参照BookmarkのCategory closure・revision・検索文書を1 transactionで更新する。同じrequest再送はmutation receiptの同じ `UpdateTagResult` へ収束し、別payload再利用を拒否する。競合・失敗は全件rollbackし、AI再分類を行わない。
+- [x] Category編集modalに、使用中Tagの実名一覧と件数、関連Bookmarkのunique件数を表示する。
+- [x] Bookmark／Tagは確認画面を挟まずsoft-deleteし、削除Undoの操作や復元経路を用意しない。
 - [ ] Category削除だけは、全子Tagと関連edgeの連鎖削除、Tag件数、関連Bookmark unique件数、AI有効時の再分類を警告する。確認後にcascade soft-deleteしてBookmarkを保持する。CONFIGUREDかつenabledの場合だけ再分類し、モデル未取得／download中／AI Host不在はPENDING、3 dispatchすべてquality-zeroはNEEDS_REVIEW、恒久非対応、execution上限、またはtechnical failure込みのdispatch枯渇はFAILEDとする。disabled／再設定待ちはJobを作らずCLASSIFIED／UNCLASSIFIEDへ戻し、全状態で手動分類を許す。
 - [ ] label selection、infinite scroll、back-to-top、直前状態復元を実装する。
 - 完了条件: 親子関係をIDで識別し、通常モードでは対象Bookmark一覧へ移動し、管理モードでは作成・編集・削除をキーボードでも行える。
