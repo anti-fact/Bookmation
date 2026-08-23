@@ -528,6 +528,8 @@ type BookmarkDialogStep =
 12. 保存直前にactive Tagの親からCategory集合を導出する。
 13. Bookmark削除は確認dialogを開かない。成功後に結果だけ通知し、Undoを置かない。
 
+UI-05ではこのphaseを実装済みである。`BookmarkDialog`は追加／編集で同じ`BookmarkTagField`を使い、`FORM | CREATE_TAG | CREATE_CATEGORY`を1つのRadix Dialog内で切り替える。productionの`BookmarkFormPort`はChrome message／Application境界へ接続し、候補は親Category名付きで最大8件に制限する。作成後のTagは解決済み候補へ戻すだけとし、利用者の`追加`／EnterまでBookmark draftへ確定しない。Bookmark削除は確認／Undoなしのsoft-deleteとする。
+
 side viewを別のRadix Dialogとして重ねない。focus trapの二重化、Escapeの曖昧化、draft喪失を避けるため、1つのDialog内を明示的なstep state machineで切り替える。
 
 ### Phase 6: カテゴリ・タグ一覧と管理を作る
@@ -545,6 +547,8 @@ Tag編集では名前と親Categoryを変更できる。親Category入力は現�
 
 Category編集では、使用中のactive Tagの実名と件数、関連active Bookmarkのunique件数を表示する。Category削除だけは`AlertDialog`で、削除対象Category、子Tag、影響Bookmarkと、AIが有効なら再分類が発生することを警告する。disabled／再設定待ちは再分類Jobを作らない。previewがstaleなら内容を更新して再確認を求める。削除後のUndoは実装しない。
 
+UI-06では`LabelsPage`と`LabelManagementPort`を追加し、親CategoryごとのTag表示、VIEWのBookmark絞込み遷移、MANAGEの編集導線、連続作成、Tagの親変更／即時削除、Category影響preview／cascade削除をproduction message境界へ接続した。検索comboboxとAI入口の本体は責務どおりUI-07／UI-08へ残す。
+
 ### Phase 7: keyword検索を作る
 
 Bookmark一覧とカテゴリ・タグ一覧の検索入口は同じ`SearchBox`を使う。
@@ -560,6 +564,8 @@ Bookmark一覧とカテゴリ・タグ一覧の検索入口は同じ`SearchBox`�
 9. browser backで元query、route、scroll位置を復元する。
 
 Radix `Popover`を候補の外枠に使う場合も、open時にinputからfocusを奪わないことを試験する。安定しない場合は、inputと同じrelative container内へabsolute listboxを描画する。完成済みComboboxがRadixにあると仮定しない。
+
+UI-07では、共通`SearchBox`、200 ms debounce、IME composition guard、stale response破棄、最大8候補、`aria-activedescendant`を使うkeyboard操作を実装済みである。Bookmark一覧・カテゴリ／タグ一覧・検索結果の各headerから同じ`#/search?q=`へ移り、全画面結果はカテゴリ／タグを上、Bookmarkを下に表示する。production adapterは既存`search-library` messageへ接続し、Web previewはfake `SearchPort`で候補と結果を再現する。現行backend契約は1回最大8件でcursorを返さないため、検索結果の追加読込は後続のbackend pagination契約と合わせて実装する。
 
 ### Phase 8: AI agent popupを作る
 

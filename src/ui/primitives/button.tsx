@@ -28,19 +28,19 @@ const sizeClass: Record<ButtonSize, string> = {
 const appearanceClass: Record<ButtonTone, Record<ButtonVariant, string>> = {
   default: {
     solid:
-      "border-bm-ink bg-bm-ink text-bm-paper hover:bg-bm-panel active:bg-bm-black",
+      "border-bm-ink bg-bm-ink text-bm-paper hover:bg-bm-ink hover:text-bm-paper active:bg-bm-ink active:text-bm-paper",
     outline:
-      "border-bm-ink bg-bm-paper text-bm-ink hover:bg-bm-accent active:bg-bm-ink active:text-bm-paper",
+      "border-bm-ink bg-bm-paper text-bm-ink hover:bg-bm-ink hover:text-bm-paper active:bg-bm-ink active:text-bm-paper",
     quiet:
-      "border-transparent bg-transparent text-bm-ink hover:border-bm-ink hover:bg-bm-paper active:bg-bm-accent"
+      "border-transparent bg-transparent text-bm-ink hover:border-bm-ink hover:bg-bm-ink hover:text-bm-paper active:border-bm-ink active:bg-bm-ink active:text-bm-paper"
   },
   danger: {
     solid:
-      "border-bm-danger bg-bm-danger text-bm-paper hover:brightness-90 active:brightness-75",
+      "border-bm-danger bg-bm-danger text-bm-paper hover:border-bm-ink hover:bg-bm-ink hover:text-bm-paper active:border-bm-ink active:bg-bm-ink active:text-bm-paper",
     outline:
-      "border-bm-danger bg-bm-paper text-bm-danger hover:bg-bm-accent active:bg-bm-danger active:text-bm-paper",
+      "border-bm-danger bg-bm-paper text-bm-danger hover:border-bm-ink hover:bg-bm-ink hover:text-bm-paper active:border-bm-ink active:bg-bm-ink active:text-bm-paper",
     quiet:
-      "border-transparent bg-transparent text-bm-danger hover:border-bm-danger hover:bg-bm-accent active:bg-bm-danger active:text-bm-paper"
+      "border-transparent bg-transparent text-bm-danger hover:border-bm-ink hover:bg-bm-ink hover:text-bm-paper active:border-bm-ink active:bg-bm-ink active:text-bm-paper"
   }
 }
 

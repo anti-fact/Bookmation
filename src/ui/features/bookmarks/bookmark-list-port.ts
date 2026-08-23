@@ -1,3 +1,5 @@
+import type { BookmarkTagOption } from "./bookmark-form-port"
+
 export type BookmarkViewMode = "GRID" | "LIST"
 
 export type BookmarkLabelFilter =
@@ -24,9 +26,10 @@ export type BookmarkListItem = {
   /** 拡張機能内 Blob または同梱ロゴのみ。外部 https URL は含めない。 */
   faviconSrc: string
   id: string
+  revision: number
   savedAt: number
   siteName: string | null
-  tags: BookmarkListLabel[]
+  tags: BookmarkTagOption[]
   /** 拡張機能内 Blob または同梱ロゴのみ。外部 https URL は含めない。 */
   thumbnailSrc: string
   title: string

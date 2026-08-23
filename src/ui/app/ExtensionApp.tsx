@@ -9,21 +9,42 @@ import { AppHeader } from "~/ui/components/AppHeader"
 import { AppShell } from "~/ui/components/AppShell"
 import { BookmarkListPage } from "~/ui/features/bookmarks/BookmarkListPage"
 import {
+  BookmarkDialog,
+  type BookmarkDialogMode
+} from "~/ui/features/bookmarks/BookmarkDialog"
+import {
+  emptyBookmarkFormPort,
+  type BookmarkFormPort
+} from "~/ui/features/bookmarks/bookmark-form-port"
+import {
   emptyBookmarkListPort,
   type BookmarkListPort
 } from "~/ui/features/bookmarks/bookmark-list-port"
 import {
-  Button,
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle
-} from "~/ui/primitives"
+  LabelsPage,
+  type LabelsCreateRequest
+} from "~/ui/features/labels/LabelsPage"
+import {
+  emptyLabelManagementPort,
+  type LabelManagementPort
+} from "~/ui/features/labels/label-management-port"
+import { OnboardingCategoriesPage } from "~/ui/features/onboarding/OnboardingCategoriesPage"
+import { GeneralSettingsSection } from "~/ui/features/settings/GeneralSettingsSection"
+import {
+  emptyGeneralSettingsPort,
+  type GeneralSettingsPort
+} from "~/ui/features/settings/general-settings-port"
+import { SearchBox } from "~/ui/features/search/SearchBox"
+import { SearchResultsPage } from "~/ui/features/search/SearchResultsPage"
+import {
+  emptySearchPort,
+  type SearchPort,
+  type SearchSuggestion
+} from "~/ui/features/search/search-port"
+import { Button } from "~/ui/primitives"
 import { joinClassNames } from "~/ui/primitives/class-names"
 
 import { useAppRuntime, useHashRouteStore } from "./AppProviders"
-import { BookmarkAddForm } from "./BookmarkAddForm"
 import { PromptApiTester } from "./PromptApiTester"
 import { ClassificationHostPanel } from "./ClassificationHostPanel"
 import {
@@ -74,6 +95,11 @@ const welcomeDescription = [
   "かんたんな初期設定を終わらせて、さっそくはじめましょう。"
 ] as const
 
+const onboardingCategoriesDescription = [
+  "あなたのブックマークにぴったりのカテゴリを作りましょう。",
+  "カテゴリは後から設定で変更できます。"
+] as const
+
 // ルートごとの見出しと説明を一か所へ集め、画面本体との表記ずれを防ぎます。
 function getRouteCopy(route: HashRoute): RouteCopy {
   switch (route.kind) {
@@ -81,6 +107,11 @@ function getRouteCopy(route: HashRoute): RouteCopy {
       return {
         description: welcomeDescription.join("\n"),
         heading: "Bookmationへようこそ"
+      }
+    case "onboarding":
+      return {
+        description: onboardingCategoriesDescription.join("\n"),
+        heading: "あなたにあったカテゴリを選ぶ"
       }
     case "home":
       return {
@@ -137,8 +168,11 @@ type RouteHeaderProps = {
   closeSurface: () => void
   navigate: NavigateRoute
   onBookmarkAddClick: () => void
+  onLabelsCreate: (kind: "category" | "tag") => void
+  onLabelsManageToggle: () => void
   onUnavailable: (message: string) => void
   route: HashRoute
+  searchPort: SearchPort
 }
 
 // URLの種類から3種類の共通ヘッダーを選び、未実装操作は状態通知へつなぎます。
@@ -146,13 +180,37 @@ function RouteHeader({
   closeSurface,
   navigate,
   onBookmarkAddClick,
+  onLabelsCreate,
+  onLabelsManageToggle,
   onUnavailable,
-  route
+  route,
+  searchPort
 }: RouteHeaderProps) {
   const commonProps = {
     logoSrc: bookmationLogo,
     onLogoClick: () => navigate({ kind: "home" })
   }
+  const onSuggestionSelect = (item: SearchSuggestion) => {
+    if (item.entityType === "LABEL" && item.labelKind) {
+      navigate({
+        filter: {
+          id: item.entityId,
+          kind: item.labelKind === "CATEGORY" ? "category" : "tag"
+        },
+        kind: "bookmarks"
+      })
+      return
+    }
+    navigate({ kind: "search", query: item.displayText })
+  }
+  const searchSlot = (
+    <SearchBox
+      initialQuery={route.kind === "search" ? route.query : ""}
+      onSelect={onSuggestionSelect}
+      onSubmit={(query) => navigate({ kind: "search", query })}
+      port={searchPort}
+    />
+  )
 
   switch (route.kind) {
     case "home":
@@ -168,9 +226,7 @@ function RouteHeader({
           }
           onAiSearchClick={() => navigate({ kind: "labels" })}
           onBookmarkAddClick={onBookmarkAddClick}
-          onSearchClick={() =>
-            onUnavailable("検索入力と候補は現在準備中です。")
-          }
+          searchSlot={searchSlot}
           onSettingsClick={() =>
             navigate({ kind: "settings", section: "general" })
           }
@@ -187,9 +243,7 @@ function RouteHeader({
             </span>
           }
           onAiSearchClick={() => onUnavailable("AI検索は現在準備中です。")}
-          onSearchClick={() =>
-            onUnavailable("検索入力と候補は現在準備中です。")
-          }
+          searchSlot={searchSlot}
           onSettingsClick={() =>
             navigate({ kind: "settings", section: "general" })
           }
@@ -202,14 +256,10 @@ function RouteHeader({
           {...commonProps}
           manageIcon={<img alt="" className="size-6" src={manageWrenchIcon} />}
           onClose={closeSurface}
-          onCreateCategoryClick={() =>
-            onUnavailable("カテゴリ作成は現在準備中です。")
-          }
-          onCreateTagClick={() => onUnavailable("タグ作成は現在準備中です。")}
-          onManageClick={() => onUnavailable("管理モードは現在準備中です。")}
-          onSearchClick={() =>
-            onUnavailable("検索入力と候補は現在準備中です。")
-          }
+          onCreateCategoryClick={() => onLabelsCreate("category")}
+          onCreateTagClick={() => onLabelsCreate("tag")}
+          onManageClick={onLabelsManageToggle}
+          searchSlot={searchSlot}
           variant="labels"
         />
       )
@@ -218,6 +268,7 @@ function RouteHeader({
         <AppHeader {...commonProps} onClose={closeSurface} variant="settings" />
       )
     case "welcome":
+    case "onboarding":
     case "not-found":
       return null
   }
@@ -226,11 +277,21 @@ function RouteHeader({
 type RouteBodyProps = {
   bookmarkListRevision: number
   bookmarkListPort: BookmarkListPort
+  generalSettingsPort: GeneralSettingsPort
   headingRef: React.RefObject<HTMLHeadingElement>
+  labelCreateRequest: LabelsCreateRequest
+  labelManagementPort: LabelManagementPort
+  labelsManageMode: boolean
   navigate: NavigateRoute
-  onUnavailable: (message: string) => void
+  onLabelCreateRequestHandled: () => void
+  onEditBookmark: (
+    bookmark: Parameters<
+      React.ComponentProps<typeof BookmarkListPage>["onEdit"]
+    >[0]
+  ) => void
   route: HashRoute
   runtime: ReturnType<typeof useAppRuntime>
+  searchPort: SearchPort
 }
 
 type WelcomeScreenProps = {
@@ -281,7 +342,7 @@ function WelcomeScreen({
           </p>
           <Button
             className="mt-7 h-[5.1875rem] w-full max-w-[26.75rem] !rounded-none px-6 !font-normal sm:mt-9 sm:!text-[1.75rem]"
-            onClick={() => navigate({ kind: "home" })}
+            onClick={() => navigate({ kind: "onboarding", step: "categories" })}
           >
             ここからはじめる
           </Button>
@@ -296,11 +357,38 @@ function RouteBody({
   bookmarkListRevision,
   bookmarkListPort,
   headingRef,
+  labelCreateRequest,
+  labelManagementPort,
+  labelsManageMode,
   navigate,
-  onUnavailable,
+  onLabelCreateRequestHandled,
+  onEditBookmark,
+  generalSettingsPort,
   route,
-  runtime
+  runtime,
+  searchPort
 }: RouteBodyProps) {
+  if (route.kind === "labels") {
+    return (
+      <LabelsPage
+        createRequest={labelCreateRequest}
+        manageMode={labelsManageMode}
+        onCreateRequestHandled={onLabelCreateRequestHandled}
+        onNavigate={(filter) => navigate({ filter, kind: "bookmarks" })}
+        port={labelManagementPort}
+      />
+    )
+  }
+
+  if (route.kind === "search") {
+    return (
+      <SearchResultsPage
+        onLabelSelect={(filter) => navigate({ filter, kind: "bookmarks" })}
+        port={searchPort}
+        query={route.query}
+      />
+    )
+  }
   if (route.kind === "settings") {
     return (
       <div className="grid grid-cols-[clamp(7rem,28vw,13rem)_0.125rem_minmax(0,1fr)] gap-2 sm:gap-4 lg:gap-6">
@@ -384,12 +472,7 @@ function RouteBody({
         >
           {route.section === "general" && (
             <>
-              <div>
-                <h3 className="font-semibold text-bm-ink">一般設定</h3>
-                <p className="mt-2 text-sm leading-6 text-bm-muted-text">
-                  この設定項目は現在準備中です。
-                </p>
-              </div>
+              <GeneralSettingsSection port={generalSettingsPort} />
               {/* TASK-007: Prompt API スパイク実装 */}
               <div className="border-t border-bm-border pt-6">
                 <PromptApiTester />
@@ -434,11 +517,7 @@ function RouteBody({
         headingRef={headingRef}
         key={bookmarkListRevision}
         onClearFilter={() => navigate({ kind: "home" })}
-        onEdit={(bookmarkId) =>
-          onUnavailable(
-            `ブックマーク「${bookmarkId}」の編集はUI-05で実装します。`
-          )
-        }
+        onEdit={onEditBookmark}
         onNavigateToFilter={(nextFilter) =>
           navigate({ filter: nextFilter, kind: "bookmarks" })
         }
@@ -463,9 +542,17 @@ function RouteBody({
 }
 
 export function ExtensionApp({
-  bookmarkListPort = emptyBookmarkListPort
+  bookmarkFormPort = emptyBookmarkFormPort,
+  bookmarkListPort = emptyBookmarkListPort,
+  generalSettingsPort = emptyGeneralSettingsPort,
+  labelManagementPort = emptyLabelManagementPort,
+  searchPort = emptySearchPort
 }: {
+  bookmarkFormPort?: BookmarkFormPort
   bookmarkListPort?: BookmarkListPort
+  generalSettingsPort?: GeneralSettingsPort
+  labelManagementPort?: LabelManagementPort
+  searchPort?: SearchPort
 }) {
   const routeStore = useHashRouteStore()
   const runtime = useAppRuntime()
@@ -483,8 +570,12 @@ export function ExtensionApp({
     { surface: "labels" | "settings" } | undefined
   >(undefined)
   const previousRouteKey = React.useRef(routeKey)
-  const [bookmarkAddOpen, setBookmarkAddOpen] = React.useState(false)
+  const [bookmarkDialogMode, setBookmarkDialogMode] =
+    React.useState<BookmarkDialogMode | null>(null)
   const [bookmarkListRevision, setBookmarkListRevision] = React.useState(0)
+  const [labelCreateRequest, setLabelCreateRequest] =
+    React.useState<LabelsCreateRequest>(null)
+  const [labelsManageMode, setLabelsManageMode] = React.useState(false)
   const [notice, setNotice] = React.useState<string | null>(null)
 
   // ブラウザ標準とアプリ独自のスクロール復元が競合しないようにします。
@@ -581,6 +672,18 @@ export function ExtensionApp({
     )
   }
 
+  if (route.kind === "onboarding") {
+    return (
+      <OnboardingCategoriesPage
+        description={copy.description}
+        heading={copy.heading}
+        headingRef={headingRef}
+        // TASK-014: 選択内容から Category / Tag を作る ApplyCategoryTemplates はまだ繋いでいません。
+        onSubmit={() => navigate({ kind: "home" })}
+      />
+    )
+  }
+
   const tone = route.kind === "labels" ? "accent" : "paper"
 
   return (
@@ -592,9 +695,14 @@ export function ExtensionApp({
           <RouteHeader
             closeSurface={closeSurface}
             navigate={navigate}
-            onBookmarkAddClick={() => setBookmarkAddOpen(true)}
+            onBookmarkAddClick={() => setBookmarkDialogMode({ kind: "add" })}
+            onLabelsCreate={(kind) =>
+              setLabelCreateRequest({ id: Date.now(), kind })
+            }
+            onLabelsManageToggle={() => setLabelsManageMode((value) => !value)}
             onUnavailable={setNotice}
             route={route}
+            searchPort={searchPort}
           />
         }
         heading={copy.heading}
@@ -620,30 +728,34 @@ export function ExtensionApp({
         <RouteBody
           bookmarkListPort={bookmarkListPort}
           bookmarkListRevision={bookmarkListRevision}
+          generalSettingsPort={generalSettingsPort}
           headingRef={headingRef}
+          labelCreateRequest={labelCreateRequest}
+          labelManagementPort={labelManagementPort}
+          labelsManageMode={labelsManageMode}
           navigate={navigate}
-          onUnavailable={setNotice}
+          onLabelCreateRequestHandled={() => setLabelCreateRequest(null)}
+          onEditBookmark={(bookmark) =>
+            setBookmarkDialogMode({ bookmark, kind: "edit" })
+          }
           route={route}
           runtime={runtime}
+          searchPort={searchPort}
         />
       </AppShell>
-      <Dialog onOpenChange={setBookmarkAddOpen} open={bookmarkAddOpen}>
-        <DialogContent closeLabel="ブックマーク追加を閉じる">
-          <DialogHeader>
-            <DialogTitle>ブックマークを追加</DialogTitle>
-            <DialogDescription>
-              http または https のURLを入力して保存します。
-            </DialogDescription>
-          </DialogHeader>
-          <BookmarkAddForm
-            onSaved={({ duplicate }) => {
-              if (duplicate) return
-              setBookmarkListRevision((revision) => revision + 1)
-              setBookmarkAddOpen(false)
-            }}
-          />
-        </DialogContent>
-      </Dialog>
+      <BookmarkDialog
+        mode={bookmarkDialogMode ?? { kind: "add" }}
+        onComplete={(message) => {
+          setBookmarkListRevision((revision) => revision + 1)
+          setBookmarkDialogMode(null)
+          setNotice(message)
+        }}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) setBookmarkDialogMode(null)
+        }}
+        open={bookmarkDialogMode !== null}
+        port={bookmarkFormPort}
+      />
     </>
   )
 }

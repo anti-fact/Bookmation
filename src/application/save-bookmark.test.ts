@@ -67,4 +67,77 @@ describe("SaveBookmarkUseCase", () => {
 
     expect(result.title).toBe("docs.example.com")
   })
+
+  it("saves context page bookmark with CONTEXT_PAGE source", async () => {
+    const result = await useCase.saveFromContextPage({
+      rawUrl: "https://example.com/context-page",
+      creationRequestId: uuid(),
+    })
+
+    const loaded = await layer.getBookmark(result.bookmarkId)
+    expect(loaded?.source).toBe("CONTEXT_PAGE")
+  })
+
+  it("saves context link bookmark with CONTEXT_LINK source", async () => {
+    const result = await useCase.saveFromContextLink({
+      rawUrl: "https://example.com/context-link",
+      title: "Link title",
+      creationRequestId: uuid(),
+    })
+
+    const loaded = await layer.getBookmark(result.bookmarkId)
+    expect(loaded?.source).toBe("CONTEXT_LINK")
+    expect(result.title).toBe("Link title")
+  })
+
+  it("applies explicit dashboard tags before returning the saved revision", async () => {
+    const category = await layer.createCategory({
+      creationRequestId: uuid(),
+      id: uuid(),
+      name: "資料"
+    })
+    const tag = await layer.createTag({
+      creationRequestId: uuid(),
+      expectedParentRevision: category.revision,
+      id: uuid(),
+      name: "読む",
+      parentCategoryId: category.id
+    })
+
+    const result = await useCase.saveByUrl({
+      creationRequestId: uuid(),
+      rawUrl: "https://docs.example.com/tagged",
+      tagIds: [tag.id],
+      title: "タグ付き"
+    })
+
+    expect(result.revision).toBe(1)
+    expect(
+      (await layer.listBookmarksByLabel(tag.id, null)).items.map(
+        (bookmark) => bookmark.id
+      )
+    ).toEqual([result.bookmarkId])
+    expect(
+      (await layer.listBookmarksByLabel(category.id, null)).items.map(
+        (bookmark) => bookmark.id
+      )
+    ).toEqual([result.bookmarkId])
+  })
+
+  it("rolls back a new bookmark when an explicit tag is invalid", async () => {
+    await expect(
+      useCase.saveByUrl({
+        creationRequestId: uuid(),
+        rawUrl: "https://docs.example.com/invalid-tag",
+        tagIds: [uuid()],
+        title: "保存しない"
+      })
+    ).rejects.toMatchObject({ code: "TAG_PARENT_CATEGORY_RECORD_MISSING" })
+
+    expect(
+      await layer.findActiveBookmarkByNormalizedUrl(
+        "https://docs.example.com/invalid-tag"
+      )
+    ).toBeUndefined()
+  })
 })

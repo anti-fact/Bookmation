@@ -20,9 +20,18 @@ function bookmark(id: string, savedAt: number): BookmarkListItem {
     categories: [{ id: "category-development", name: "開発" }],
     faviconSrc: bundledLogo,
     id,
+    revision: 1,
     savedAt,
     siteName: "example.com",
-    tags: [{ id: "tag-typescript", name: "TypeScript" }],
+    tags: [
+      {
+        id: "tag-typescript",
+        name: "TypeScript",
+        parentCategoryId: "category-development",
+        parentCategoryName: "開発",
+        revision: 1
+      }
+    ],
     thumbnailSrc: bundledLogo,
     title: `記事 ${id}`,
     url: `https://example.com/${id}`
@@ -124,9 +133,7 @@ function expectThumbnailHoverMask(editButton: HTMLElement) {
   expect(thumbnail?.className).toContain("group/bookmark")
   expect(bookmark?.className).not.toContain("group/bookmark")
   expect(mask).not.toBeNull()
-  expect(mask?.getAttribute("class")).toContain(
-    "bg-[var(--bm-color-overlay)]"
-  )
+  expect(mask?.getAttribute("class")).toContain("bg-[var(--bm-color-overlay)]")
   expect(mask?.getAttribute("class")).toContain(
     "group-hover/bookmark:opacity-100"
   )
@@ -176,14 +183,17 @@ describe("BookmarkListPage", () => {
     ).toBeNull()
     expect(screen.getByText("#開発")).not.toBeNull()
     expect(screen.queryByText("#TypeScript")).toBeNull()
-    expect(
-      screen
-        .getByRole("radio", { name: "グリッド表示" })
-        .getAttribute("aria-checked")
-    ).toBe("true")
+    const gridMode = screen.getByRole("radio", { name: "グリッド表示" })
+    expect(gridMode.getAttribute("aria-checked")).toBe("true")
+    expect(gridMode.className).toContain("hover:bg-bm-ink")
+    expect(gridMode.className).toContain("hover:text-bm-paper")
+    expect(gridMode.className).toContain("data-[state=checked]:bg-bm-ink")
+    expect(gridMode.className).toContain("data-[state=checked]:text-bm-paper")
     const category = screen.getByRole("button", { name: "#開発" })
     expect(category.className).toContain("rounded-l-none")
     expect(category.className).toContain("rounded-r-bm-chip")
+    expect(category.className).toContain("hover:bg-bm-ink")
+    expect(category.className).toContain("hover:text-bm-paper")
     const gridEditButton = screen.getByRole("button", {
       name: `${item.title}を編集`
     })
@@ -192,11 +202,19 @@ describe("BookmarkListPage", () => {
     expectBookmarkDestinationLinks(item)
 
     const tags = screen.getByRole("button", { name: "タグ1件を表示" })
+    expect(tags.className).toContain("hover:bg-bm-ink")
+    expect(tags.className).toContain("hover:text-bm-paper")
     tags.focus()
     await user.keyboard(" ")
     expect(screen.getByText("#TypeScript")).not.toBeNull()
+    const openTags = screen.getByRole("button", { name: "タグ1件を隠す" })
+    expect(openTags.className).toContain("bg-bm-ink")
+    expect(openTags.className).toContain("text-bm-paper")
 
-    await user.click(screen.getByRole("button", { name: "#TypeScript" }))
+    const tag = screen.getByRole("button", { name: "#TypeScript" })
+    expect(tag.className).toContain("hover:bg-bm-ink")
+    expect(tag.className).toContain("hover:text-bm-paper")
+    await user.click(tag)
     expect(onNavigateToFilter).toHaveBeenCalledWith({
       id: "tag-typescript",
       kind: "tag"
@@ -224,7 +242,7 @@ describe("BookmarkListPage", () => {
         ?.querySelector("[data-bookmark-hover-mask]")
     ).toBeNull()
     await user.click(listEditButton)
-    expect(onEdit).toHaveBeenCalledWith(item.id)
+    expect(onEdit).toHaveBeenCalledWith(item)
   })
 
   it("loads one cursor once, deduplicates IDs, and announces the end", async () => {
@@ -294,9 +312,7 @@ describe("BookmarkListPage", () => {
     const segments = within(trail).getAllByRole("listitem")
     expect(segments).toHaveLength(1)
     expect(segments[0]?.textContent).toBe("#TypeScript")
-    expect(loadPage).toHaveBeenCalledWith(
-      expect.objectContaining({ filter })
-    )
+    expect(loadPage).toHaveBeenCalledWith(expect.objectContaining({ filter }))
 
     await user.click(screen.getByRole("button", { name: "#開発" }))
     expect(onNavigateToFilter).toHaveBeenCalledWith({
@@ -342,9 +358,7 @@ describe("BookmarkListPage", () => {
       "#開発",
       "#TypeScript"
     ])
-    expect(loadPage).toHaveBeenCalledWith(
-      expect.objectContaining({ filter })
-    )
+    expect(loadPage).toHaveBeenCalledWith(expect.objectContaining({ filter }))
 
     await user.click(
       screen.getByRole("button", { name: "「開発」の絞り込みを解除" })
@@ -443,7 +457,11 @@ describe("BookmarkListPage", () => {
     expect(
       await screen.findByText("ブックマークはまだありません")
     ).not.toBeNull()
-    await user.click(screen.getByRole("button", { name: "トップへ戻る" }))
+    const backToTop = screen.getByRole("button", { name: "トップへ戻る" })
+    expect(backToTop.className).toContain("h-[3.125rem]")
+    expect(backToTop.className).toContain("w-[5.3125rem]")
+    expect(backToTop.className).toContain("rounded-bm-pill")
+    await user.click(backToTop)
 
     expect(runtime.runtime.scrollTo).toHaveBeenCalledWith(0)
     expect(document.activeElement).toBe(

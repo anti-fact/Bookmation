@@ -89,18 +89,18 @@ flowchart TD
 | BE-03 | Message契約とService Worker | 完了 | GreenTea | BE-01 | popup、dashboard、workerが安全に連携できる |
 | BE-04 | 現在ページ・URL保存 | 完了 | GreenTea / 🐳 | BE-02、BE-03 | AIなしでもBookmarkを保存できる |
 | BE-05 | 編集・親子Label・一覧Query | 進行中 | GreenTea | BE-02、BE-03 | 編集、削除、親カテゴリ／子タグ管理、候補・一覧取得ができる |
-| BE-19 | 初回Category template適用 | 進行中 | 未定 | ISSUE-022、BE-03、BE-05 | 利用者が明示適用したtemplate Categoryだけを通常規則で重複なく作成できる |
-| BE-06 | 永続AI Job | 完了 | 未定 | BE-03、BE-04 | workerやAI Hostが止まっても分類要求を失わない |
+| BE-19 | 初回Category template適用 | 進行中 | GreenTea | ISSUE-022、BE-03、BE-05 | 利用者が明示適用したtemplate Categoryだけを通常規則で重複なく作成できる |
+| BE-06 | 永続AI Job | 進行中 | GreenTea | BE-03、BE-04 | workerやAI Hostが止まっても分類要求を失わない |
 | BE-07 | Prompt API Hostスパイク | 進行中 | みやけ | BE-00、BE-03 | 対応環境とAI実行場所を実証できる |
 | BE-08 | AI分類と結果適用 | 進行中 | Auto | BE-05〜BE-07 | カテゴリ／タグ規則どおり分類し、失敗時も保存を守る |
-| BE-09 | Keyword検索・AIアシスタント | 未着手 | 未定 | BE-02、BE-05、BE-07 | 最大8件の候補と検索／機能説明を返せる |
-| BE-10 | 権限・入力・Blob安全化 | 完了 | 未定 | BE-03、BE-04 | 最小権限で危険入力と外部画像追跡を防げる |
+| BE-09 | Keyword検索・AIアシスタント | 進行中 | GreenTea | BE-02、BE-05、BE-07 | 最大8件の候補と検索／機能説明を返せる |
+| BE-10 | 権限・入力・Blob安全化 | 完了 | 🐳 | BE-03、BE-04 | 最小権限で危険入力と外部画像追跡を防げる |
 | BE-11 | 中断復旧とMigration | 未着手 | 未定 | BE-06、BE-08、BE-09 | 更新・再送・途中停止から安全に回復できる |
 | BE-12 | 統合テストとフロント引き渡し | 未着手 | 未定 | BE-04、BE-05、BE-08〜BE-11 | P0の一連操作を再現し、UIから利用できる |
 | BE-13 | 訪問日数閾値と保存リマインダー | 未着手 | 未定 | BE-03、BE-04、BE-10、BE-12 | 期間内の訪問日数とURL別resetに従い、確認したURLだけを保存できる |
 | BE-14 | 権限gate付き自動アーカイブ | 未着手 | 未定 | BE-05、BE-13 | 既定30日、history許可時だけON、履歴なしエラー、最小archive、復元を扱える |
 | BE-15 | Chrome標準Bookmarkインポート | 未着手 | 未定 | BE-02、BE-10、BE-12 | 元treeを変えず、直上Folderだけを1件のTagにしてJSON documentへ取込できる |
-| BE-16 | context menu保存 | 未着手 | 未定 | BE-01、BE-03、BE-04、BE-10 | 設定toggleに従ってpage／link menuを重複なく登録／解除し、ON時だけ共通保存use caseへ渡せる |
+| BE-16 | context menu保存 | レビュー中 | 🐳 | BE-01、BE-03、BE-04、BE-10 | 設定toggleに従ってpage／link menuを重複なく登録／解除し、ON時だけ共通保存use caseへ渡せる（PR [#72](https://github.com/anti-fact/Bookmation/pull/72)） |
 | BE-17 | QR／CSV共有・QR読取取込 | 未着手 | 未定 | BE-02、BE-10、BE-12 | 同じ選択集合をQR／CSVでexportし、QR容量超過をCSVへ誘導できる |
 | BE-18 | Google Drive同期・権限共有 | 未着手 | 未定 | BE-02、BE-10、BE-11、BE-12 | 同一アカウント同期と別アカウント共有を混ぜずに扱える |
 
@@ -468,19 +468,23 @@ Plan: [docs/plans/2026-08-23-be-10-security-hardening.md](docs/plans/2026-08-23-
 
 目的: ページ／リンクを右クリックから通常保存と同じ安全性で保存する。
 
-- [ ] `contextMenus` を宣言し、端末固有設定 `contextMenuBookmarkEnabled`（既定ON）を一般設定のswitchから変更できるuse caseを実装する。設定はDrive同期しない。
-- [ ] page用 `bookmation-save-page` とlink用 `bookmation-save-link` をBookmation所有の固定IDとし、install／startup／`chrome.storage.onChanged` で設定と登録状態を照合する。ONでは各1件を冪等登録し、OFFでは所有IDだけを解除する。
-- [ ] 設定変更の登録／解除失敗時は以前の実効値へ補償し、UIへ実効値と再試行可能なエラーを返す。同じ操作の再送やService Worker再起動で重複項目を作らない。
-- [ ] `page` と `link` contextにそれぞれ日本語ラベルを表示する。
-- [ ] click時にmenu ID、送信元、保存直前の現在設定を検証し、ONの場合だけ `pageUrl` / `linkUrl` を選び分ける。OFF直前に配送された遅延clickは保存しない。
-- [ ] `http:` / `https:`、長さ、正規化、重複をSaveBookmarkで再検証する。
-- [ ] 成功、既存、保存不可、失敗を通知し、ページ本文を取得しない。
+進行状況（2026-08-23）: PR [#72](https://github.com/anti-fact/Bookmation/pull/72)（draft）。backend 実装・Vitest 318 件・prod 手動（page 右クリック保存、popup 自動表示と保存／重複メッセージ）まで確認。一般設定 switch UI（TASK-106）と link 保存・OFF 切替・reload の手動確認は後続。
+
+- [x] `contextMenus` を宣言し、端末固有設定 `contextMenuBookmarkEnabled`（既定ON）を変更できる use case と extension message 契約を実装する（一般設定 switch UI は TASK-106）。設定はDrive同期しない。
+- [x] page用 `bookmation-save-page` とlink用 `bookmation-save-link` をBookmation所有の固定IDとし、install／startup／`chrome.storage.onChanged` で設定と登録状態を照合する。ONでは各1件を冪等登録し、OFFでは所有IDだけを解除する。
+- [x] 設定変更の登録／解除失敗時は以前の実効値へ補償し、message 応答で実効値と再試行可能なエラーを返す。同じ操作の再送やService Worker再起動で重複項目を作らない。
+- [x] `page` と `link` contextにそれぞれ日本語ラベルを表示する。
+- [x] click時にmenu ID、送信元、保存直前の現在設定を検証し、ONの場合だけ `pageUrl` / `linkUrl` を選び分ける。OFF直前に配送された遅延clickは保存しない。
+- [x] `http:` / `https:`、長さ、正規化、重複をSaveBookmarkで再検証する。
+- [x] 成功・既存を popup の既存フィードバック UI で通知する（右クリック経路では duplicate badge「済」は使わず、保存後 `openPopup`）。ページ本文を取得しない。
 
 完了条件: 初期移行、ON／OFF反復、Service Worker再起動、API失敗、OFF直前の遅延clickを自動テストし、menuが設定と一致して重複せず、OFF中にはBookmarkが増えない。
 
-成果物: context menu adapter／handler、manifest設定、統合テスト。
+成果物: context menu adapter／handler、manifest設定、統合テスト、popup 保存フィードバック（session storage + `openPopup`）。
 
 完了条件: page、link、危険scheme、未知menu ID、二重click、worker再起動を安全に処理できる。
+
+完了メモ: 2026-08-23。PR [#72](https://github.com/anti-fact/Bookmation/pull/72)。Plan: [docs/plans/2026-08-23-be-16-context-menu-save.md](docs/plans/2026-08-23-be-16-context-menu-save.md)。`pnpm typecheck` / `pnpm test`（318 件）/ `pnpm build` 成功。残: TASK-106 switch UI、link／OFF／reload の手動受入、PR merge 後 `完了` へ更新。
 
 ### BE-17 QR／CSV共有・QR読取取込
 

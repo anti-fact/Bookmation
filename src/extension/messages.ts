@@ -1,4 +1,4 @@
-import type { JsonValue } from "~/domain"
+import type { DomainErrorCode, JsonValue } from "~/domain"
 import { jsonValueWithinBounds, MAX_MESSAGE_JSON_DEPTH } from "~/domain/security"
 
 /** Service Worker と拡張ページ間で交換する protocol version。 */
@@ -28,6 +28,8 @@ export const EXTENSION_MESSAGE_ACTIONS = {
   RETRY_CLASSIFICATION_JOB: "retry-classification-job",
   CANCEL_CLASSIFICATION_JOB: "cancel-classification-job",
   SEARCH_LIBRARY: "search-library",
+  GET_GENERAL_SETTINGS_SNAPSHOT: "get-general-settings-snapshot",
+  SET_CONTEXT_MENU_BOOKMARK_ENABLED: "set-context-menu-bookmark-enabled",
 } as const
 
 export type ExtensionMessageAction =
@@ -47,6 +49,7 @@ export type SaveCurrentTabPayload = Readonly<{
 export type SaveBookmarkByUrlPayload = Readonly<{
   url: string
   title?: string
+  tagIds?: string[]
 }>
 
 export type ClaimClassificationJobPayload = Readonly<{
@@ -101,6 +104,15 @@ export type CancelClassificationJobPayload = Readonly<{
   jobId: string
 }>
 
+export type SearchLibraryPayload = Readonly<{
+  keyword: string
+  mode?: "SEARCH" | "SUGGEST"
+}>
+
+export type SetContextMenuBookmarkEnabledPayload = Readonly<{
+  enabled: boolean
+}>
+
 export type ListBookmarksPayload = Readonly<{
   limit?: number
   labelId?: string
@@ -150,13 +162,20 @@ export type ExtensionMessageRequest =
   | MessageRequest<"get-classification-job", "dashboard", GetClassificationJobPayload>
   | MessageRequest<"retry-classification-job", "dashboard", RetryClassificationJobPayload>
   | MessageRequest<"cancel-classification-job", "dashboard", CancelClassificationJobPayload>
-  | MessageRequest<"search-library", "dashboard" | "ai-host", JsonValue>
+  | MessageRequest<"search-library", "dashboard" | "ai-host", SearchLibraryPayload>
+  | MessageRequest<"get-general-settings-snapshot", "dashboard", Record<never, never>>
+  | MessageRequest<
+      "set-context-menu-bookmark-enabled",
+      "dashboard",
+      SetContextMenuBookmarkEnabledPayload
+    >
 
 export type ExtensionMessageErrorCode =
   | "INVALID_MESSAGE"
   | "UNAUTHORIZED_SENDER"
   | "ACTION_NOT_AVAILABLE"
   | "INTERNAL_ERROR"
+  | DomainErrorCode
 
 export type ExtensionMessageResponse =
   | Readonly<{ requestId: string | null; ok: true; data: JsonValue }>

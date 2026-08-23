@@ -6,6 +6,12 @@ import type {
   PersistedLabelRecord,
   UpdateTagResult,
 } from "~/adapters/indexeddb/persisted-types"
+import type {
+  ApplyClassificationResultShellInput,
+  ApplyClassificationResultShellResult,
+  ClaimClassificationJobInput,
+  ClaimClassificationJobResult,
+} from "~/adapters/indexeddb/classification-job-ops"
 import type { UpdateTagCommand } from "~/domain"
 
 export interface SaveBookmarkWithJobInput {
@@ -16,6 +22,7 @@ export interface SaveBookmarkWithJobInput {
   faviconUrl?: string | null
   faviconBlobId?: string | null
   thumbnailBlobId?: string | null
+  tagIds?: readonly string[]
   source?: PersistedActiveBookmarkRecord["source"]
   creationRequestId: string
   jobId: string
@@ -52,18 +59,32 @@ export interface ListRecentBookmarksResult {
   items: PersistedActiveBookmarkRecord[]
   nextCursor: BookmarkCursor | null
 }
-export interface LabelCandidate { id: string; name: string; kind: "CATEGORY" | "TAG"; parentCategoryId: string | null; revision: number; origin: string; usageCount: number }
+export interface SearchAllByKeywordResult { labels: PersistedLabelRecord[]; bookmarks: PersistedActiveBookmarkRecord[] }
+export interface SuggestAllByKeywordCandidate {
+  entityType: "LABEL" | "BOOKMARK"
+  entityId: string
+  entityRevision: number
+  labelKind: "CATEGORY" | "TAG" | null
+  parentCategoryId: string | null
+  displayText: string
+  matchedFields: string[]
+}
+export interface LabelCandidate { id: string; name: string; kind: "CATEGORY" | "TAG"; parentCategoryId: string | null; parentCategoryName: string | null; revision: number; origin: string; usageCount: number }
 
 export interface DeleteCategoryCascadeResult {
   alreadyCompleted: boolean
   affectedBookmarkCount: number
   jobsCreated: number
 }
-
 /** ローカル永続化 Port (TASK-003) */
 export interface LocalDataLayerPort {
   close(): Promise<void>
   saveBookmarkWithJob(input: SaveBookmarkWithJobInput): Promise<SaveBookmarkWithJobResult>
+  claimClassificationJob(input: Omit<ClaimClassificationJobInput, "now"> & { now?: number }): Promise<ClaimClassificationJobResult | null>
+  recoverStaleClassificationJobs(now?: number): Promise<number>
+  retryClassificationJob(jobId: string, now?: number): Promise<PersistedClassificationJobRecord>
+  cancelClassificationJob(jobId: string, now?: number): Promise<PersistedClassificationJobRecord>
+  applyClassificationResultShell(input: Omit<ApplyClassificationResultShellInput, "now"> & { now?: number }): Promise<ApplyClassificationResultShellResult>
   findActiveBookmarkByUrlHash(
     normalizedUrl: string,
     urlHash: string,
@@ -106,6 +127,8 @@ export interface LocalDataLayerPort {
   listRecentBookmarks(cursor: BookmarkCursor | null, limit?: number): Promise<ListRecentBookmarksResult>
   listBookmarksByLabel(labelId: string, cursor: BookmarkCursor | null, limit?: number): Promise<ListRecentBookmarksResult & { totalCount: number }>
   listLabelCandidates(keyword: string, kind?: "CATEGORY" | "TAG", limit?: number): Promise<LabelCandidate[]>
+  searchAllByKeyword(keyword: string, limit?: number): Promise<SearchAllByKeywordResult>
+  suggestAllByKeyword(keyword: string, limit?: number): Promise<SuggestAllByKeywordCandidate[]>
   softDeleteBookmark(bookmarkId: string, expectedRevision: number): Promise<void>
   softDeleteTag(tagId: string, expectedRevision: number): Promise<void>
   getCategoryEditDetail(categoryId: string): Promise<{

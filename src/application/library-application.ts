@@ -1,10 +1,16 @@
 import { LocalDataLayer } from "~/adapters"
+import { ChromeContextMenuAdapter, createChromeContextMenusApi } from "~/adapters/chrome-context-menu"
+import { ChromeLocalSettingsStore } from "~/adapters/chrome-local-settings-store"
 import { safeLogError } from "~/adapters/security/log-redaction"
 import { CATEGORY_TEMPLATE_CATALOG } from "~/catalogs/category-templates"
 import type { ExtensionMessageResponse } from "~/extension/messages"
 import { isDomainError } from "~/domain"
 
 import { handleClassificationJobMessage } from "./classification-job-application"
+import {
+  ContextMenuApplicationError,
+  updateContextMenuBookmarkEnabled,
+} from "./update-context-menu-setting"
 import {
   applyCategoryTemplates,
   getCategoryTemplateCatalog,
@@ -38,6 +44,44 @@ export function createLibraryApplication(
       if (request.action === "save-current-tab" || request.action === "save-bookmark-by-url") {
         return save.handle(request)
       }
+
+      if (request.action === "get-general-settings-snapshot") {
+        const settings = await new ChromeLocalSettingsStore().get()
+        return {
+          requestId: request.requestId,
+          ok: true,
+          data: { contextMenuBookmarkEnabled: settings.contextMenuBookmarkEnabled },
+        }
+      }
+
+      if (request.action === "set-context-menu-bookmark-enabled") {
+        const togglePayload = record(request.payload)
+        if (!togglePayload || typeof togglePayload.enabled !== "boolean") {
+          return invalid(request.requestId)
+        }
+        try {
+          const result = await updateContextMenuBookmarkEnabled(
+            new ChromeLocalSettingsStore(),
+            new ChromeContextMenuAdapter(createChromeContextMenusApi(chrome.contextMenus)),
+            togglePayload.enabled,
+          )
+          return {
+            requestId: request.requestId,
+            ok: true,
+            data: { contextMenuBookmarkEnabled: result.contextMenuBookmarkEnabled },
+          }
+        } catch (error: unknown) {
+          if (error instanceof ContextMenuApplicationError) {
+            return {
+              requestId: request.requestId,
+              ok: false,
+              error: { code: "INTERNAL_ERROR" },
+            }
+          }
+          throw error
+        }
+      }
+
     const payload = record(request.payload)
     if (!payload) return invalid(request.requestId)
     const layer = await LocalDataLayer.open()
@@ -100,7 +144,7 @@ export function createLibraryApplication(
         return {
           requestId: request.requestId,
           ok: true,
-          data: { categoryId: category.id, revision: category.revision },
+          data: { categoryId: category.id, name: category.name, revision: category.revision },
         }
       }
 
@@ -140,7 +184,7 @@ export function createLibraryApplication(
         return {
           requestId: request.requestId,
           ok: true,
-          data: { tagId: tag.id, revision: tag.revision, parentCategoryId: tag.parentCategoryId },
+          data: { tagId: tag.id, name: tag.name, revision: tag.revision, parentCategoryId: tag.parentCategoryId },
         }
       }
 
@@ -187,7 +231,7 @@ export function createLibraryApplication(
         const kind = payload.kind === "CATEGORY" || payload.kind === "TAG" ? payload.kind : undefined
         const limit = typeof payload.limit === "number" ? payload.limit : undefined
         const items = await layer.listLabelCandidates(payload.keyword, kind, limit)
-        return { requestId: request.requestId, ok: true, data: { items: items.map((item) => ({ id: item.id, name: item.name, kind: item.kind, parentCategoryId: item.parentCategoryId, revision: item.revision, origin: item.origin, usageCount: item.usageCount })) } }
+        return { requestId: request.requestId, ok: true, data: { items: items.map((item) => ({ id: item.id, name: item.name, kind: item.kind, parentCategoryId: item.parentCategoryId, parentCategoryName: item.parentCategoryName, revision: item.revision, origin: item.origin, usageCount: item.usageCount })) } }
       }
       if (request.action === "get-category-edit-detail" && typeof payload.categoryId === "string") {
         const detail = await layer.getCategoryEditDetail(payload.categoryId)
@@ -210,6 +254,33 @@ export function createLibraryApplication(
         const totalCount = "totalCount" in result && typeof result.totalCount === "number" ? result.totalCount : result.items.length
         return { requestId: request.requestId, ok: true, data: { items: result.items.map((item) => ({ id: item.id, title: item.title, normalizedUrl: item.normalizedUrl, savedAt: item.savedAt, revision: item.revision })), nextCursor: result.nextCursor ? { savedAt: result.nextCursor.savedAt, id: result.nextCursor.id } : null, totalCount } }
       }
+      if (request.action === "search-library" && typeof payload.keyword === "string") {
+        if (payload.mode === "SUGGEST") {
+          const items = await layer.suggestAllByKeyword(payload.keyword, 8)
+          return {
+            requestId: request.requestId,
+            ok: true,
+            data: {
+              source: "LEXICAL_FALLBACK",
+              items: items.map((item) => ({
+                entityType: item.entityType,
+                entityId: item.entityId,
+                entityRevision: item.entityRevision,
+                labelKind: item.labelKind,
+                parentCategoryId: item.parentCategoryId,
+                displayText: item.displayText,
+                matchedFields: item.matchedFields,
+              })),
+            },
+          }
+        }
+        const result = await layer.searchAllByKeyword(payload.keyword, 8)
+        return { requestId: request.requestId, ok: true, data: {
+          source: "LEXICAL_FALLBACK",
+          labels: result.labels.map((label) => ({ id: label.id, name: label.name, kind: label.kind, parentCategoryId: label.parentCategoryId, revision: label.revision })),
+          bookmarks: result.bookmarks.map((bookmark) => ({ id: bookmark.id, title: bookmark.title, normalizedUrl: bookmark.normalizedUrl, revision: bookmark.revision })),
+        } }
+      }
 
       const classificationResponse = await handleClassificationJobMessage(layer, request)
       if (classificationResponse) {
@@ -220,6 +291,7 @@ export function createLibraryApplication(
     } catch (error: unknown) {
       if (isDomainError(error)) {
         safeLogError("Library action rejected", error)
+        return { requestId: request.requestId, ok: false, error: { code: error.code } }
       } else {
         safeLogError("Library action failed", error)
       }

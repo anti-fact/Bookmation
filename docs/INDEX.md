@@ -36,6 +36,7 @@ Bookmation は、閲覧中のページまたは指定URLを専用ストアへ保
 | [2026-08-23-be-10-security-hardening.md](plans/2026-08-23-be-10-security-hardening.md) | BE-10 / TASK-010 権限・入力・Blob 安全化 Execution Plan |
 | [2026-08-23-task-015-classification-eval.md](plans/2026-08-23-task-015-classification-eval.md) | TASK-015 / BE-08 評価: fixture v3・scorer v2・N=10 batch 基盤 |
 | [2026-08-23-task-008-ai-classification.md](plans/2026-08-23-task-008-ai-classification.md) | TASK-008 / BE-08: policy v2・検証・Tag適用縦スライス |
+| [2026-08-23-be-16-context-menu-save.md](plans/2026-08-23-be-16-context-menu-save.md) | BE-16 / TASK-106 右クリック context menu 保存 Execution Plan |
 | [TASKS.md](TASKS.md) | チームで分担する実装ワークパッケージ、依存関係、完了条件 |
 | [TODO.md](TODO.md) | 1 PR 程度で完了できる小規模タスク |
 | [ISSUES.md](ISSUES.md) | 未決定事項・プロダクト上の問題 |

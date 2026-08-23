@@ -134,7 +134,7 @@ Enterまたは検索ボタンで `#/search?q=<encoded>` へ遷移する。`Searc
 
 `BookmarkItem` はカテゴリを常時描画し、タグはbutton disclosureで開閉する。`IntersectionObserver` のsentinelはloading中の同cursor要求を拒否し、requestId照合、ID dedupe、失敗位置の再試行、終端解除を行う。追加後にフォーカスを移さない。
 
-UI-04ではこの一覧境界を実装済みである。表示形式は`chrome.storage.local`へ保存し、productionの`BookmarkListPort`はIndexedDBからactive Bookmarkとactive Label edgeを読んで表示用のカテゴリ／タグへ変換する。画像Blobの解決はTASK-010に残し、解決できない画像は外部URLへ接続せず同梱Bookmationロゴへ縮退する。カテゴリ・タグ一覧への導線はApp Headerの望遠鏡だけとし、secondary toolbarには重複buttonを置かず、画面scrollへ追従させない。検索候補と結果はUI-07、AI応答はUI-08、編集buttonから開くmodalはUI-05で実装する。
+UI-04ではこの一覧境界を実装済みである。表示形式は`chrome.storage.local`へ保存し、productionの`BookmarkListPort`はIndexedDBからactive Bookmarkとactive Label edgeを読んで表示用のカテゴリ／タグへ変換する。画像Blobの解決はTASK-010に残し、解決できない画像は外部URLへ接続せず同梱Bookmationロゴへ縮退する。カテゴリ・タグ一覧への導線はApp Headerの望遠鏡だけとし、secondary toolbarには重複buttonを置かず、画面scrollへ追従させない。編集buttonから開くmodalはUI-05で接続済みとし、検索候補と結果はUI-07、AI応答はUI-08で実装する。
 
 ## ブックマーク追加／編集とサイドビュー
 
@@ -159,6 +159,8 @@ Tag見出し横の `＋新規作成` は同じDialog内部を `FORM` から `CRE
 Tag作成side viewではTag名draftと既存active Category 1件を保持する。作成時の親Category入力は空で開始する。親Categoryは最大8候補のcomboboxで、activeな正規化完全一致または候補選択時点に単一選択し、Category用の `追加` buttonは置かない。その説明横の `＋新規作成` で同じDialogを `CREATE_CATEGORY` へ切り替える。Category作成成功後はTag draftへ戻り、新Category IDを自動選択して元のTag名、dirty state、検索語を復元する。未解決のCategory文字列はfield errorとし、自由入力から作成しない。
 
 削除は確認画面を開かず、専用の論理削除command成功後にdialogを閉じる。削除後の取り消しUI、token、利用者向け復元commandは実装しない。通信失敗やrevision conflictでは論理削除せず、dialogと入力を保持してエラーを表示する。
+
+UI-05では`BookmarkDialog`と`BookmarkTagField`を追加し、追加／編集を同じfield contractへ統合した。productionの`BookmarkFormPort`はChrome message経由で既存Applicationへ接続し、Tag／Category候補、作成、Bookmark保存／更新／論理削除を扱う。作成request IDは同じdraftの再試行で再利用し、Applicationから返る安全なDomain error codeをfieldまたはdialog内のエラーへ変換する。Web fixtureでは追加、編集、同一Dialog内side view、削除後の一覧再読込をproduction componentのまま確認できる。
 
 ## カテゴリ・タグ一覧と管理モード
 

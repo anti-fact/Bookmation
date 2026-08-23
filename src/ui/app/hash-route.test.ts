@@ -18,6 +18,10 @@ import {
 describe("parseHashRoute", () => {
   it.each<[string, HashRoute]>([
     ["#/welcome", { kind: "welcome" }],
+    [
+      "#/onboarding/categories",
+      { kind: "onboarding", step: "categories" }
+    ],
     ["#/home", { kind: "home" }],
     [
       "#/bookmarks?category=category-1",
@@ -92,6 +96,7 @@ describe("parseHashRoute", () => {
 describe("serializeHashRoute", () => {
   it.each<KnownHashRoute>([
     { kind: "welcome" },
+    { kind: "onboarding", step: "categories" },
     { kind: "home" },
     {
       kind: "bookmarks",
@@ -130,6 +135,9 @@ describe("serializeHashRoute", () => {
       "settings"
     )
     expect(getAppHeaderVariant({ kind: "welcome" })).toBeNull()
+    expect(
+      getAppHeaderVariant({ kind: "onboarding", step: "categories" })
+    ).toBeNull()
     expect(getAppHeaderVariant(notFoundRoute)).toBeNull()
     expect(isKnownHashRoute(searchRoute)).toBe(true)
     expect(isKnownHashRoute(notFoundRoute)).toBe(false)

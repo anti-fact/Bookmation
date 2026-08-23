@@ -88,6 +88,7 @@ function saveResultData(result: SaveBookmarkResult): JsonValue {
     normalizedUrl: result.normalizedUrl,
     duplicate: result.duplicate,
     savedAt: result.savedAt,
+    revision: result.revision,
   }
 }
 
@@ -191,11 +192,23 @@ export function createSaveBookmarkMessageApplication(
           }
 
           case "save-bookmark-by-url": {
+            if (
+              request.payload.tagIds !== undefined &&
+              (!Array.isArray(request.payload.tagIds) ||
+                !request.payload.tagIds.every((id) => typeof id === "string"))
+            ) {
+              return {
+                requestId: request.requestId,
+                ok: false,
+                error: { code: "INVALID_MESSAGE" }
+              }
+            }
             const result = await withDataLayer(async (data) => {
               const useCase = new SaveBookmarkUseCase(data)
               return useCase.saveByUrl({
                 rawUrl: request.payload.url,
                 title: request.payload.title,
+                tagIds: request.payload.tagIds,
                 creationRequestId: request.requestId,
               })
             })
@@ -242,6 +255,11 @@ export function createSaveBookmarkMessageApplication(
         }
         if (isDomainError(error)) {
           safeLogError("Save request rejected", error)
+          return {
+            requestId: request.requestId,
+            ok: false,
+            error: { code: error.code }
+          }
         } else {
           safeLogError("Save request failed", error)
         }

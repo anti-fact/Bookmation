@@ -109,7 +109,7 @@ export function PopupFixture() {
           {fixtures.map((name) => (
             <a
               aria-current={fixture === name ? "page" : undefined}
-              className="rounded-bm-field border border-bm-border bg-bm-paper px-2 py-1 text-bm-ink no-underline outline-none hover:bg-bm-accent focus-visible:ring-2 focus-visible:ring-bm-focus aria-[current=page]:bg-bm-ink aria-[current=page]:text-bm-paper"
+              className="rounded-bm-field border border-bm-border bg-bm-paper px-2 py-1 text-bm-ink no-underline outline-none hover:bg-bm-ink hover:text-bm-paper focus-visible:ring-2 focus-visible:ring-bm-focus aria-[current=page]:bg-bm-ink aria-[current=page]:text-bm-paper"
               href={`?view=popup&fixture=${name}`}
               key={name}
             >

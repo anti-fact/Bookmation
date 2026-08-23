@@ -90,28 +90,28 @@
 - [x] `savedAt desc` の最近追加とlabel条件一覧を実装する。
 - [x] App Headerに検索画面を開く入口とカテゴリ・タグ一覧へ移動する望遠鏡、通常flowのtoolbarに件数とLIST / GRID segmentを置く。一覧への重複buttonを置かず、toolbarをscrollへ追従させない。検索候補／結果はUI-07、AI応答はUI-08で接続する。
 - [x] カテゴリを常時表示し、タグをclick / keyboard disclosure、pointer hover previewで表示する。
-- [ ] 全項目にedit buttonを置き、Bookmark追加と同じTag field componentでname、URL、Tagだけを変更できるmodalを実装する。Categoryは選択Tagの親から自動導出して読取表示する。
-- [ ] Bookmark追加／編集のTag入力は空欄から開始し、入力中に既存active候補をリアルタイムで最大8件表示する。候補または同じmodal内のside viewで新規作成したTagを `追加`／IME変換中ではないEnterで1件ずつ追加し、成功後は入力をclearしてfocusを戻す。未知Tagの自由入力はfield errorにし、暗黙作成しない。
-- [ ] 入力直下は `タグ n件` を左、`追加` を右に配置し、現在Tagを初期展開する。Tagは全画面カテゴリ・タグ一覧のTag chip形状を使い、Bookmark一覧のカテゴリ・タグシェブロン相当のhover／focus減光と中央解除buttonで個別に外せるようにする。
-- [ ] Bookmark削除は確認画面を挟まずsoft-deleteする。削除後にUndo toast、復元ボタン、Undo用errorを表示しない。
+- [x] 全項目にedit buttonを置き、Bookmark追加と同じTag field componentでname、URL、Tagだけを変更できるmodalを実装する。Categoryは選択Tagの親から自動導出して読取表示する。
+- [x] Bookmark追加／編集のTag入力は空欄から開始し、入力中に既存active候補をリアルタイムで最大8件表示する。候補または同じmodal内のside viewで新規作成したTagを `追加`／IME変換中ではないEnterで1件ずつ追加し、成功後は入力をclearしてfocusを戻す。未知Tagの自由入力はfield errorにし、暗黙作成しない。
+- [x] 入力直下は `タグ n件` を左、`追加` を右に配置し、現在Tagを初期展開する。Tagは全画面カテゴリ・タグ一覧のTag chip形状を使い、Bookmark一覧のカテゴリ・タグシェブロン相当のhover／focus減光と中央解除buttonで個別に外せるようにする。
+- [x] Bookmark削除は確認画面を挟まずsoft-deleteする。削除後にUndo toast、復元ボタン、Undo用errorを表示しない。
 - [x] cursor infinite scroll、追加失敗 retry、終端、back-to-top を実装する。
 - [x] 弁当表示、列数設定、表示数変更プルダウン、右 sidebar がないことを確認する。
-- 現在地: UI-04で一覧表示と閲覧操作を実装済み。編集buttonは配置済みだが、UI-05の編集modal、Tag入力、新規作成side view、削除は未実装である。
+- 現在地: UI-04の一覧表示に続き、UI-05で追加／編集共通modal、Tag入力、同一Dialog内のTag／Category作成side view、Bookmark即時論理削除を実装済み。検索画面はUI-07、AI応答はUI-08で接続する。
 - 完了条件: 仕様書に沿う LIST / GRID をkeyboardで検索・閲覧・編集でき、Bookmark追加／編集のTagを同じ操作で連続追加／解除できる。
 
 ### TASK-006: Full-screen Category / Tag UI
 
-- [ ] 親カテゴリと、その配下の子タグを扱う全画面一覧とsticky headerを作る。
+- [x] 親カテゴリと、その配下の子タグを扱う全画面一覧とsticky headerを作る。
 - [ ] フルページ検索とAI入力ポップアップを開くボタン、カテゴリ・タグ新規作成、名前付きcloseを置く。
-- [ ] 新規作成ボタンから種類をプルダウンで選び、作成modalを開く。閉じるまで連続作成できるようにする。
-- [ ] カテゴリ／タグ作成でtombstoneを含む各namespace内の正規化名重複を拒否する。有効項目なら元画面で選択し、削除済みなら物理回収まで別名を案内する。
-- [ ] タグ作成では空の親Category入力からactiveな既存Categoryをリアルタイム検索し、一致度の高い候補を最大8件から入力／選択時点で必須選択する。未知Category文字列はfield errorにし、親をまたいでも同名Tagを作らない。
-- [ ] Tag作成画面にCategory新規作成ボタンを置き、同じmodal内のside viewへ移る。Tag入力draftを保持し、Category作成後はTag作成へ戻って新規Categoryを自動選択する。
-- [ ] headerの管理ボタンで管理モードへ切り替え、カテゴリリボン／タグチップのhover・focus時だけ鉛筆を示し、選択で編集modalを開く。
-- [ ] Tag編集modalは名前、親Category、作成元、利用件数を表示し、名前と親を変更できるようにする。親Category入力は現在値を選択済みで開始し、activeな正規化完全一致または最大8候補からの選択時点で置き換える。Category用の `追加` buttonは置かず、未知文字列はfield errorにする。説明横の新規作成から同じmodal内のCategory作成side viewへ移り、Tag draftを保持して、作成後は新規Categoryを自動選択する。
-- [ ] Tag親変更の保存ではTag／選択親expected revisionと `tag-update:` requestIdを送り、Tag IDとglobal unique名規則を維持したまま、全参照BookmarkのCategory closure・revision・検索文書を1 transactionで更新する。同じrequest再送はmutation receiptの同じ `UpdateTagResult` へ収束し、別payload再利用を拒否する。競合・失敗は全件rollbackし、AI再分類を行わない。
-- [ ] Category編集modalに、使用中Tagの実名一覧と件数、関連Bookmarkのunique件数を表示する。
-- [ ] Bookmark／Tagは確認画面を挟まずsoft-deleteし、削除Undoの操作や復元経路を用意しない。
+- [x] 新規作成ボタンから種類をプルダウンで選び、作成modalを開く。閉じるまで連続作成できるようにする。
+- [x] カテゴリ／タグ作成でtombstoneを含む各namespace内の正規化名重複を拒否する。有効項目なら元画面で選択し、削除済みなら物理回収まで別名を案内する。
+- [x] タグ作成では空の親Category入力からactiveな既存Categoryをリアルタイム検索し、一致度の高い候補を最大8件から入力／選択時点で必須選択する。未知Category文字列はfield errorにし、親をまたいでも同名Tagを作らない。
+- [x] Tag作成画面にCategory新規作成ボタンを置き、同じmodal内のside viewへ移る。Tag入力draftを保持し、Category作成後はTag作成へ戻って新規Categoryを自動選択する。
+- [x] headerの管理ボタンで管理モードへ切り替え、カテゴリリボン／タグチップのhover・focus時だけ鉛筆を示し、選択で編集modalを開く。
+- [x] Tag編集modalは名前、親Category、作成元、利用件数を表示し、名前と親を変更できるようにする。親Category入力は現在値を選択済みで開始し、activeな正規化完全一致または最大8候補からの選択時点で置き換える。Category用の `追加` buttonは置かず、未知文字列はfield errorにする。説明横の新規作成から同じmodal内のCategory作成side viewへ移り、Tag draftを保持して、作成後は新規Categoryを自動選択する。
+- [x] Tag親変更の保存ではTag／選択親expected revisionと `tag-update:` requestIdを送り、Tag IDとglobal unique名規則を維持したまま、全参照BookmarkのCategory closure・revision・検索文書を1 transactionで更新する。同じrequest再送はmutation receiptの同じ `UpdateTagResult` へ収束し、別payload再利用を拒否する。競合・失敗は全件rollbackし、AI再分類を行わない。
+- [x] Category編集modalに、使用中Tagの実名一覧と件数、関連Bookmarkのunique件数を表示する。
+- [x] Bookmark／Tagは確認画面を挟まずsoft-deleteし、削除Undoの操作や復元経路を用意しない。
 - [ ] Category削除だけは、全子Tagと関連edgeの連鎖削除、Tag件数、関連Bookmark unique件数、AI有効時の再分類を警告する。確認後にcascade soft-deleteしてBookmarkを保持する。CONFIGUREDかつenabledの場合だけ再分類し、モデル未取得／download中／AI Host不在はPENDING、3 dispatchすべてquality-zeroはNEEDS_REVIEW、恒久非対応、execution上限、またはtechnical failure込みのdispatch枯渇はFAILEDとする。disabled／再設定待ちはJobを作らずCLASSIFIED／UNCLASSIFIEDへ戻し、全状態で手動分類を許す。
 - [ ] label selection、infinite scroll、back-to-top、直前状態復元を実装する。
 - 完了条件: 親子関係をIDで識別し、通常モードでは対象Bookmark一覧へ移動し、管理モードでは作成・編集・削除をキーボードでも行える。
@@ -145,9 +145,9 @@
 
 ### TASK-009: Full-page search / AI assistant
 
-- [ ] ブックマーク一覧とカテゴリ・タグ一覧のどちらからでも、同じフルページ検索画面へ切り替える。
-- [ ] keyword入力中に一致度の高いLabel / Bookmark候補をGoogle検索型の候補リストとして最大8件表示し、選択で対象へ移動する。
-- [ ] カテゴリ・タグ結果を上、Bookmark結果を下に表示し、IME、0件、8件、9件以上、古いresponseを扱う。
+- [x] ブックマーク一覧とカテゴリ・タグ一覧のどちらからでも、同じフルページ検索画面へ切り替える。
+- [x] keyword入力中に一致度の高いLabel / Bookmark候補をGoogle検索型の候補リストとして最大8件表示し、選択で対象へ移動する。
+- [x] カテゴリ・タグ結果を上、Bookmark結果を下に表示し、IME、0件、8件、9件以上、古いresponseを扱う。
 - [ ] `AiAgentPopup` 内で自然言語の入力と応答確認を完結させ、Label / Bookmark候補集合を生成する。
 - [ ] AI入力はBookmark探索に限らず、設定、保存、分類、共有、アーカイブ復元などBookmationの機能全般の説明を受け付ける。
 - [ ] AI は提示済み ID から選択だけを行い、候補外ID、重複、古いrevisionを拒否する。
@@ -155,6 +155,7 @@
 - [ ] AI配列順を捨て、中立な安定順で描画する。
 - [ ] IME、0件、古いresponse、AI不可時の lexical fallback を実装する。
 - [ ] query、展開語、自由文理由を永続化しない。
+- 現在地: UI-07で共通keyword comboboxと全画面結果を実装済み。現行backendの検索応答は最大8件・cursorなしであり、AI popupとAI検索結果はUI-08で接続する。
 - 完了条件: 両入口のフルページkeyword検索、最大8候補、AIポップアップでの検索／機能案内、固定グループ順、無順位AI候補のcomponent / integration testが通る。
 
 ### TASK-010: Security / media / permissions

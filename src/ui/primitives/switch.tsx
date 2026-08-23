@@ -8,9 +8,12 @@ export type SwitchProps = Omit<
   React.ComponentPropsWithoutRef<typeof SwitchPrimitive.Root>,
   "id"
 > & {
+  controlOnly?: boolean
   description?: string
+  descriptionClassName?: string
   id?: string
   label: string
+  labelClassName?: string
   pending?: boolean
 }
 
@@ -19,7 +22,18 @@ export const Switch = React.forwardRef<
   SwitchProps
 >(
   (
-    { className, description, disabled, id, label, pending = false, ...props },
+    {
+      className,
+      controlOnly = false,
+      description,
+      descriptionClassName,
+      disabled,
+      id,
+      label,
+      labelClassName,
+      pending = false,
+      ...props
+    },
     ref
   ) => {
     // useId から各 ID を作り、見える文言と Radix の操作部分を ARIA で結び付けます。
@@ -29,6 +43,27 @@ export const Switch = React.forwardRef<
     const descriptionId = description ? `${controlId}-description` : undefined
     // 保存処理中も操作を止め、連続クリックで状態が食い違うのを防ぎます。
     const isDisabled = disabled || pending
+
+    if (controlOnly) {
+      return (
+        <SwitchPrimitive.Root
+          {...props}
+          aria-busy={pending || undefined}
+          className={joinClassNames(
+            "relative h-[30px] w-20 shrink-0 rounded-bm-switch bg-bm-control-muted p-0.5 outline-none transition-colors data-[state=checked]:bg-bm-ink disabled:cursor-not-allowed",
+            isDisabled ? "cursor-not-allowed opacity-50" : undefined,
+            className
+          )}
+          disabled={isDisabled}
+          id={controlId}
+          ref={ref}
+        >
+          <SwitchPrimitive.Thumb
+            className="block h-[26px] w-8 translate-x-0 rounded-bm-switch bg-bm-paper shadow-bm-control transition-transform data-[state=checked]:translate-x-11"
+          />
+        </SwitchPrimitive.Root>
+      )
+    }
 
     return (
       <label
@@ -41,14 +76,20 @@ export const Switch = React.forwardRef<
       >
         <span className="min-w-0">
           <span
-            className="block text-sm font-semibold text-bm-ink"
+            className={joinClassNames(
+              "block text-sm font-semibold text-bm-ink",
+              labelClassName
+            )}
             id={labelId}
           >
             {label}
           </span>
           {description ? (
             <span
-              className="mt-1 block text-xs leading-5 text-bm-muted-text"
+              className={joinClassNames(
+                "mt-1 block text-xs leading-5 text-bm-muted-text",
+                descriptionClassName
+              )}
               id={descriptionId}
             >
               {description}

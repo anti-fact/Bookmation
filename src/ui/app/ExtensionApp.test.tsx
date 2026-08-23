@@ -73,14 +73,17 @@ function createRuntime() {
   }
 }
 
-function renderApp(initialRoute: HashRoute) {
+function renderApp(
+  initialRoute: HashRoute,
+  appProps: React.ComponentProps<typeof ExtensionApp> = {}
+) {
   const routes = createRouteStore(initialRoute)
   const runtime = createRuntime()
 
   render(
     <React.StrictMode>
       <AppProviders routeStore={routes.store} runtime={runtime.runtime}>
-        <ExtensionApp />
+        <ExtensionApp {...appProps} />
       </AppProviders>
     </React.StrictMode>
   )
@@ -112,6 +115,55 @@ describe("ExtensionApp", () => {
     ).not.toBeNull()
     expect(
       screen.getByRole("form", { name: "ブックマーク追加フォーム" })
+    ).not.toBeNull()
+  })
+
+  it("opens the shared edit dialog from each bookmark edit button", async () => {
+    const item = {
+      categories: [{ id: "category-development", name: "開発" }],
+      faviconSrc: "data:image/png;base64,AA==",
+      id: "bookmark-edit",
+      revision: 3,
+      savedAt: 1_000,
+      siteName: "example.com",
+      tags: [
+        {
+          id: "tag-react",
+          name: "React",
+          parentCategoryId: "category-development",
+          parentCategoryName: "開発",
+          revision: 2
+        }
+      ],
+      thumbnailSrc: "data:image/png;base64,AA==",
+      title: "編集対象",
+      url: "https://example.com/edit"
+    }
+    const bookmarkListPort = {
+      getViewMode: vi.fn().mockResolvedValue("GRID" as const),
+      loadPage: vi.fn(async ({ requestId }: { requestId: string }) => ({
+        items: [item],
+        nextCursor: null,
+        requestId,
+        totalCount: 1
+      })),
+      setViewMode: vi.fn().mockResolvedValue(undefined)
+    }
+    renderApp({ kind: "home" }, { bookmarkListPort })
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: "編集対象を編集" })
+    )
+
+    expect(
+      screen.getByRole("dialog", { name: "ブックマークを編集" })
+    ).not.toBeNull()
+    expect(
+      (screen.getByRole("textbox", { name: "タイトル" }) as HTMLInputElement)
+        .value
+    ).toBe("編集対象")
+    expect(
+      screen.getByRole("button", { name: "タグ「React」を解除" })
     ).not.toBeNull()
   })
 
@@ -215,6 +267,7 @@ describe("ExtensionApp", () => {
     }
     expect(hoverHighlight?.className).toContain("bg-transparent")
     expect(hoverHighlight?.className).toContain("group-hover:bg-bm-accent")
+    expect(hoverHighlight?.className).not.toContain("group-hover:bg-bm-ink")
     expect(hoverHighlight?.className).not.toContain("bg-bm-ink")
     expect(generalLink.querySelector("span.relative")?.className).toContain(
       "gap-3"
@@ -315,6 +368,27 @@ describe("ExtensionApp", () => {
     expect(startButton.className).toContain("!rounded-none")
 
     fireEvent.click(startButton)
+    expect(store.navigate).toHaveBeenCalledWith({
+      kind: "onboarding",
+      step: "categories"
+    })
+  })
+
+  it("shows the category onboarding step and returns home once it is saved", () => {
+    const { store } = renderApp({ kind: "onboarding", step: "categories" })
+
+    expect(
+      screen.queryByRole("banner", { name: "アプリケーションヘッダー" })
+    ).toBeNull()
+    expect(
+      screen.getByRole("heading", {
+        level: 1,
+        name: "あなたにあったカテゴリを選ぶ"
+      })
+    ).not.toBeNull()
+    expect(screen.getByRole("button", { name: /授業・講義/ })).not.toBeNull()
+
+    fireEvent.click(screen.getByRole("button", { name: "設定を保存" }))
     expect(store.navigate).toHaveBeenCalledWith({ kind: "home" })
   })
 
@@ -379,7 +453,8 @@ describe("ExtensionApp", () => {
     expect(homeButton.parentElement?.className).not.toContain("justify-end")
     expect(homeButton.className).toContain("bg-bm-paper")
     expect(homeButton.className).toContain("text-bm-ink")
-    expect(homeButton.className).toContain("hover:bg-bm-accent")
+    expect(homeButton.className).toContain("hover:bg-bm-ink")
+    expect(homeButton.className).toContain("hover:text-bm-paper")
     expect(homeButton.className).toContain("active:bg-bm-ink")
     expect(homeButton.className).toContain("active:text-bm-paper")
 
@@ -413,13 +488,20 @@ describe("ExtensionApp", () => {
     ).not.toBeNull()
   })
 
-  it("announces unavailable search without changing route", () => {
+  it("opens keyword search results from the shared search box", () => {
     const { store } = renderApp({ kind: "home" })
 
-    fireEvent.click(screen.getByRole("button", { name: "検索を開く" }))
-    expect(screen.getByRole("status").textContent).toContain(
-      "検索入力と候補は現在準備中です"
+    fireEvent.change(
+      screen.getByRole("combobox", {
+        name: "ブックマーク、カテゴリ、タグを検索"
+      }),
+      { target: { value: "TypeScript" } }
     )
-    expect(store.navigate).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole("button", { name: "検索する" }))
+
+    expect(store.navigate).toHaveBeenCalledWith({
+      kind: "search",
+      query: "TypeScript"
+    })
   })
 })

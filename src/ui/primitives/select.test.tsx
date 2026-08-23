@@ -42,9 +42,15 @@ describe("Select", () => {
 
     const trigger = screen.getByRole("combobox", { name: "訪問の集計期間" })
     expect(trigger.textContent).toContain("期間を選択")
+    expect(trigger.className).toContain("hover:bg-bm-ink")
+    expect(trigger.className).toContain("hover:text-bm-paper")
+    expect(trigger.className).toContain("data-[state=open]:bg-bm-ink")
+    expect(trigger.className).toContain("data-[state=open]:text-bm-paper")
 
     await user.click(trigger)
     const option = await screen.findByRole("option", { name: "1ヶ月" })
+    expect(option.className).toContain("data-[highlighted]:bg-bm-ink")
+    expect(option.className).toContain("data-[highlighted]:text-bm-paper")
     await user.click(option)
 
     expect(onChange).toHaveBeenLastCalledWith("LAST_30_DAYS")

@@ -2,19 +2,30 @@ import { ChromeCategoryTemplateReceiptStore } from "~adapters"
 import { createLibraryApplication } from "~application"
 import { createSaveBookmarkMessageApplication } from "~application/save-bookmark-message-application"
 import { LocalDataLayer } from "~/adapters"
+import { ChromeLocalSettingsStore } from "~/adapters/chrome-local-settings-store"
 import { safeLogError, safeLogInfo, safeLogWarning } from "~/adapters/security/log-redaction"
 import { handleExtensionCommand } from "~extension/command-handlers"
+import { handleContextMenuClick } from "~extension/context-menu-handlers"
+import { registerContextMenuLifecycle } from "~extension/context-menu-lifecycle"
 import { isExtensionCommand } from "~extension/commands"
 import { initializeOnInstall } from "~extension/install-handler"
 import { createExtensionMessageRouter } from "~extension/message-router"
 
+const saveDeps = {
+  action: chrome.action,
+  tabs: chrome.tabs,
+}
+
+const contextMenuDeps = {
+  settingsStore: new ChromeLocalSettingsStore(),
+  sessionStorage: chrome.storage.session,
+  action: chrome.action,
+}
+
 const messageRouter = createExtensionMessageRouter(
   chrome.runtime.id,
   createLibraryApplication(
-    createSaveBookmarkMessageApplication({
-      action: chrome.action,
-      tabs: chrome.tabs,
-    }),
+    createSaveBookmarkMessageApplication(saveDeps),
     new ChromeCategoryTemplateReceiptStore(chrome.storage.local),
   ),
 )
@@ -45,6 +56,17 @@ chrome.runtime.onInstalled.addListener((details) => {
       safeLogError("Install initialization", error)
     },
   )
+  void new ChromeLocalSettingsStore().get().catch((error: unknown) => {
+    safeLogError("Local settings initialization", error)
+  })
+})
+
+registerContextMenuLifecycle(chrome.runtime, chrome.storage)
+
+chrome.contextMenus.onClicked.addListener((info) => {
+  void handleContextMenuClick(info, contextMenuDeps).catch((error: unknown) => {
+    safeLogError("Context menu click", error)
+  })
 })
 
 chrome.commands.onCommand.addListener((command) => {
@@ -58,10 +80,7 @@ chrome.commands.onCommand.addListener((command) => {
     chrome.runtime,
     chrome.tabs,
     chrome.windows,
-    {
-      action: chrome.action,
-      tabs: chrome.tabs,
-    },
+    saveDeps,
   ).catch((error: unknown) => {
     safeLogError(`Command handler (${command})`, error)
   })

@@ -208,7 +208,23 @@ async function toListItems(
       const tags = labels
         .filter((label) => label.kind === "TAG")
         .sort(sortLabels)
-        .map(({ id, name }) => ({ id, name }))
+        .flatMap((tag) => {
+          const parent = labels.find(
+            (label) =>
+              label.kind === "CATEGORY" && label.id === tag.parentCategoryId
+          )
+          return parent && tag.parentCategoryId
+            ? [
+                {
+                  id: tag.id,
+                  name: tag.name,
+                  parentCategoryId: tag.parentCategoryId,
+                  parentCategoryName: parent.name,
+                  revision: tag.revision
+                }
+              ]
+            : []
+        })
 
       return {
         categories,
@@ -218,6 +234,7 @@ async function toListItems(
           registry,
         ),
         id: bookmark.id,
+        revision: bookmark.revision,
         savedAt: bookmark.savedAt,
         siteName: bookmark.siteName,
         tags,

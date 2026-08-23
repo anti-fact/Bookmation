@@ -52,6 +52,14 @@ module.exports = {
         "bm-toast": "var(--bm-z-toast)"
       },
       keyframes: {
+        "bm-accordion-down": {
+          from: { height: "0" },
+          to: { height: "var(--radix-accordion-content-height)" }
+        },
+        "bm-accordion-up": {
+          from: { height: "var(--radix-accordion-content-height)" },
+          to: { height: "0" }
+        },
         "bm-overlay-in": {
           from: { opacity: "0" },
           to: { opacity: "1" }
@@ -65,6 +73,8 @@ module.exports = {
         }
       },
       animation: {
+        "bm-accordion-down": "bm-accordion-down 180ms ease-out",
+        "bm-accordion-up": "bm-accordion-up 180ms ease-out",
         "bm-overlay-in": "bm-overlay-in 160ms ease-out",
         "bm-dialog-in": "bm-dialog-in 180ms ease-out"
       }

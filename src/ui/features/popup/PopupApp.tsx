@@ -211,10 +211,29 @@ export function PopupApp({ port }: { port: PopupPort }) {
         setShortcutsState("error")
       })
 
+    void port
+      .getPendingSaveFeedback()
+      .then((status) => {
+        if (!active || !status) return
+        setSaveState(status)
+        void port.clearSaveFeedback()
+      })
+      .catch(() => {
+        // フィードバック読取失敗時は idle のままにする
+      })
+
     return () => {
       active = false
       mountedRef.current = false
     }
+  }, [port])
+
+  React.useEffect(() => {
+    return port.onSaveFeedbackChanged((status) => {
+      if (!mountedRef.current) return
+      setSaveState(status)
+      void port.clearSaveFeedback()
+    })
   }, [port])
 
   const handleSave = React.useCallback(async () => {
