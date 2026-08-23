@@ -177,6 +177,8 @@ export interface ListRecentBookmarksResult {
   items: PersistedActiveBookmarkRecord[]
   nextCursor: BookmarkCursor | null
 }
+export interface ClaimClassificationJobInput { executorInstanceId: string; leaseMs: number; now?: EpochMs }
+export interface RequeueExpiredJobsInput { now?: EpochMs; limit?: number }
 export interface LabelCandidate { id: Id; name: string; kind: "CATEGORY" | "TAG"; parentCategoryId: Id | null; revision: number; origin: PersistedLabelRecord["origin"]; usageCount: number }
 
 export class LocalDataLayer {
@@ -331,6 +333,80 @@ export class LocalDataLayer {
     await tx.done
 
     return { bookmark, job, duplicate: false }
+  }
+
+  /** BE-06: PENDING または期限切れ RUNNING Job を1件だけ lease 付きで claim する。 */
+  async claimClassificationJob(input: ClaimClassificationJobInput): Promise<PersistedClassificationJobRecord | null> {
+    if (!Number.isInteger(input.leaseMs) || input.leaseMs <= 0) {
+      throw new DomainError(DomainErrorCode.INVALID_EPOCH_MS, "leaseMs must be positive")
+    }
+    const now = input.now ?? Date.now()
+    const tx = this.db.transaction(STORES.classificationJobs, "readwrite")
+    const store = tx.objectStore(STORES.classificationJobs)
+    const jobs = await store.getAll()
+    const candidate = jobs
+      .filter((job) => job.state === "PENDING" || (job.state === "RUNNING" && (job.leaseExpiresAt ?? 0) <= now))
+      .sort((a, b) => a.createdAt - b.createdAt || a.id.localeCompare(b.id))[0]
+    if (!candidate) {
+      await tx.done
+      return null
+    }
+    const claimed: PersistedClassificationJobRecord = {
+      ...candidate,
+      state: "RUNNING",
+      executorInstanceId: input.executorInstanceId,
+      leaseExpiresAt: now + input.leaseMs,
+      attempt: candidate.attempt + 1,
+      startedAt: candidate.startedAt ?? now,
+      errorCode: null,
+      updatedAt: now,
+    }
+    await store.put(stripUndefinedFields(claimed as unknown as Record<string, unknown>) as unknown as PersistedClassificationJobRecord)
+    await tx.done
+    return claimed
+  }
+
+  /** Service Worker / AI Host 終了後の期限切れ lease を、上限付きで再実行可能に戻す。 */
+  async requeueExpiredClassificationJobs(input: RequeueExpiredJobsInput = {}): Promise<number> {
+    const now = input.now ?? Date.now()
+    const limit = input.limit ?? 20
+    const tx = this.db.transaction(STORES.classificationJobs, "readwrite")
+    const store = tx.objectStore(STORES.classificationJobs)
+    const expired = (await store.getAll())
+      .filter((job) => job.state === "RUNNING" && (job.leaseExpiresAt ?? 0) <= now)
+      .sort((a, b) => (a.leaseExpiresAt ?? 0) - (b.leaseExpiresAt ?? 0))
+      .slice(0, limit)
+    for (const job of expired) {
+      await store.put({ ...job, state: "PENDING", executorInstanceId: null, leaseExpiresAt: null, errorCode: "LEASE_EXPIRED", updatedAt: now })
+    }
+    await tx.done
+    return expired.length
+  }
+
+  async retryClassificationJob(jobId: Id, now: EpochMs = Date.now()): Promise<PersistedClassificationJobRecord> {
+    const tx = this.db.transaction(STORES.classificationJobs, "readwrite")
+    const store = tx.objectStore(STORES.classificationJobs)
+    const job = await store.get(jobId)
+    if (!job || (job.state !== "FAILED" && job.state !== "NEEDS_REVIEW")) {
+      throw new DomainError(DomainErrorCode.INVALID_ID)
+    }
+    const retried = { ...job, state: "PENDING" as const, executorInstanceId: null, leaseExpiresAt: null, errorCode: null, finishedAt: null, updatedAt: now }
+    await store.put(retried)
+    await tx.done
+    return retried
+  }
+
+  async cancelClassificationJob(jobId: Id, now: EpochMs = Date.now()): Promise<PersistedClassificationJobRecord> {
+    const tx = this.db.transaction(STORES.classificationJobs, "readwrite")
+    const store = tx.objectStore(STORES.classificationJobs)
+    const job = await store.get(jobId)
+    if (!job || (job.state !== "PENDING" && job.state !== "RUNNING")) {
+      throw new DomainError(DomainErrorCode.INVALID_ID)
+    }
+    const canceled = { ...job, state: "CANCELED" as const, executorInstanceId: null, leaseExpiresAt: null, finishedAt: now, updatedAt: now }
+    await store.put(canceled)
+    await tx.done
+    return canceled
   }
 
   async findActiveBookmarkByUrlHash(
