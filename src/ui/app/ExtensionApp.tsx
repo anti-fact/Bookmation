@@ -12,6 +12,11 @@ import {
   emptyBookmarkListPort,
   type BookmarkListPort
 } from "~/ui/features/bookmarks/bookmark-list-port"
+import { GeneralSettingsSection } from "~/ui/features/settings/GeneralSettingsSection"
+import {
+  emptyGeneralSettingsPort,
+  type GeneralSettingsPort
+} from "~/ui/features/settings/general-settings-port"
 import {
   Button,
   Dialog,
@@ -225,6 +230,7 @@ function RouteHeader({
 type RouteBodyProps = {
   bookmarkListRevision: number
   bookmarkListPort: BookmarkListPort
+  generalSettingsPort: GeneralSettingsPort
   headingRef: React.RefObject<HTMLHeadingElement>
   navigate: NavigateRoute
   onUnavailable: (message: string) => void
@@ -297,6 +303,7 @@ function RouteBody({
   headingRef,
   navigate,
   onUnavailable,
+  generalSettingsPort,
   route,
   runtime
 }: RouteBodyProps) {
@@ -383,12 +390,7 @@ function RouteBody({
         >
           {route.section === "general" && (
             <>
-              <div>
-                <h3 className="font-semibold text-bm-ink">一般設定</h3>
-                <p className="mt-2 text-sm leading-6 text-bm-muted-text">
-                  この設定項目は現在準備中です。
-                </p>
-              </div>
+              <GeneralSettingsSection port={generalSettingsPort} />
               {/* TASK-007: Prompt API スパイク実装 */}
               <div className="border-t border-bm-border pt-6">
                 <PromptApiTester />
@@ -458,9 +460,11 @@ function RouteBody({
 }
 
 export function ExtensionApp({
-  bookmarkListPort = emptyBookmarkListPort
+  bookmarkListPort = emptyBookmarkListPort,
+  generalSettingsPort = emptyGeneralSettingsPort
 }: {
   bookmarkListPort?: BookmarkListPort
+  generalSettingsPort?: GeneralSettingsPort
 }) {
   const routeStore = useHashRouteStore()
   const runtime = useAppRuntime()
@@ -615,6 +619,7 @@ export function ExtensionApp({
         <RouteBody
           bookmarkListPort={bookmarkListPort}
           bookmarkListRevision={bookmarkListRevision}
+          generalSettingsPort={generalSettingsPort}
           headingRef={headingRef}
           navigate={navigate}
           onUnavailable={setNotice}
