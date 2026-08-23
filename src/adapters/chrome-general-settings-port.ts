@@ -6,7 +6,8 @@ import {
   type AiGranularity,
   type GeneralSettingsPort,
   type GeneralSettingsSnapshot,
-  type GeneralSettingsUpdate
+  type GeneralSettingsUpdate,
+  type ReminderSettingsPatch
 } from "~/ui/features/settings/general-settings-port"
 
 export class GeneralSettingsPortError extends Error {
@@ -85,6 +86,18 @@ function decodeMessageResponse(
 
   const response = value as ExtensionMessageResponse
   if (!response.ok) {
+    if (response.error.code === "REMINDER_PERMISSION_DENIED") {
+      throw new GeneralSettingsPortError(
+        response.error.code,
+        "Bookmation の履歴権限を許可してください。Chrome アカウントの同期設定とは別です。"
+      )
+    }
+    if (response.error.code === "REMINDER_CONFIG_INVALID") {
+      throw new GeneralSettingsPortError(
+        response.error.code,
+        "選択した期間に合う訪問日数を入力してください。"
+      )
+    }
     throw new GeneralSettingsPortError(
       response.error.code,
       response.error.code === "INTERNAL_ERROR"
@@ -101,6 +114,7 @@ function sendSettingsMessage(
   action:
     | "get-general-settings-snapshot"
     | "update-general-settings"
+    | "update-reminder-settings"
     | "set-context-menu-bookmark-enabled",
   payload: Record<string, unknown>,
   requestId: string
@@ -141,6 +155,16 @@ export function createChromeGeneralSettingsPort(
     )
   }
 
+  const sendReminderUpdate = (update: ReminderSettingsPatch) => {
+    const requestId = createRequestId()
+    return sendSettingsMessage(
+      chromeApi,
+      "update-reminder-settings",
+      update,
+      requestId
+    )
+  }
+
   const requestPermissions = async (permissions: PermissionName[]) => {
     if (!chromeApi.permissions) return false
     const request = { permissions }
@@ -167,20 +191,26 @@ export function createChromeGeneralSettingsPort(
     },
 
     updateSettings(update) {
+      if (
+        "frequentVisitWindow" in update ||
+        "frequentVisitDayThreshold" in update
+      ) {
+        return sendReminderUpdate(update)
+      }
       return sendUpdate(update)
     },
 
     async setFrequentVisitReminderEnabled(enabled) {
       if (
         enabled &&
-        !(await requestPermissions(["history", "notifications"]))
+        !(await requestPermissions(["notifications"]))
       ) {
         throw new GeneralSettingsPortError(
           "REMINDER_PERMISSION_REQUIRED",
           "履歴と通知へのアクセスが許可されていないため、リマインダーを有効にできません。"
         )
       }
-      return sendUpdate({ frequentVisitReminderEnabled: enabled })
+      return sendReminderUpdate({ frequentVisitReminderEnabled: enabled })
     },
 
     async setAutoArchiveEnabled(enabled) {
@@ -201,6 +231,10 @@ export function createChromeGeneralSettingsPort(
         { enabled },
         requestId
       )
+    },
+
+    updateReminderSettings(patch) {
+      return sendReminderUpdate(patch)
     },
 
     subscribePermissionChanges(listener) {

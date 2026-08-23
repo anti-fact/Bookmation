@@ -1,7 +1,7 @@
 /** IndexedDB store / index 名定数 (DB-SCHEMA.md P0) */
 
 export const DB_NAME = "bookmation" as const
-export const DB_VERSION = 1 as const
+export const DB_VERSION = 2 as const
 
 export const STORES = {
   bookmarks: "bookmarks",
@@ -11,6 +11,7 @@ export const STORES = {
   bookmarkRevisions: "bookmarkRevisions",
   searchDocuments: "searchDocuments",
   tagMutationReceipts: "tagMutationReceipts",
+  visitReminders: "visitReminders",
   blobs: "blobs",
   schemaMeta: "schemaMeta",
 } as const
@@ -61,6 +62,11 @@ export const SEARCH_DOCUMENT_INDEXES = {
 
 export const TAG_MUTATION_RECEIPT_INDEXES = {
   byTagCreatedAt: "byTagCreatedAt",
+} as const
+
+export const VISIT_REMINDER_INDEXES = {
+  byNormalizedUrlHash: "byNormalizedUrlHash",
+  byState: "byState",
 } as const
 
 /** JSON document の size 上限 (bytes, UTF-8 近似) */

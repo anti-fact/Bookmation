@@ -1,13 +1,23 @@
 import { LocalDataLayer } from "~/adapters"
 import { ChromeContextMenuAdapter, createChromeContextMenusApi } from "~/adapters/chrome-context-menu"
 import { ChromeLocalSettingsStore } from "~/adapters/chrome-local-settings-store"
+import { createChromeHistoryPort } from "~/adapters/chrome-history-port"
+import { createChromeReminderPermissionsPort } from "~/adapters/chrome-reminder-permissions"
 import { safeLogError } from "~/adapters/security/log-redaction"
 import { CATEGORY_TEMPLATE_CATALOG } from "~/catalogs/category-templates"
 import type { ExtensionMessageResponse } from "~/extension/messages"
-import { isDomainError } from "~/domain"
-import { assertLocalSettingsValid, type LocalSettings } from "~/domain/local-settings"
+import { isDomainError, DomainErrorCode } from "~/domain"
+import {
+  assertLocalSettingsValid,
+  type LocalSettings,
+} from "~/domain/local-settings"
 
 import { handleClassificationJobMessage } from "./classification-job-application"
+import { handleVisitReminder } from "./handle-visit-reminder"
+import {
+  ReminderSettingsApplicationError,
+  updateReminderSettings,
+} from "./update-reminder-settings"
 import {
   ContextMenuApplicationError,
   updateContextMenuBookmarkEnabled,
@@ -18,12 +28,16 @@ import {
   type CategoryTemplateReceiptStore,
 } from "./category-templates"
 import type { ExtensionMessageApplication } from "./extension-message-application"
+import { evaluateVisitReminders } from "./evaluate-visit-reminders"
+import { toGeneralSettingsSnapshotData } from "./general-settings-snapshot"
+import { getPendingVisitReminder } from "./get-pending-visit-reminder"
 
 function record(value: unknown): Record<string, unknown> | null {
   return value !== null && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : null
 }
+
 function isCursor(value: unknown): value is { savedAt: number; id: string } {
   const cursor = record(value)
   return !!cursor && typeof cursor.savedAt === "number" && typeof cursor.id === "string"
@@ -31,18 +45,6 @@ function isCursor(value: unknown): value is { savedAt: number; id: string } {
 
 function invalid(requestId: string): ExtensionMessageResponse {
   return { requestId, ok: false, error: { code: "INVALID_MESSAGE" } }
-}
-
-function settingsSnapshot(settings: LocalSettings) {
-  return {
-    frequentVisitReminderEnabled: settings.frequentVisitReminderEnabled,
-    frequentVisitWindow: settings.frequentVisitWindow,
-    frequentVisitDayThreshold: settings.frequentVisitDayThreshold,
-    autoArchiveEnabled: settings.autoArchiveEnabled,
-    archiveAfterDays: settings.archiveAfterDays,
-    contextMenuBookmarkEnabled: settings.contextMenuBookmarkEnabled,
-    aiGranularity: settings.aiGranularity,
-  }
 }
 
 /** BE-04/05 actionをChrome境界からApplicationへ集約する。 */
@@ -61,7 +63,71 @@ export function createLibraryApplication(
         return {
           requestId: request.requestId,
           ok: true,
-          data: settingsSnapshot(settings),
+          data: toGeneralSettingsSnapshotData(settings),
+        }
+      }
+
+      if (request.action === "update-reminder-settings") {
+        const reminderPayload = record(request.payload)
+        if (!reminderPayload) {
+          return invalid(request.requestId)
+        }
+        const patch: {
+          frequentVisitReminderEnabled?: boolean
+          frequentVisitWindow?: "LAST_7_DAYS" | "LAST_30_DAYS" | "LAST_365_DAYS" | null
+          frequentVisitDayThreshold?: number | null
+        } = {}
+        if (typeof reminderPayload.frequentVisitReminderEnabled === "boolean") {
+          patch.frequentVisitReminderEnabled = reminderPayload.frequentVisitReminderEnabled
+        }
+        if (
+          reminderPayload.frequentVisitWindow === null ||
+          reminderPayload.frequentVisitWindow === "LAST_7_DAYS" ||
+          reminderPayload.frequentVisitWindow === "LAST_30_DAYS" ||
+          reminderPayload.frequentVisitWindow === "LAST_365_DAYS"
+        ) {
+          if (reminderPayload.frequentVisitWindow !== undefined) {
+            patch.frequentVisitWindow = reminderPayload.frequentVisitWindow
+          }
+        } else if (reminderPayload.frequentVisitWindow !== undefined) {
+          return invalid(request.requestId)
+        }
+        if (reminderPayload.frequentVisitDayThreshold === null) {
+          patch.frequentVisitDayThreshold = null
+        } else if (typeof reminderPayload.frequentVisitDayThreshold === "number") {
+          patch.frequentVisitDayThreshold = reminderPayload.frequentVisitDayThreshold
+        }
+        try {
+          const settings = await updateReminderSettings(
+            new ChromeLocalSettingsStore(),
+            createChromeReminderPermissionsPort(chrome.permissions),
+            patch,
+          )
+          return {
+            requestId: request.requestId,
+            ok: true,
+            data: toGeneralSettingsSnapshotData(settings),
+          }
+        } catch (error: unknown) {
+          if (error instanceof ReminderSettingsApplicationError) {
+            return {
+              requestId: request.requestId,
+              ok: false,
+              error: { code: "REMINDER_PERMISSION_DENIED" },
+            }
+          }
+          if (
+            isDomainError(error) &&
+            (error.code === DomainErrorCode.SETTINGS_FREQUENT_VISIT_DAY_THRESHOLD_INVALID ||
+              error.code === DomainErrorCode.SETTINGS_FREQUENT_VISIT_WINDOW_INVALID)
+          ) {
+            return {
+              requestId: request.requestId,
+              ok: false,
+              error: { code: "REMINDER_CONFIG_INVALID" },
+            }
+          }
+          throw error
         }
       }
 
@@ -69,9 +135,6 @@ export function createLibraryApplication(
         const updatePayload = record(request.payload)
         if (!updatePayload) return invalid(request.requestId)
         const allowedKeys = new Set([
-          "frequentVisitReminderEnabled",
-          "frequentVisitWindow",
-          "frequentVisitDayThreshold",
           "autoArchiveEnabled",
           "archiveAfterDays",
           "aiGranularity",
@@ -89,18 +152,6 @@ export function createLibraryApplication(
             error: { code: "ARCHIVE_HISTORY_PERMISSION_REQUIRED" },
           }
         }
-        if (
-          updatePayload.frequentVisitReminderEnabled === true &&
-          !(await chrome.permissions.contains({
-            permissions: ["history", "notifications"],
-          }))
-        ) {
-          return {
-            requestId: request.requestId,
-            ok: false,
-            error: { code: "REMINDER_PERMISSION_REQUIRED" },
-          }
-        }
         const store = new ChromeLocalSettingsStore()
         const current = await store.get()
         const next = { ...current, ...updatePayload } as LocalSettings
@@ -113,7 +164,55 @@ export function createLibraryApplication(
         return {
           requestId: request.requestId,
           ok: true,
-          data: settingsSnapshot(next),
+          data: toGeneralSettingsSnapshotData(next),
+        }
+      }
+
+      if (request.action === "get-pending-visit-reminder") {
+        try {
+          await evaluateVisitReminders({
+            settingsStore: new ChromeLocalSettingsStore(),
+            history: createChromeHistoryPort(chrome.history),
+          })
+        } catch (error: unknown) {
+          safeLogError("Visit reminder evaluation", error)
+        }
+        const pending = await getPendingVisitReminder()
+        return {
+          requestId: request.requestId,
+          ok: true,
+          data: pending,
+        }
+      }
+
+      if (request.action === "handle-visit-reminder") {
+        const reminderPayload = record(request.payload)
+        if (
+          !reminderPayload ||
+          typeof reminderPayload.reminderId !== "string" ||
+          (reminderPayload.response !== "yes" &&
+            reminderPayload.response !== "no" &&
+            reminderPayload.response !== "dismissed")
+        ) {
+          return invalid(request.requestId)
+        }
+        try {
+          const result = await handleVisitReminder({
+            reminderId: reminderPayload.reminderId,
+            response: reminderPayload.response,
+            suppressFuture: reminderPayload.suppressFuture === true,
+          })
+          return {
+            requestId: request.requestId,
+            ok: true,
+            data: result,
+          }
+        } catch {
+          return {
+            requestId: request.requestId,
+            ok: false,
+            error: { code: "INTERNAL_ERROR" },
+          }
         }
       }
 
@@ -123,18 +222,16 @@ export function createLibraryApplication(
           return invalid(request.requestId)
         }
         try {
-          const result = await updateContextMenuBookmarkEnabled(
+          await updateContextMenuBookmarkEnabled(
             new ChromeLocalSettingsStore(),
             new ChromeContextMenuAdapter(createChromeContextMenusApi(chrome.contextMenus)),
             togglePayload.enabled,
           )
+          const settings = await new ChromeLocalSettingsStore().get()
           return {
             requestId: request.requestId,
             ok: true,
-            data: settingsSnapshot({
-              ...(await new ChromeLocalSettingsStore().get()),
-              contextMenuBookmarkEnabled: result.contextMenuBookmarkEnabled,
-            }),
+            data: toGeneralSettingsSnapshotData(settings),
           }
         } catch (error: unknown) {
           if (error instanceof ContextMenuApplicationError) {

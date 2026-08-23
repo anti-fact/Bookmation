@@ -233,3 +233,26 @@ export interface DeleteCategoryCascadeResult {
   affectedBookmarkCount: number
   jobsCreated: number
 }
+
+export type PersistedVisitReminderState =
+  | "PENDING"
+  | "SAVED"
+  | "DECLINED"
+  | "DISMISSED"
+  | "SUPPRESSED"
+
+export interface PersistedVisitReminderRecord {
+  schemaVersion: number
+  id: Id
+  normalizedUrlHash: string
+  normalizedUrl: string
+  window: "LAST_7_DAYS" | "LAST_30_DAYS" | "LAST_365_DAYS"
+  windowStartedAt: EpochMs
+  visitDaysAtReminder: number
+  countingResetAt: EpochMs | null
+  state: PersistedVisitReminderState
+  remindedAt: EpochMs
+  respondedAt: EpochMs | null
+  createdAt: EpochMs
+  updatedAt: EpochMs
+}

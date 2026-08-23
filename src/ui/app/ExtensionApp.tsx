@@ -60,6 +60,11 @@ import {
   type SearchPort,
   type SearchSuggestion
 } from "~/ui/features/search/search-port"
+import {
+  emptyVisitReminderPort,
+  type VisitReminderPort
+} from "~/ui/features/visit-reminder/visit-reminder-port"
+import { VisitReminderDialog } from "~/ui/features/visit-reminder/VisitReminderDialog"
 import { Button } from "~/ui/primitives"
 import { joinClassNames } from "~/ui/primitives/class-names"
 import { SettingsWorkflowSection } from "~/ui/features/workflows/SettingsWorkflowSection"
@@ -67,10 +72,10 @@ import { VisitReminder } from "~/ui/features/workflows/VisitReminder"
 import {
   emptyBookmarkImportPort,
   emptyShareWorkflowPort,
-  emptyVisitReminderPort,
+  emptyVisitReminderPort as emptyWorkflowVisitReminderPort,
   type BookmarkImportPort,
   type ShareWorkflowPort,
-  type VisitReminderPort
+  type VisitReminderPort as WorkflowVisitReminderPort
 } from "~/ui/features/workflows/workflow-ports"
 
 import { useAppRuntime, useHashRouteStore } from "./AppProviders"
@@ -604,6 +609,7 @@ export function ExtensionApp({
   searchPort = emptySearchPort,
   shareSettingsPort = emptyShareSettingsPort,
   shareWorkflowPort = emptyShareWorkflowPort,
+  visitWorkflowPort = emptyWorkflowVisitReminderPort,
   visitReminderPort = emptyVisitReminderPort
 }: {
   aiAssistantPort?: AiAssistantPort
@@ -617,6 +623,7 @@ export function ExtensionApp({
   searchPort?: SearchPort
   shareSettingsPort?: ShareSettingsPort
   shareWorkflowPort?: ShareWorkflowPort
+  visitWorkflowPort?: WorkflowVisitReminderPort
   visitReminderPort?: VisitReminderPort
 }) {
   const routeStore = useHashRouteStore()
@@ -644,6 +651,22 @@ export function ExtensionApp({
   const [notice, setNotice] = React.useState<string | null>(null)
   const [onboardingState, setOnboardingState] =
     React.useState<Awaited<ReturnType<OnboardingPort["load"]>>>(null)
+  const [visitReminderOpen, setVisitReminderOpen] = React.useState(false)
+  const [pendingVisitReminder, setPendingVisitReminder] =
+    React.useState<Awaited<ReturnType<VisitReminderPort["getPending"]>>>(null)
+
+  React.useEffect(() => {
+    let cancelled = false
+    void visitReminderPort.getPending().then((pending) => {
+      if (!cancelled && pending) {
+        setPendingVisitReminder(pending)
+        setVisitReminderOpen(true)
+      }
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [visitReminderPort])
 
   // ブラウザ標準とアプリ独自のスクロール復元が競合しないようにします。
   React.useEffect(() => runtime.setManualScrollRestoration(), [runtime])
@@ -864,7 +887,19 @@ export function ExtensionApp({
           port={aiAssistantPort}
         />
       ) : null}
-      <VisitReminder port={visitReminderPort} />
+      <VisitReminder port={visitWorkflowPort} />
+      <VisitReminderDialog
+        onClose={() => {
+          setVisitReminderOpen(false)
+          setPendingVisitReminder(null)
+        }}
+        onSaved={() => {
+          setBookmarkListRevision((revision) => revision + 1)
+        }}
+        open={visitReminderOpen}
+        pending={pendingVisitReminder}
+        port={visitReminderPort}
+      />
     </>
   )
 }
