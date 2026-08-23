@@ -52,6 +52,16 @@ import {
 } from "~/ui/features/search/search-port"
 import { Button } from "~/ui/primitives"
 import { joinClassNames } from "~/ui/primitives/class-names"
+import { SettingsWorkflowSection } from "~/ui/features/workflows/SettingsWorkflowSection"
+import { VisitReminder } from "~/ui/features/workflows/VisitReminder"
+import {
+  emptyBookmarkImportPort,
+  emptyShareWorkflowPort,
+  emptyVisitReminderPort,
+  type BookmarkImportPort,
+  type ShareWorkflowPort,
+  type VisitReminderPort
+} from "~/ui/features/workflows/workflow-ports"
 
 import { useAppRuntime, useHashRouteStore } from "./AppProviders"
 import { PromptApiTester } from "./PromptApiTester"
@@ -283,6 +293,7 @@ function RouteHeader({
 }
 
 type RouteBodyProps = {
+  bookmarkImportPort: BookmarkImportPort
   bookmarkListRevision: number
   bookmarkListPort: BookmarkListPort
   generalSettingsPort: GeneralSettingsPort
@@ -300,6 +311,7 @@ type RouteBodyProps = {
   route: HashRoute
   runtime: ReturnType<typeof useAppRuntime>
   searchPort: SearchPort
+  shareWorkflowPort: ShareWorkflowPort
 }
 
 type WelcomeScreenProps = {
@@ -381,6 +393,7 @@ function WelcomeScreen({
 
 // UI-02では画面遷移の骨組みを実装し、後続機能の領域はプレースホルダーにします。
 function RouteBody({
+  bookmarkImportPort,
   bookmarkListRevision,
   bookmarkListPort,
   headingRef,
@@ -393,7 +406,8 @@ function RouteBody({
   generalSettingsPort,
   route,
   runtime,
-  searchPort
+  searchPort,
+  shareWorkflowPort
 }: RouteBodyProps) {
   if (route.kind === "labels") {
     return (
@@ -506,7 +520,13 @@ function RouteBody({
               </div>
             </>
           )}
-          {route.section !== "general" && (
+          {route.section === "share" && (
+            <SettingsWorkflowSection
+              bookmarkImportPort={bookmarkImportPort}
+              shareWorkflowPort={shareWorkflowPort}
+            />
+          )}
+          {route.section === "archive" && (
             <p className="m-0 text-sm leading-6 text-bm-muted-text">
               この設定項目は現在準備中です。
             </p>
@@ -566,20 +586,26 @@ function RouteBody({
 
 export function ExtensionApp({
   aiAssistantPort = emptyAiAssistantPort,
+  bookmarkImportPort = emptyBookmarkImportPort,
   bookmarkFormPort = emptyBookmarkFormPort,
   bookmarkListPort = emptyBookmarkListPort,
   generalSettingsPort = emptyGeneralSettingsPort,
   labelManagementPort = emptyLabelManagementPort,
   onboardingPort = emptyOnboardingPort,
-  searchPort = emptySearchPort
+  searchPort = emptySearchPort,
+  shareWorkflowPort = emptyShareWorkflowPort,
+  visitReminderPort = emptyVisitReminderPort
 }: {
   aiAssistantPort?: AiAssistantPort
+  bookmarkImportPort?: BookmarkImportPort
   bookmarkFormPort?: BookmarkFormPort
   bookmarkListPort?: BookmarkListPort
   generalSettingsPort?: GeneralSettingsPort
   labelManagementPort?: LabelManagementPort
   onboardingPort?: OnboardingPort
   searchPort?: SearchPort
+  shareWorkflowPort?: ShareWorkflowPort
+  visitReminderPort?: VisitReminderPort
 }) {
   const routeStore = useHashRouteStore()
   const runtime = useAppRuntime()
@@ -783,6 +809,7 @@ export function ExtensionApp({
           </p>
         ) : null}
         <RouteBody
+          bookmarkImportPort={bookmarkImportPort}
           bookmarkListPort={bookmarkListPort}
           bookmarkListRevision={bookmarkListRevision}
           generalSettingsPort={generalSettingsPort}
@@ -798,6 +825,7 @@ export function ExtensionApp({
           route={route}
           runtime={runtime}
           searchPort={searchPort}
+          shareWorkflowPort={shareWorkflowPort}
         />
       </AppShell>
       <BookmarkDialog
@@ -822,6 +850,7 @@ export function ExtensionApp({
           port={aiAssistantPort}
         />
       ) : null}
+      <VisitReminder port={visitReminderPort} />
     </>
   )
 }
