@@ -42,13 +42,52 @@ export class SaveBookmarkUseCase {
     title?: string
     creationRequestId: string
   }): Promise<SaveBookmarkResult> {
-    const title = pickTitle(params.title ?? "", params.rawUrl)
+    return this.saveWithSource({
+      rawUrl: params.rawUrl,
+      title: params.title ?? "",
+      source: "MANUAL_URL",
+      creationRequestId: params.creationRequestId,
+    })
+  }
+
+  async saveFromContextPage(params: {
+    rawUrl: string
+    creationRequestId: string
+  }): Promise<SaveBookmarkResult> {
+    return this.saveWithSource({
+      rawUrl: params.rawUrl,
+      title: "",
+      source: "CONTEXT_PAGE",
+      creationRequestId: params.creationRequestId,
+    })
+  }
+
+  async saveFromContextLink(params: {
+    rawUrl: string
+    title?: string
+    creationRequestId: string
+  }): Promise<SaveBookmarkResult> {
+    return this.saveWithSource({
+      rawUrl: params.rawUrl,
+      title: params.title ?? "",
+      source: "CONTEXT_LINK",
+      creationRequestId: params.creationRequestId,
+    })
+  }
+
+  private async saveWithSource(params: {
+    rawUrl: string
+    title: string
+    source: "MANUAL_URL" | "CONTEXT_PAGE" | "CONTEXT_LINK"
+    creationRequestId: string
+  }): Promise<SaveBookmarkResult> {
+    const title = pickTitle(params.title, params.rawUrl)
     const result = await this.data.saveBookmarkWithJob({
       id: crypto.randomUUID(),
       jobId: crypto.randomUUID(),
       rawUrl: params.rawUrl,
       title,
-      source: "MANUAL_URL",
+      source: params.source,
       creationRequestId: params.creationRequestId,
     })
     return toSaveBookmarkResult(result)

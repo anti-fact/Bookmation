@@ -67,4 +67,26 @@ describe("SaveBookmarkUseCase", () => {
 
     expect(result.title).toBe("docs.example.com")
   })
+
+  it("saves context page bookmark with CONTEXT_PAGE source", async () => {
+    const result = await useCase.saveFromContextPage({
+      rawUrl: "https://example.com/context-page",
+      creationRequestId: uuid(),
+    })
+
+    const loaded = await layer.getBookmark(result.bookmarkId)
+    expect(loaded?.source).toBe("CONTEXT_PAGE")
+  })
+
+  it("saves context link bookmark with CONTEXT_LINK source", async () => {
+    const result = await useCase.saveFromContextLink({
+      rawUrl: "https://example.com/context-link",
+      title: "Link title",
+      creationRequestId: uuid(),
+    })
+
+    const loaded = await layer.getBookmark(result.bookmarkId)
+    expect(loaded?.source).toBe("CONTEXT_LINK")
+    expect(result.title).toBe("Link title")
+  })
 })

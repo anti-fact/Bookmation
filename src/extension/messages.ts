@@ -26,6 +26,8 @@ export const EXTENSION_MESSAGE_ACTIONS = {
   RETRY_CLASSIFICATION_JOB: "retry-classification-job",
   CANCEL_CLASSIFICATION_JOB: "cancel-classification-job",
   SEARCH_LIBRARY: "search-library",
+  GET_GENERAL_SETTINGS_SNAPSHOT: "get-general-settings-snapshot",
+  SET_CONTEXT_MENU_BOOKMARK_ENABLED: "set-context-menu-bookmark-enabled",
 } as const
 
 export type ExtensionMessageAction =
@@ -72,6 +74,10 @@ export type RetryClassificationJobPayload = Readonly<{
 
 export type CancelClassificationJobPayload = Readonly<{
   jobId: string
+}>
+
+export type SetContextMenuBookmarkEnabledPayload = Readonly<{
+  enabled: boolean
 }>
 
 export type ListBookmarksPayload = Readonly<{
@@ -122,6 +128,12 @@ export type ExtensionMessageRequest =
   | MessageRequest<"retry-classification-job", "dashboard", RetryClassificationJobPayload>
   | MessageRequest<"cancel-classification-job", "dashboard", CancelClassificationJobPayload>
   | MessageRequest<"search-library", "dashboard" | "ai-host", JsonValue>
+  | MessageRequest<"get-general-settings-snapshot", "dashboard", Record<never, never>>
+  | MessageRequest<
+      "set-context-menu-bookmark-enabled",
+      "dashboard",
+      SetContextMenuBookmarkEnabledPayload
+    >
 
 export type ExtensionMessageErrorCode =
   | "INVALID_MESSAGE"

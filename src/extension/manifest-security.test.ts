@@ -15,7 +15,7 @@ describe("manifest security", () => {
       }
     }
 
-    expect(packageJson.manifest.permissions).toEqual(["storage", "activeTab"])
+    expect(packageJson.manifest.permissions).toEqual(["storage", "activeTab", "contextMenus"])
     expect(packageJson.manifest.host_permissions).toEqual([
       "https://*/*",
       "http://*/*",

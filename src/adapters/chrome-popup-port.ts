@@ -5,6 +5,12 @@ import {
 import { EXTENSION_COMMANDS, type ExtensionCommand } from "~/extension/commands"
 import { openOrFocusDashboardHome } from "~/extension/open-dashboard-tab"
 import {
+  clearPopupSaveFeedback,
+  POPUP_SAVE_FEEDBACK_STORAGE_KEY,
+  readPopupSaveFeedback,
+  type PopupSaveFeedbackRecord,
+} from "~/extension/popup-save-feedback"
+import {
   PopupPortError,
   type PopupPort,
   type PopupSaveResult,
@@ -23,6 +29,24 @@ export type PopupChromeApi = Readonly<{
   runtime: {
     getURL(path: string): string
     sendMessage(message: unknown): Promise<unknown>
+  }
+  storage: {
+    session: Pick<typeof chrome.storage.session, "get" | "set" | "remove"> & {
+      onChanged: {
+        addListener(
+          callback: (
+            changes: Record<string, chrome.storage.StorageChange>,
+            areaName: string,
+          ) => void,
+        ): void
+        removeListener(
+          callback: (
+            changes: Record<string, chrome.storage.StorageChange>,
+            areaName: string,
+          ) => void,
+        ): void
+      }
+    }
   }
   tabs: Pick<typeof chrome.tabs, "create" | "query" | "update">
   windows: Pick<typeof chrome.windows, "update">
@@ -110,6 +134,32 @@ export function createChromePopupPort(
       }
 
       return shortcuts
+    },
+
+    async getPendingSaveFeedback() {
+      return readPopupSaveFeedback(chromeApi.storage.session)
+    },
+
+    async clearSaveFeedback() {
+      await clearPopupSaveFeedback(chromeApi.storage.session)
+    },
+
+    onSaveFeedbackChanged(listener) {
+      const handler = (
+        changes: Record<string, chrome.storage.StorageChange>,
+        areaName: string,
+      ) => {
+        if (areaName !== "session") {
+          return
+        }
+        const change = changes[POPUP_SAVE_FEEDBACK_STORAGE_KEY]
+        const record = change?.newValue as PopupSaveFeedbackRecord | undefined
+        if (record?.status === "saved" || record?.status === "duplicate") {
+          listener(record.status)
+        }
+      }
+      chromeApi.storage.session.onChanged.addListener(handler)
+      return () => chromeApi.storage.session.onChanged.removeListener(handler)
     },
 
     async openHome() {

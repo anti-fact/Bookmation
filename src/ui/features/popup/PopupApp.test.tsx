@@ -14,6 +14,9 @@ function createPort(overrides: Partial<PopupPort> = {}): PopupPort {
       [EXTENSION_COMMANDS.OPEN_BOOKMATION_HOME]: "Ctrl+Shift+H",
       [EXTENSION_COMMANDS.SAVE_CURRENT_PAGE]: "Ctrl+Shift+S"
     }),
+    getPendingSaveFeedback: vi.fn().mockResolvedValue(null),
+    clearSaveFeedback: vi.fn().mockResolvedValue(undefined),
+    onSaveFeedbackChanged: vi.fn(() => () => {}),
     openHome: vi.fn().mockResolvedValue(undefined),
     openShortcutSettings: vi.fn().mockResolvedValue(undefined),
     saveCurrentPage: vi.fn().mockResolvedValue({ status: "saved" }),
@@ -110,6 +113,18 @@ describe("PopupApp", () => {
     expect((await screen.findByRole("alert")).textContent).toContain(
       "このページを保存できませんでした"
     )
+  })
+
+  it("shows pending save feedback from background saves on open", async () => {
+    const port = createPort({
+      getPendingSaveFeedback: vi.fn().mockResolvedValue("duplicate")
+    })
+    render(<PopupApp port={port} />)
+
+    expect(
+      await screen.findByText("このページはすでに保存されています。")
+    ).not.toBeNull()
+    expect(port.clearSaveFeedback).toHaveBeenCalledTimes(1)
   })
 
   it("opens home and Chrome shortcut settings through the Port", async () => {

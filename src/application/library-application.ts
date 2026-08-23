@@ -1,10 +1,16 @@
 import { LocalDataLayer } from "~/adapters"
+import { ChromeContextMenuAdapter, createChromeContextMenusApi } from "~/adapters/chrome-context-menu"
+import { ChromeLocalSettingsStore } from "~/adapters/chrome-local-settings-store"
 import { safeLogError } from "~/adapters/security/log-redaction"
 import { CATEGORY_TEMPLATE_CATALOG } from "~/catalogs/category-templates"
 import type { ExtensionMessageResponse } from "~/extension/messages"
 import { isDomainError } from "~/domain"
 
 import { handleClassificationJobMessage } from "./classification-job-application"
+import {
+  ContextMenuApplicationError,
+  updateContextMenuBookmarkEnabled,
+} from "./update-context-menu-setting"
 import {
   applyCategoryTemplates,
   getCategoryTemplateCatalog,
@@ -37,6 +43,44 @@ export function createLibraryApplication(
       if (request.action === "save-current-tab" || request.action === "save-bookmark-by-url") {
         return save.handle(request)
       }
+
+      if (request.action === "get-general-settings-snapshot") {
+        const settings = await new ChromeLocalSettingsStore().get()
+        return {
+          requestId: request.requestId,
+          ok: true,
+          data: { contextMenuBookmarkEnabled: settings.contextMenuBookmarkEnabled },
+        }
+      }
+
+      if (request.action === "set-context-menu-bookmark-enabled") {
+        const togglePayload = record(request.payload)
+        if (!togglePayload || typeof togglePayload.enabled !== "boolean") {
+          return invalid(request.requestId)
+        }
+        try {
+          const result = await updateContextMenuBookmarkEnabled(
+            new ChromeLocalSettingsStore(),
+            new ChromeContextMenuAdapter(createChromeContextMenusApi(chrome.contextMenus)),
+            togglePayload.enabled,
+          )
+          return {
+            requestId: request.requestId,
+            ok: true,
+            data: { contextMenuBookmarkEnabled: result.contextMenuBookmarkEnabled },
+          }
+        } catch (error: unknown) {
+          if (error instanceof ContextMenuApplicationError) {
+            return {
+              requestId: request.requestId,
+              ok: false,
+              error: { code: "INTERNAL_ERROR" },
+            }
+          }
+          throw error
+        }
+      }
+
     const payload = record(request.payload)
     if (!payload) return invalid(request.requestId)
     const layer = await LocalDataLayer.open()
