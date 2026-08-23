@@ -76,7 +76,13 @@ import {
   buildUpdateTagRequestFingerprint,
   searchDocumentId,
 } from "./search-document-builder"
-import { INTERNAL_PAGE_SIZE, STORES, BOOKMARK_INDEXES, CLASSIFICATION_JOB_INDEXES } from "./stores"
+import {
+  INTERNAL_PAGE_SIZE,
+  STORES,
+  BOOKMARK_INDEXES,
+  CLASSIFICATION_JOB_INDEXES,
+  SEARCH_SCHEMA_VERSION,
+} from "./stores"
 
 const SAVE_TX_STORES = [
   STORES.bookmarks,
@@ -180,6 +186,11 @@ export interface ListRecentBookmarksResult {
 export interface SearchAllByKeywordResult {
   labels: PersistedLabelRecord[]
   bookmarks: PersistedActiveBookmarkRecord[]
+}
+export interface SearchDocumentRebuildResult {
+  processed: number
+  deleted: number
+  complete: boolean
 }
 export interface SuggestAllByKeywordCandidate {
   entityType: "LABEL" | "BOOKMARK"
@@ -1313,9 +1324,17 @@ export class LocalDataLayer {
     return candidates
   }
 
-  /** tombstone Label を物理削除（テスト・GC 用） */
+  /**
+   * tombstone Label を物理削除する。
+   *
+   * tombstone edge も同期・復旧中の参照になり得るため、active / deleted を問わず
+   * 参照が残る Label は削除しない。CATEGORY は子 TAG tombstone も保持する。
+   */
   async physicalGcLabel(labelId: Id): Promise<void> {
-    const tx = this.db.transaction([STORES.labels, STORES.searchDocuments], "readwrite")
+    const tx = this.db.transaction(
+      [STORES.labels, STORES.bookmarkLabels, STORES.searchDocuments],
+      "readwrite",
+    )
     const label = await getLabelOrThrow(tx, labelId)
     if (label.deletedAt === null) {
       throw new DomainError(DomainErrorCode.INVALID_ID, "Label is not tombstoned")
@@ -1326,9 +1345,163 @@ export class LocalDataLayer {
         throw new DomainError(DomainErrorCode.TAG_PARENT_CATEGORY_RECORD_MISSING)
       }
     }
+    const edges = await tx.objectStore(STORES.bookmarkLabels).index("byLabel").getAll(labelId)
+    if (edges.length > 0) {
+      throw new DomainError(DomainErrorCode.INVALID_ID, "Label is still referenced by an edge")
+    }
     await tx.objectStore(STORES.labels).delete(labelId)
     await tx.objectStore(STORES.searchDocuments).delete(searchDocumentId("LABEL", labelId))
     await tx.done
+  }
+
+  /**
+   * SearchDocument を正データから小分けで再構築する。
+   * migrationCursor は `['DOCUMENT' | 'STALE', lastId]` の JSON-safe な配列だけを使い、
+   * Service Worker が途中で終了しても次回呼出しで同じ位置から続行できる。
+   */
+  async rebuildSearchDocuments(input: { limit?: number; now?: EpochMs } = {}): Promise<SearchDocumentRebuildResult> {
+    const limit = input.limit ?? INTERNAL_PAGE_SIZE
+    if (!Number.isInteger(limit) || limit < 1) {
+      throw new DomainError(DomainErrorCode.INVALID_ID, "rebuild limit must be a positive integer")
+    }
+    const now = input.now ?? Date.now()
+    const migrationId = "search-document-rebuild-v1"
+    const tx = this.db.transaction(
+      [STORES.bookmarks, STORES.labels, STORES.searchDocuments, STORES.schemaMeta],
+      "readwrite",
+    )
+    const meta = await tx.objectStore(STORES.schemaMeta).get("database")
+    if (!meta) throw new Error("schemaMeta missing")
+    if (meta.migrationState === "RUNNING" && meta.migrationId !== migrationId) {
+      throw new Error(`another migration is already running: ${meta.migrationId}`)
+    }
+
+    const cursor = meta.migrationId === migrationId ? meta.migrationCursor?.lastKey : null
+    const [phase, lastId] = Array.isArray(cursor) && cursor.length === 2 &&
+      (cursor[0] === "DOCUMENT" || cursor[0] === "STALE") && typeof cursor[1] === "string"
+      ? cursor
+      : ["DOCUMENT", ""]
+    const labels = await tx.objectStore(STORES.labels).getAll()
+    const bookmarks = await tx.objectStore(STORES.bookmarks).getAll()
+    const activeLabels = labels.filter((label) => label.deletedAt === null)
+    const activeBookmarks = bookmarks.filter(isActiveBookmark)
+    const labelsById = new Map(labels.map((label) => [label.id, label]))
+    const expectedDocuments = [
+      ...activeLabels.map((label) => ({
+        id: searchDocumentId("LABEL", label.id),
+        document: buildLabelSearchDocument(
+          label,
+          label.kind === "TAG" && label.parentCategoryId
+            ? labelsById.get(label.parentCategoryId) ?? null
+            : null,
+          now,
+        ),
+      })),
+      ...activeBookmarks.map((bookmark) => ({
+        id: searchDocumentId("BOOKMARK", bookmark.id),
+        document: buildBookmarkSearchDocument(bookmark, now),
+      })),
+    ].sort((a, b) => a.id.localeCompare(b.id))
+    const searchStore = tx.objectStore(STORES.searchDocuments)
+
+    let processed = 0
+    let deleted = 0
+    if (phase === "DOCUMENT") {
+      const batch = expectedDocuments.filter((entry) => entry.id > lastId).slice(0, limit)
+      for (const entry of batch) {
+        await searchStore.put(entry.document)
+      }
+      processed = batch.length
+      const nextId = batch.at(-1)?.id ?? lastId
+      const more = expectedDocuments.some((entry) => entry.id > nextId)
+      if (more) {
+        await tx.objectStore(STORES.schemaMeta).put({
+          ...meta,
+          migrationState: "RUNNING",
+          migrationId,
+          migrationCursor: { store: STORES.searchDocuments, lastKey: ["DOCUMENT", nextId] },
+          updatedAt: now,
+        })
+        await tx.done
+        return { processed, deleted, complete: false }
+      }
+      const existing = (await searchStore.getAll()).sort((a, b) => a.id.localeCompare(b.id))
+      const expectedIds = new Set(expectedDocuments.map((entry) => entry.id))
+      const stale = existing.filter((document) => !expectedIds.has(document.id) && document.id > "")
+      const batchToDelete = stale.slice(0, limit)
+      for (const document of batchToDelete) {
+        await searchStore.delete(document.id)
+      }
+      deleted = batchToDelete.length
+      if (stale.length > batchToDelete.length) {
+        const nextStaleId = batchToDelete.at(-1)?.id ?? ""
+        await tx.objectStore(STORES.schemaMeta).put({
+          ...meta,
+          migrationState: "RUNNING",
+          migrationId,
+          migrationCursor: { store: STORES.searchDocuments, lastKey: ["STALE", nextStaleId] },
+          updatedAt: now,
+        })
+        await tx.done
+        return { processed, deleted, complete: false }
+      }
+    } else {
+      const expectedIds = new Set(expectedDocuments.map((entry) => entry.id))
+      const stale = (await searchStore.getAll())
+        .filter((document) => !expectedIds.has(document.id) && document.id > lastId)
+        .sort((a, b) => a.id.localeCompare(b.id))
+      const batch = stale.slice(0, limit)
+      for (const document of batch) {
+        await searchStore.delete(document.id)
+      }
+      deleted = batch.length
+      if (stale.length > batch.length) {
+        const nextId = batch.at(-1)?.id ?? lastId
+        await tx.objectStore(STORES.schemaMeta).put({
+          ...meta,
+          migrationState: "RUNNING",
+          migrationId,
+          migrationCursor: { store: STORES.searchDocuments, lastKey: ["STALE", nextId] },
+          updatedAt: now,
+        })
+        await tx.done
+        return { processed, deleted, complete: false }
+      }
+    }
+
+    await tx.objectStore(STORES.schemaMeta).put({
+      ...meta,
+      searchSchemaVersion: SEARCH_SCHEMA_VERSION,
+      migrationState: "IDLE",
+      migrationId: null,
+      migrationCursor: null,
+      updatedAt: now,
+    })
+    await tx.done
+    return { processed, deleted, complete: true }
+  }
+
+  /** Bookmark（tombstone を含む）から参照されない Blob だけを物理削除する。 */
+  async collectUnreferencedBlobs(): Promise<number> {
+    const tx = this.db.transaction([STORES.bookmarks, STORES.blobs], "readwrite")
+    const bookmarks = await tx.objectStore(STORES.bookmarks).getAll()
+    const referenced = new Set<string>()
+    for (const bookmark of bookmarks) {
+      if (!("faviconBlobId" in bookmark)) continue
+      if (bookmark.faviconBlobId) referenced.add(bookmark.faviconBlobId)
+      if (bookmark.thumbnailBlobId) referenced.add(bookmark.thumbnailBlobId)
+    }
+    const blobs = await tx.objectStore(STORES.blobs).getAll()
+    let deleted = 0
+    for (const blob of blobs) {
+      const id = typeof blob.id === "string" ? blob.id : null
+      if (id && !referenced.has(id)) {
+        await tx.objectStore(STORES.blobs).delete(id)
+        deleted += 1
+      }
+    }
+    await tx.done
+    return deleted
   }
 
   async getSchemaMeta(): Promise<PersistedSchemaMetaRecord> {
