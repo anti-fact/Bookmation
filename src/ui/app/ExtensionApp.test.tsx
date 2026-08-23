@@ -416,7 +416,9 @@ describe("ExtensionApp", () => {
         onboardingPort: {
           complete,
           load: vi.fn(async () => null),
+          loadWithMeta: vi.fn(async () => null),
           saveSelection: vi.fn(),
+          skip: vi.fn(),
           start: vi.fn()
         }
       }
@@ -452,7 +454,19 @@ describe("ExtensionApp", () => {
             status: "IN_PROGRESS" as const,
             updatedAt: 1
           })),
+          loadWithMeta: vi.fn(async () => ({
+            catalogMismatch: false,
+            state: {
+              categorySelection: { "study.lecture": ["授業ページ"] },
+              currentStepId: "categories",
+              initializedBy: "INSTALL" as const,
+              schemaVersion: 1 as const,
+              status: "IN_PROGRESS" as const,
+              updatedAt: 1
+            }
+          })),
           saveSelection: vi.fn(),
+          skip: vi.fn(),
           start: vi.fn()
         }
       }
