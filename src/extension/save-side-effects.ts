@@ -9,7 +9,7 @@ export function scheduleBookmarkMetadataFetch(
   input: {
     rawUrl: string
     faviconUrl?: string | null
-    source: "CURRENT_TAB" | "MANUAL_URL"
+    source: "CURRENT_TAB" | "MANUAL_URL" | "CONTEXT_PAGE" | "CONTEXT_LINK"
   },
 ): void {
   if (result.duplicate) {
@@ -18,7 +18,11 @@ export function scheduleBookmarkMetadataFetch(
 
   const task = async (): Promise<void> => {
     try {
-      if (input.source === "MANUAL_URL") {
+      if (
+        input.source === "MANUAL_URL" ||
+        input.source === "CONTEXT_PAGE" ||
+        input.source === "CONTEXT_LINK"
+      ) {
         await applyUrlMetadataFetch(data, {
           bookmarkId: result.bookmarkId,
           expectedRevision: result.revision,
