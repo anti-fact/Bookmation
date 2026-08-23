@@ -28,6 +28,9 @@ out/
 build/
 dist/
 
+# Local development reference implementation
+/Bookmation-dev/
+
 # plasmo - https://docs.plasmo.com
 .plasmo
 
