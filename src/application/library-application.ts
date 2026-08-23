@@ -233,6 +233,33 @@ export function createLibraryApplication(
         const totalCount = "totalCount" in result && typeof result.totalCount === "number" ? result.totalCount : result.items.length
         return { requestId: request.requestId, ok: true, data: { items: result.items.map((item) => ({ id: item.id, title: item.title, normalizedUrl: item.normalizedUrl, savedAt: item.savedAt, revision: item.revision })), nextCursor: result.nextCursor ? { savedAt: result.nextCursor.savedAt, id: result.nextCursor.id } : null, totalCount } }
       }
+      if (request.action === "search-library" && typeof payload.keyword === "string") {
+        if (payload.mode === "SUGGEST") {
+          const items = await layer.suggestAllByKeyword(payload.keyword, 8)
+          return {
+            requestId: request.requestId,
+            ok: true,
+            data: {
+              source: "LEXICAL_FALLBACK",
+              items: items.map((item) => ({
+                entityType: item.entityType,
+                entityId: item.entityId,
+                entityRevision: item.entityRevision,
+                labelKind: item.labelKind,
+                parentCategoryId: item.parentCategoryId,
+                displayText: item.displayText,
+                matchedFields: item.matchedFields,
+              })),
+            },
+          }
+        }
+        const result = await layer.searchAllByKeyword(payload.keyword, 8)
+        return { requestId: request.requestId, ok: true, data: {
+          source: "LEXICAL_FALLBACK",
+          labels: result.labels.map((label) => ({ id: label.id, name: label.name, kind: label.kind, parentCategoryId: label.parentCategoryId, revision: label.revision })),
+          bookmarks: result.bookmarks.map((bookmark) => ({ id: bookmark.id, title: bookmark.title, normalizedUrl: bookmark.normalizedUrl, revision: bookmark.revision })),
+        } }
+      }
 
       const classificationResponse = await handleClassificationJobMessage(layer, request)
       if (classificationResponse) {

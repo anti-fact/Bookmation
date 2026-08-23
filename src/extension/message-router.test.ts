@@ -41,6 +41,22 @@ describe("extension message protocol", () => {
     expect(parseExtensionMessage(claimRequest)).toEqual(claimRequest)
   })
 
+  it("accepts dashboard and AI-host library search requests", () => {
+    const request = {
+      schemaVersion: EXTENSION_MESSAGE_SCHEMA_VERSION,
+      requestId: "search-1",
+      source: "dashboard",
+      action: "search-library",
+      payload: { keyword: "react", mode: "SUGGEST" },
+    } as const
+    expect(parseExtensionMessage(request)).toEqual(request)
+    expect(parseExtensionMessage({ ...request, source: "ai-host" })).toEqual({
+      ...request,
+      source: "ai-host",
+    })
+    expect(parseExtensionMessage({ ...request, source: "popup" })).toBeNull()
+  })
+
   it("accepts dashboard classification job management requests", () => {
     const getRequest = {
       schemaVersion: EXTENSION_MESSAGE_SCHEMA_VERSION,

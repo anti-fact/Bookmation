@@ -76,6 +76,11 @@ export type CancelClassificationJobPayload = Readonly<{
   jobId: string
 }>
 
+export type SearchLibraryPayload = Readonly<{
+  keyword: string
+  mode?: "SEARCH" | "SUGGEST"
+}>
+
 export type SetContextMenuBookmarkEnabledPayload = Readonly<{
   enabled: boolean
 }>
@@ -127,7 +132,7 @@ export type ExtensionMessageRequest =
   | MessageRequest<"get-classification-job", "dashboard", GetClassificationJobPayload>
   | MessageRequest<"retry-classification-job", "dashboard", RetryClassificationJobPayload>
   | MessageRequest<"cancel-classification-job", "dashboard", CancelClassificationJobPayload>
-  | MessageRequest<"search-library", "dashboard" | "ai-host", JsonValue>
+  | MessageRequest<"search-library", "dashboard" | "ai-host", SearchLibraryPayload>
   | MessageRequest<"get-general-settings-snapshot", "dashboard", Record<never, never>>
   | MessageRequest<
       "set-context-menu-bookmark-enabled",

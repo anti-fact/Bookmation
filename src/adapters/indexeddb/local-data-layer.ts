@@ -177,8 +177,19 @@ export interface ListRecentBookmarksResult {
   items: PersistedActiveBookmarkRecord[]
   nextCursor: BookmarkCursor | null
 }
-export interface ClaimClassificationJobInput { executorInstanceId: string; leaseMs: number; now?: EpochMs }
-export interface RequeueExpiredJobsInput { now?: EpochMs; limit?: number }
+export interface SearchAllByKeywordResult {
+  labels: PersistedLabelRecord[]
+  bookmarks: PersistedActiveBookmarkRecord[]
+}
+export interface SuggestAllByKeywordCandidate {
+  entityType: "LABEL" | "BOOKMARK"
+  entityId: Id
+  entityRevision: number
+  labelKind: "CATEGORY" | "TAG" | null
+  parentCategoryId: Id | null
+  displayText: string
+  matchedFields: string[]
+}
 export interface LabelCandidate { id: Id; name: string; kind: "CATEGORY" | "TAG"; parentCategoryId: Id | null; revision: number; origin: PersistedLabelRecord["origin"]; usageCount: number }
 
 export class LocalDataLayer {
@@ -333,80 +344,6 @@ export class LocalDataLayer {
     await tx.done
 
     return { bookmark, job, duplicate: false }
-  }
-
-  /** BE-06: PENDING または期限切れ RUNNING Job を1件だけ lease 付きで claim する。 */
-  async claimClassificationJob(input: ClaimClassificationJobInput): Promise<PersistedClassificationJobRecord | null> {
-    if (!Number.isInteger(input.leaseMs) || input.leaseMs <= 0) {
-      throw new DomainError(DomainErrorCode.INVALID_EPOCH_MS, "leaseMs must be positive")
-    }
-    const now = input.now ?? Date.now()
-    const tx = this.db.transaction(STORES.classificationJobs, "readwrite")
-    const store = tx.objectStore(STORES.classificationJobs)
-    const jobs = await store.getAll()
-    const candidate = jobs
-      .filter((job) => job.state === "PENDING" || (job.state === "RUNNING" && (job.leaseExpiresAt ?? 0) <= now))
-      .sort((a, b) => a.createdAt - b.createdAt || a.id.localeCompare(b.id))[0]
-    if (!candidate) {
-      await tx.done
-      return null
-    }
-    const claimed: PersistedClassificationJobRecord = {
-      ...candidate,
-      state: "RUNNING",
-      executorInstanceId: input.executorInstanceId,
-      leaseExpiresAt: now + input.leaseMs,
-      attempt: candidate.attempt + 1,
-      startedAt: candidate.startedAt ?? now,
-      errorCode: null,
-      updatedAt: now,
-    }
-    await store.put(stripUndefinedFields(claimed as unknown as Record<string, unknown>) as unknown as PersistedClassificationJobRecord)
-    await tx.done
-    return claimed
-  }
-
-  /** Service Worker / AI Host 終了後の期限切れ lease を、上限付きで再実行可能に戻す。 */
-  async requeueExpiredClassificationJobs(input: RequeueExpiredJobsInput = {}): Promise<number> {
-    const now = input.now ?? Date.now()
-    const limit = input.limit ?? 20
-    const tx = this.db.transaction(STORES.classificationJobs, "readwrite")
-    const store = tx.objectStore(STORES.classificationJobs)
-    const expired = (await store.getAll())
-      .filter((job) => job.state === "RUNNING" && (job.leaseExpiresAt ?? 0) <= now)
-      .sort((a, b) => (a.leaseExpiresAt ?? 0) - (b.leaseExpiresAt ?? 0))
-      .slice(0, limit)
-    for (const job of expired) {
-      await store.put({ ...job, state: "PENDING", executorInstanceId: null, leaseExpiresAt: null, errorCode: "LEASE_EXPIRED", updatedAt: now })
-    }
-    await tx.done
-    return expired.length
-  }
-
-  async retryClassificationJob(jobId: Id, now: EpochMs = Date.now()): Promise<PersistedClassificationJobRecord> {
-    const tx = this.db.transaction(STORES.classificationJobs, "readwrite")
-    const store = tx.objectStore(STORES.classificationJobs)
-    const job = await store.get(jobId)
-    if (!job || (job.state !== "FAILED" && job.state !== "NEEDS_REVIEW")) {
-      throw new DomainError(DomainErrorCode.INVALID_ID)
-    }
-    const retried = { ...job, state: "PENDING" as const, executorInstanceId: null, leaseExpiresAt: null, errorCode: null, finishedAt: null, updatedAt: now }
-    await store.put(retried)
-    await tx.done
-    return retried
-  }
-
-  async cancelClassificationJob(jobId: Id, now: EpochMs = Date.now()): Promise<PersistedClassificationJobRecord> {
-    const tx = this.db.transaction(STORES.classificationJobs, "readwrite")
-    const store = tx.objectStore(STORES.classificationJobs)
-    const job = await store.get(jobId)
-    if (!job || (job.state !== "PENDING" && job.state !== "RUNNING")) {
-      throw new DomainError(DomainErrorCode.INVALID_ID)
-    }
-    const canceled = { ...job, state: "CANCELED" as const, executorInstanceId: null, leaseExpiresAt: null, finishedAt: now, updatedAt: now }
-    await store.put(canceled)
-    await tx.done
-    return canceled
   }
 
   async findActiveBookmarkByUrlHash(
@@ -1291,6 +1228,89 @@ export class LocalDataLayer {
     const matches = labels.filter((label) => label.deletedAt === null && (!kind || label.kind === kind) && label.normalizedName.includes(needle))
     const candidates = await Promise.all(matches.map(async (label) => ({ id: label.id, name: label.name, kind: label.kind, parentCategoryId: label.parentCategoryId, revision: label.revision, origin: label.origin, usageCount: (await this.db.getAllFromIndex(STORES.bookmarkLabels, "byLabel", label.id)).filter((edge) => edge.deletedAt === null).length })))
     return candidates.sort((a, b) => b.usageCount - a.usageCount || a.name.localeCompare(b.name)).slice(0, limit)
+  }
+
+  /** BE-09: Label を先に返す、順位契約を持たない字句検索。 */
+  async searchAllByKeyword(keyword: string, limit = 8): Promise<SearchAllByKeywordResult> {
+    const query = keyword.trim().toLowerCase()
+    if (!query || limit < 1) return { labels: [], bookmarks: [] }
+    const documents = await this.db.getAll(STORES.searchDocuments)
+    const matches = documents
+      .filter((document) => document.normalizedText.toLowerCase().includes(query))
+      .sort((a, b) => a.entityType.localeCompare(b.entityType) || a.entityId.localeCompare(b.entityId))
+    const labelDocuments = matches.filter((document) => document.entityType === "LABEL")
+    const bookmarkDocuments = matches.filter((document) => document.entityType === "BOOKMARK")
+    const labels: PersistedLabelRecord[] = []
+    const bookmarks: PersistedActiveBookmarkRecord[] = []
+
+    const cappedLimit = Math.min(limit, 8)
+    for (const document of labelDocuments) {
+      if (labels.length >= cappedLimit) break
+      const label = await this.db.get(STORES.labels, document.entityId)
+      if (label?.deletedAt === null) labels.push(label)
+    }
+    for (const document of bookmarkDocuments) {
+      if (labels.length + bookmarks.length >= cappedLimit) break
+      const bookmark = await this.db.get(STORES.bookmarks, document.entityId)
+      if (bookmark && isActiveBookmark(bookmark)) bookmarks.push(bookmark)
+    }
+    return { labels, bookmarks }
+  }
+
+  /** BE-09: フルページ検索と共有する、最大8件の決定的 autocomplete 候補。 */
+  async suggestAllByKeyword(
+    keyword: string,
+    limit = 8,
+  ): Promise<SuggestAllByKeywordCandidate[]> {
+    const query = keyword.trim().toLowerCase()
+    if (!query || limit < 1) return []
+
+    const documents = await this.db.getAll(STORES.searchDocuments)
+    const scored = documents
+      .map((document) => {
+        const exact = document.searchKeys.includes(`token:${query}`)
+        const prefix = document.searchKeys.some((key) => key.startsWith(`token:${query}`))
+        const contains = document.normalizedText.toLowerCase().includes(query)
+        return { document, score: exact ? 3 : prefix ? 2 : contains ? 1 : 0 }
+      })
+      .filter(({ score }) => score > 0)
+      .sort(
+        (a, b) =>
+          b.score - a.score ||
+          a.document.entityType.localeCompare(b.document.entityType) ||
+          a.document.entityId.localeCompare(b.document.entityId),
+      )
+
+    const candidates: SuggestAllByKeywordCandidate[] = []
+    for (const { document } of scored) {
+      if (candidates.length >= Math.min(limit, 8)) break
+      if (document.entityType === "LABEL") {
+        const label = await this.db.get(STORES.labels, document.entityId)
+        if (!label || label.deletedAt !== null) continue
+        candidates.push({
+          entityType: "LABEL",
+          entityId: label.id,
+          entityRevision: label.revision,
+          labelKind: label.kind,
+          parentCategoryId: label.parentCategoryId,
+          displayText: label.name,
+          matchedFields: ["name"],
+        })
+        continue
+      }
+      const bookmark = await this.db.get(STORES.bookmarks, document.entityId)
+      if (!bookmark || !isActiveBookmark(bookmark)) continue
+      candidates.push({
+        entityType: "BOOKMARK",
+        entityId: bookmark.id,
+        entityRevision: bookmark.revision,
+        labelKind: null,
+        parentCategoryId: null,
+        displayText: bookmark.title,
+        matchedFields: ["title-or-url"],
+      })
+    }
+    return candidates
   }
 
   /** tombstone Label を物理削除（テスト・GC 用） */
