@@ -1045,6 +1045,28 @@ UI-04の全Bookmark編集buttonとApp Headerの追加buttonを、追加／編集
 - repository管理されたPlaywright拡張E2E、build済みChrome拡張でのmessage／IndexedDB永続化確認、人間による実Chrome受入は未実施である。
 - keyword検索候補／結果はUI-07、AI応答はUI-08で実装する。
 
+## 2026-08-23 — UI-06 Labels VIEW／MANAGE
+
+### 変更
+
+- `LabelsPage`と`LabelManagementPort`を追加し、Category ribbonと子Tag chipを同じDOM順で表示した。
+- VIEWではBookmark絞込みへ遷移し、MANAGEではhover／focus鉛筆からTag編集またはCategory影響previewを開くようにした。
+- headerのNew menuをCategory／Tagの連続作成へ接続し、Tagの名前／親Category変更、即時soft-delete、Category cascade削除を既存Applicationへ接続した。
+- 空keywordのlabel queryをactive全件取得として扱い、Web fixtureでもproduction componentを表示した。
+
+### 検証
+
+- `pnpm typecheck`: 成功。
+- `pnpm test`: 58 files／340 tests成功。
+- UI-06変更対象ESLint、`git diff --check`: 成功。
+- `pnpm ui:build`、`pnpm build`: 成功。
+
+### 残課題
+
+- keyword combobox／全画面検索はUI-07、AI assistantはUI-08で接続する。
+- labelsのcursor追加読込／back-to-topはデータ量計測後のfollow-upとし、現時点はactive Label全件を1回で取得する。
+- build済み拡張のPlaywright E2Eと人間による実Chrome受入は未実施である。
+
 ## 追記テンプレート
 
 ```markdown

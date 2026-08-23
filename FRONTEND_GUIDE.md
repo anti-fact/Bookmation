@@ -547,6 +547,8 @@ Tag編集では名前と親Categoryを変更できる。親Category入力は現�
 
 Category編集では、使用中のactive Tagの実名と件数、関連active Bookmarkのunique件数を表示する。Category削除だけは`AlertDialog`で、削除対象Category、子Tag、影響Bookmarkと、AIが有効なら再分類が発生することを警告する。disabled／再設定待ちは再分類Jobを作らない。previewがstaleなら内容を更新して再確認を求める。削除後のUndoは実装しない。
 
+UI-06では`LabelsPage`と`LabelManagementPort`を追加し、親CategoryごとのTag表示、VIEWのBookmark絞込み遷移、MANAGEの編集導線、連続作成、Tagの親変更／即時削除、Category影響preview／cascade削除をproduction message境界へ接続した。検索comboboxとAI入口の本体は責務どおりUI-07／UI-08へ残す。
+
 ### Phase 7: keyword検索を作る
 
 Bookmark一覧とカテゴリ・タグ一覧の検索入口は同じ`SearchBox`を使う。

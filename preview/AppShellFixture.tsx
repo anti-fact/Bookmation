@@ -4,6 +4,7 @@ import { AppProviders, createBrowserAppRuntime } from "~/ui/app/AppProviders"
 import { AppErrorBoundary } from "~/ui/app/ErrorBoundary"
 import { ExtensionApp } from "~/ui/app/ExtensionApp"
 import { createBrowserHashRouteStore } from "~/ui/app/hash-route"
+import type { LabelManagementPort } from "~/ui/features/labels/label-management-port"
 
 const fixtureRoutes = [
   ["ホーム", "#/home"],
@@ -26,11 +27,74 @@ export function AppShellFixture() {
     () => createBrowserAppRuntime(window, "web-preview"),
     []
   )
+  const labelManagementPort = React.useMemo<LabelManagementPort>(() => {
+    const categories = [
+      {
+        id: "category-development",
+        name: "開発",
+        origin: "USER",
+        revision: 1,
+        tags: [
+          {
+            id: "tag-typescript",
+            name: "TypeScript",
+            origin: "USER",
+            parentCategoryId: "category-development",
+            parentCategoryName: "開発",
+            revision: 1,
+            usageCount: 4
+          }
+        ]
+      },
+      {
+        id: "category-reading",
+        name: "あとで読む",
+        origin: "USER",
+        revision: 1,
+        tags: []
+      }
+    ]
+    return {
+      createCategory: async ({ name }) => ({
+        id: crypto.randomUUID(),
+        name,
+        revision: 1
+      }),
+      createTag: async ({ category, name }) => ({
+        id: crypto.randomUUID(),
+        name,
+        origin: "USER",
+        parentCategoryId: category.id,
+        parentCategoryName: category.name,
+        revision: 1,
+        usageCount: 0
+      }),
+      deleteCategory: async () => undefined,
+      deleteTag: async () => undefined,
+      getCategoryDetail: async (id) => {
+        const category =
+          categories.find((item) => item.id === id) ?? categories[0]
+        return {
+          activeTagCount: category.tags.length,
+          activeTags: category.tags,
+          category,
+          impactFingerprint: `fixture:${id}`,
+          referencedActiveBookmarkCount: category.tags.reduce(
+            (sum, tag) => sum + tag.usageCount,
+            0
+          )
+        }
+      },
+      list: async () => categories,
+      searchCategories: async () => categories,
+      updateTag: async () => undefined
+    }
+  }, [])
 
   return (
     <AppProviders routeStore={routeStore} runtime={runtime}>
       <AppErrorBoundary>
-        <ExtensionApp />
+        <ExtensionApp labelManagementPort={labelManagementPort} />
       </AppErrorBoundary>
 
       <aside className="fixed bottom-3 right-3 z-bm-toast max-w-[calc(100vw-1.5rem)] rounded-bm-dialog border-2 border-bm-border bg-bm-paper p-3 text-xs shadow-bm-floating">

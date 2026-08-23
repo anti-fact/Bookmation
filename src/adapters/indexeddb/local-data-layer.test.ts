@@ -266,6 +266,7 @@ describe("LocalDataLayer", () => {
       const exactCandidates = await layer.listLabelCandidates("Reading", "TAG")
       expect(exactCandidates.map((item) => item.id)).toEqual([tag.id, partialTag.id])
       expect(exactCandidates[0]?.parentCategoryName).toBe(category.name)
+      expect((await layer.listLabelCandidates("", undefined, 1000)).map((item) => item.id).sort()).toEqual([category.id, partialTag.id, tag.id].sort())
       const result = await layer.listBookmarksByLabel(tag.id, null)
       expect(result.totalCount).toBe(1)
       expect(result.items[0]?.id).toBe(bookmarkId)

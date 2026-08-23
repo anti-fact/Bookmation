@@ -1269,14 +1269,16 @@ export class LocalDataLayer {
   }
 
   async listLabelCandidates(keyword: string, kind?: "CATEGORY" | "TAG", limit = 8): Promise<LabelCandidate[]> {
-    let needle: string
-    try {
-      needle = normalizeLabelName(keyword).normalized
-    } catch {
-      return []
+    let needle = ""
+    if (keyword.trim()) {
+      try {
+        needle = normalizeLabelName(keyword).normalized
+      } catch {
+        return []
+      }
     }
     const labels = await this.db.getAll(STORES.labels)
-    const matches = labels.filter((label) => label.deletedAt === null && (!kind || label.kind === kind) && label.normalizedName.includes(needle))
+    const matches = labels.filter((label) => label.deletedAt === null && (!kind || label.kind === kind) && (!needle || label.normalizedName.includes(needle)))
     const candidates = await Promise.all(matches.map(async (label) => {
       const parent = label.parentCategoryId
         ? await this.db.get(STORES.labels, label.parentCategoryId)
