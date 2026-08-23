@@ -312,6 +312,28 @@ export function createLibraryApplication(
       }
 
       if (
+        request.action === "update-category" &&
+        typeof payload.categoryId === "string" &&
+        typeof payload.expectedRevision === "number" &&
+        typeof payload.name === "string"
+      ) {
+        const category = await layer.updateCategory({
+          categoryId: payload.categoryId,
+          expectedRevision: payload.expectedRevision,
+          name: payload.name,
+        })
+        return {
+          requestId: request.requestId,
+          ok: true,
+          data: {
+            categoryId: category.id,
+            name: category.name,
+            revision: category.revision,
+          },
+        }
+      }
+
+      if (
         request.action === "create-tag" &&
         typeof payload.name === "string" &&
         typeof payload.parentCategoryId === "string" &&

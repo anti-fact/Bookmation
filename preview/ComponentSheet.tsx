@@ -94,7 +94,9 @@ export function ComponentSheet() {
           <div className="flex flex-wrap items-center gap-4">
             <Button>保存する</Button>
             <Button variant="solid">作成する</Button>
-            <Button tone="danger">削除する</Button>
+            <Button tone="danger" variant="solid">
+              削除する
+            </Button>
             <Button disabled>無効</Button>
             <Button loading>保存中</Button>
             <Button asChild size="compact" variant="quiet">

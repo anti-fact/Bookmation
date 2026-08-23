@@ -294,7 +294,7 @@ export function BookmarkTagField({
               {tags.map((tag) => (
                 <button
                   aria-label={`タグ「${tag.name}」を解除`}
-                  className="group relative inline-flex min-h-8 min-w-20 items-center justify-center rounded-bm-chip border border-bm-border bg-bm-ink px-3 py-1 text-xs text-bm-paper outline-none transition-colors hover:bg-bm-ink hover:text-bm-paper focus-visible:ring-2 focus-visible:ring-bm-focus focus-visible:ring-offset-2"
+                  className="group relative inline-flex min-h-8 min-w-20 items-center justify-center rounded-bm-chip border border-bm-border bg-bm-paper px-3 py-1 text-xs text-bm-ink outline-none transition-colors hover:bg-bm-ink hover:text-bm-paper focus-visible:ring-2 focus-visible:ring-bm-focus focus-visible:ring-offset-2"
                   key={tag.id}
                   onClick={() =>
                     onTagsChange(

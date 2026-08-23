@@ -53,6 +53,35 @@ describe("SearchBox", () => {
     ).toEqual(["候補labelタグ", "候補bookmarkブックマーク"])
   })
 
+  it("keeps suggestions closed after selection updates the route query", async () => {
+    const user = userEvent.setup()
+    const port: SearchPort = {
+      search: vi.fn(),
+      suggest: vi.fn(async () => [suggestion("selected")])
+    }
+
+    function RoutedSearchBox() {
+      const [routeQuery, setRouteQuery] = React.useState("")
+      return (
+        <SearchBox
+          initialQuery={routeQuery}
+          onSelect={(item) => setRouteQuery(item.displayText)}
+          onSubmit={setRouteQuery}
+          port={port}
+        />
+      )
+    }
+
+    render(<RoutedSearchBox />)
+    await user.type(screen.getByRole("combobox"), "候補")
+    await user.click(await screen.findByRole("option"))
+
+    expect(screen.queryByRole("listbox")).toBeNull()
+    await new Promise((resolve) => window.setTimeout(resolve, 250))
+    expect(screen.queryByRole("listbox")).toBeNull()
+    expect(port.suggest).toHaveBeenCalledTimes(1)
+  })
+
   it("does not query during IME composition and submits after composition", async () => {
     const onSubmit = vi.fn()
     const port: SearchPort = { search: vi.fn(), suggest: vi.fn(async () => []) }

@@ -36,6 +36,13 @@ describe("Switch", () => {
       name: "右クリックメニューから保存"
     })
     expect(control.getAttribute("aria-checked")).toBe("false")
+    expect(control.className).toContain("h-6")
+    expect(control.className).toContain("w-11")
+    expect(control.firstElementChild?.className).toContain("size-5")
+    expect(control.parentElement?.className).toContain("gap-3")
+    expect(control.previousElementSibling?.textContent).toBe(
+      "右クリックメニューから保存"
+    )
 
     await user.click(screen.getByText("右クリックメニューから保存"))
 

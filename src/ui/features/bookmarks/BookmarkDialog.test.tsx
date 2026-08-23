@@ -312,9 +312,12 @@ describe("BookmarkDialog", () => {
       name: "ブックマークを編集"
     })
     const secondDialog = dialogs.at(-1)!
-    await user.click(
-      within(secondDialog).getByRole("button", { name: "削除する" })
-    )
+    const deleteButton = within(secondDialog).getByRole("button", {
+      name: "削除する"
+    })
+    expect(deleteButton.className).toContain("bg-bm-danger")
+    expect(deleteButton.className).toContain("text-bm-paper")
+    await user.click(deleteButton)
     await waitFor(() =>
       expect(secondPort.deleteBookmark).toHaveBeenCalledOnce()
     )

@@ -47,9 +47,12 @@ describe("AiAgentPopup", () => {
         port={port}
       />
     )
-    await user.click(
-      screen.getByRole("button", { name: "AIアシスタントを開く" })
-    )
+    const trigger = screen.getByRole("button", {
+      name: "AIアシスタントを開く"
+    })
+    expect(trigger.textContent).toBe("")
+    expect(trigger.className).toContain("size-[3.125rem]")
+    await user.click(trigger)
     const dialog = screen.getByRole("dialog", { name: "AIアシスタント" })
     await user.type(
       within(dialog).getByRole("textbox", { name: "質問または検索内容" }),

@@ -7,6 +7,22 @@ import { describe, expect, it } from "vitest"
 import { IconButton } from "./icon-button"
 
 describe("IconButton", () => {
+  it("renders a solid icon button with a white resting state", () => {
+    render(
+      <IconButton label="追加する" tooltip={false} variant="solid">
+        <GearIcon />
+      </IconButton>
+    )
+
+    const classNames = screen
+      .getByRole("button", { name: "追加する" })
+      .className.split(" ")
+    expect(classNames).toContain("bg-bm-paper")
+    expect(classNames).toContain("text-bm-ink")
+    expect(classNames).not.toContain("bg-bm-ink")
+    expect(classNames).not.toContain("text-bm-paper")
+  })
+
   it("requires a visible Japanese accessible name while hiding the glyph", () => {
     // アイコンそのものではなく label が支援技術からのボタン名になります。
     render(

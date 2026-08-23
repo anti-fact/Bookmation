@@ -119,6 +119,11 @@ export interface LocalDataLayerPort {
   getBookmark(id: string): Promise<PersistedActiveBookmarkRecord | undefined>
   findActiveBookmarkByNormalizedUrl(normalizedUrl: string): Promise<PersistedActiveBookmarkRecord | undefined>
   createCategory(input: CreateCategoryInput): Promise<PersistedLabelRecord>
+  updateCategory(input: {
+    categoryId: string
+    expectedRevision: number
+    name: string
+  }): Promise<PersistedLabelRecord>
   createTag(input: CreateTagInput): Promise<PersistedLabelRecord>
   assignTagEdge(input: AssignTagEdgeInput): Promise<unknown>
   updateBookmark(input: UpdateBookmarkInput): Promise<PersistedActiveBookmarkRecord>

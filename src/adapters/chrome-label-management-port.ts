@@ -120,6 +120,20 @@ export function createChromeLabelManagementPort(
       if (!result) throw new Error("INVALID_RESPONSE")
       return result
     },
+    async updateCategory({ category: current, name }) {
+      const data = await request(sendMessage, "update-category", {
+        categoryId: current.id,
+        expectedRevision: current.revision,
+        name
+      })
+      const result = category({
+        id: data.categoryId,
+        name: data.name,
+        revision: data.revision
+      })
+      if (!result) throw new Error("INVALID_RESPONSE")
+      return result
+    },
     async createTag({ category: parent, name, requestId }) {
       const data = await request(
         sendMessage,

@@ -82,6 +82,8 @@ export function GeneralSettingsSection({
   const [liveMessage, setLiveMessage] = React.useState("")
   const [visitDaysDraft, setVisitDaysDraft] = React.useState("")
   const [archiveDaysDraft, setArchiveDaysDraft] = React.useState("30")
+  const [granularityDraft, setGranularityDraft] =
+    React.useState<AiGranularity>(0)
 
   const applySnapshot = React.useCallback((next: GeneralSettingsSnapshot) => {
     setSnapshot(next)
@@ -91,6 +93,7 @@ export function GeneralSettingsSection({
         : String(next.frequentVisitDayThreshold)
     )
     setArchiveDaysDraft(String(next.archiveAfterDays))
+    setGranularityDraft(next.aiGranularity)
   }, [])
 
   React.useEffect(() => {
@@ -119,7 +122,8 @@ export function GeneralSettingsSection({
 
   const save = async (
     operation: () => Promise<GeneralSettingsSnapshot>,
-    successMessage: string
+    successMessage: string,
+    onFailure?: () => void
   ) => {
     if (pending) return
     setPending(true)
@@ -128,6 +132,7 @@ export function GeneralSettingsSection({
       applySnapshot(await operation())
       setLiveMessage(successMessage)
     } catch (saveError: unknown) {
+      onFailure?.()
       const message = errorMessage(saveError)
       setError(message)
       setLiveMessage(message)
@@ -153,7 +158,7 @@ export function GeneralSettingsSection({
   const visitMax = snapshot.frequentVisitWindow
     ? WINDOW_MAX[snapshot.frequentVisitWindow]
     : undefined
-  const granularityCopy = GRANULARITY_COPY[snapshot.aiGranularity]
+  const granularityCopy = GRANULARITY_COPY[granularityDraft]
 
   return (
     <div className="space-y-8">
@@ -170,6 +175,7 @@ export function GeneralSettingsSection({
         </legend>
         <div className="grid gap-4 sm:grid-cols-2">
           <Select
+            className="w-48 max-w-full"
             disabled={pending}
             label="訪問の集計期間"
             onValueChange={(value) => {
@@ -185,13 +191,14 @@ export function GeneralSettingsSection({
             }}
             options={[...WINDOW_OPTIONS]}
             placeholder="期間を選択"
+            size="compact"
             value={snapshot.frequentVisitWindow ?? ""}
           />
           <label className="grid gap-2 text-sm font-semibold text-bm-ink">
             リマインダー表示までの訪問日数
             <span className="flex items-center gap-2">
               <input
-                className="h-12 min-w-0 flex-1 rounded-bm-field border-2 border-bm-border bg-bm-paper px-4 text-bm-ink outline-none hover:bg-bm-ink hover:text-bm-paper focus-visible:ring-2 focus-visible:ring-bm-focus disabled:cursor-not-allowed disabled:opacity-45"
+                className="h-10 w-24 rounded-bm-field border-2 border-bm-border bg-bm-paper px-3 text-sm text-bm-ink outline-none focus-visible:ring-2 focus-visible:ring-bm-focus disabled:cursor-not-allowed disabled:opacity-45"
                 disabled={pending || !snapshot.frequentVisitWindow}
                 inputMode="numeric"
                 max={visitMax}
@@ -272,7 +279,7 @@ export function GeneralSettingsSection({
           アーカイブ化の閾値
           <span className="flex items-center gap-2">
             <input
-              className="h-12 min-w-0 flex-1 rounded-bm-field border-2 border-bm-border bg-bm-paper px-4 text-bm-ink outline-none hover:bg-bm-ink hover:text-bm-paper focus-visible:ring-2 focus-visible:ring-bm-focus disabled:cursor-not-allowed disabled:opacity-45"
+              className="h-10 w-24 rounded-bm-field border-2 border-bm-border bg-bm-paper px-3 text-sm text-bm-ink outline-none focus-visible:ring-2 focus-visible:ring-bm-focus disabled:cursor-not-allowed disabled:opacity-45"
               disabled={pending}
               inputMode="numeric"
               min={1}
@@ -306,16 +313,20 @@ export function GeneralSettingsSection({
           label="AIタグの細分化"
           max={4}
           min={0}
+          onValueChange={(value) => {
+            setGranularityDraft(value as AiGranularity)
+          }}
           onValueCommit={([value]) => {
             void save(
               () =>
                 port.updateSettings({ aiGranularity: value as AiGranularity }),
-              "AIタグの細分化を保存しました。"
+              "AIタグの細分化を保存しました。",
+              () => setGranularityDraft(snapshot.aiGranularity)
             )
           }}
           showMarks
           step={1}
-          value={snapshot.aiGranularity}
+          value={granularityDraft}
         />
         <p className="m-0 text-sm leading-6 text-bm-muted-text">
           <strong className="text-bm-ink">{granularityCopy[0]}:</strong>{" "}

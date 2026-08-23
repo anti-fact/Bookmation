@@ -46,7 +46,7 @@ const appearanceClass: Record<IconButtonVariant, string> = {
   quiet:
     "border-transparent bg-transparent text-bm-ink hover:border-bm-ink hover:bg-bm-ink hover:text-bm-paper active:border-bm-ink active:bg-bm-ink active:text-bm-paper [&:active_img]:invert [&:hover_img]:invert",
   solid:
-    "border-bm-ink bg-bm-ink text-bm-paper hover:bg-bm-ink hover:text-bm-paper active:bg-bm-ink active:text-bm-paper [&_img]:invert"
+    "border-bm-ink bg-bm-paper text-bm-ink hover:bg-bm-ink hover:text-bm-paper active:bg-bm-ink active:text-bm-paper [&:active_img]:invert [&:hover_img]:invert"
 }
 
 export const IconButton = React.forwardRef<HTMLButtonElement, IconButtonProps>(

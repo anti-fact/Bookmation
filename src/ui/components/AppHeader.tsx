@@ -129,7 +129,7 @@ const SearchEntry = ({
     </span>
     <span
       aria-hidden="true"
-      className="inline-flex h-full w-[2.875rem] shrink-0 items-center justify-center bg-bm-ink text-bm-paper self-center"
+      className="inline-flex h-full w-[2.875rem] shrink-0 items-center justify-center self-center bg-bm-paper text-bm-ink transition-colors group-hover:bg-bm-ink group-hover:text-bm-paper"
     >
       <MagnifyingGlassIcon className="size-6" />
     </span>

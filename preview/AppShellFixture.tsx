@@ -328,6 +328,20 @@ export function AppShellFixture() {
         name,
         revision: 1
       }),
+      updateCategory: async ({ category, name }) => {
+        const index = categories.findIndex((item) => item.id === category.id)
+        const updated = {
+          ...categories[index],
+          name,
+          revision: category.revision + 1,
+          tags: categories[index].tags.map((tag) => ({
+            ...tag,
+            parentCategoryName: name
+          }))
+        }
+        categories[index] = updated
+        return updated
+      },
       createTag: async ({ category, name }) => ({
         id: crypto.randomUUID(),
         name,
@@ -504,7 +518,7 @@ export function AppShellFixture() {
           >
             {fixtureRoutes.map(([label, hash]) => (
               <a
-                className="rounded-bm-field border border-bm-border bg-bm-paper px-2 py-1 text-bm-ink outline-none hover:bg-bm-ink hover:text-bm-paper focus-visible:ring-2 focus-visible:ring-bm-focus"
+                className="rounded-bm-field border border-bm-border bg-bm-paper px-2 py-1 text-bm-ink outline-none focus-visible:ring-2 focus-visible:ring-bm-focus"
                 href={hash}
                 key={hash}
               >

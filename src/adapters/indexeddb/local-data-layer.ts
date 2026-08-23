@@ -574,6 +574,69 @@ export class LocalDataLayer {
     return record
   }
 
+  async updateCategory(input: {
+    categoryId: Id
+    expectedRevision: number
+    name: string
+  }): Promise<PersistedLabelRecord> {
+    const now = Date.now()
+    const normalized = normalizeLabelName(input.name)
+    const tx = this.db.transaction(
+      [STORES.labels, STORES.searchDocuments],
+      "readwrite",
+    )
+    const labelsStore = tx.objectStore(STORES.labels)
+    const category = await getLabelOrThrow(tx, input.categoryId)
+    if (category.kind !== "CATEGORY" || category.deletedAt !== null) {
+      throw new DomainError(DomainErrorCode.INVALID_ID)
+    }
+    assertRevisionMatch(
+      category.revision,
+      input.expectedRevision,
+      "Category",
+    )
+
+    const nameConflict = await labelsStore
+      .index("byCategoryUniqueName")
+      .get(normalized.normalized)
+    if (nameConflict && nameConflict.id !== category.id) {
+      throw new DomainError(DomainErrorCode.DUPLICATE_NORMALIZED_NAME)
+    }
+    if (category.normalizedName === normalized.normalized) {
+      await tx.done
+      return category
+    }
+
+    const updatedCategory: PersistedLabelRecord = {
+      ...category,
+      categoryUniqueName: normalized.normalized,
+      name: normalized.normalized,
+      normalizedName: normalized.normalized,
+      revision: nextRevision(category.revision),
+      updatedAt: now,
+    }
+    assertLabelInvariants(updatedCategory, null)
+    await putLabel(tx, updatedCategory)
+
+    const searchDocuments = tx.objectStore(STORES.searchDocuments)
+    await searchDocuments.put(
+      buildLabelSearchDocument(updatedCategory, null, now),
+    )
+    const childTags = await labelsStore
+      .index("byParentCategory")
+      .getAll(category.id)
+    for (const tag of childTags) {
+      if (tag.kind === "TAG" && tag.deletedAt === null) {
+        await searchDocuments.put(
+          buildLabelSearchDocument(tag, updatedCategory, now),
+        )
+      }
+    }
+
+    await tx.done
+    return updatedCategory
+  }
+
   async createTag(input: CreateTagInput): Promise<PersistedLabelRecord> {
     const now = input.now ?? Date.now()
     const normalized = normalizeLabelName(input.name)

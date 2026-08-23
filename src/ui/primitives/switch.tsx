@@ -50,7 +50,7 @@ export const Switch = React.forwardRef<
           {...props}
           aria-busy={pending || undefined}
           className={joinClassNames(
-            "relative h-[30px] w-20 shrink-0 rounded-bm-switch bg-bm-control-muted p-0.5 outline-none transition-colors data-[state=checked]:bg-bm-ink disabled:cursor-not-allowed",
+            "relative h-6 w-11 shrink-0 rounded-bm-switch bg-bm-control-muted p-0.5 outline-none transition-colors data-[state=checked]:bg-bm-ink disabled:cursor-not-allowed",
             isDisabled ? "cursor-not-allowed opacity-50" : undefined,
             className
           )}
@@ -59,7 +59,7 @@ export const Switch = React.forwardRef<
           ref={ref}
         >
           <SwitchPrimitive.Thumb
-            className="block h-[26px] w-8 translate-x-0 rounded-bm-switch bg-bm-paper shadow-bm-control transition-transform data-[state=checked]:translate-x-11"
+            className="block size-5 translate-x-0 rounded-bm-switch bg-bm-paper shadow-bm-control transition-transform data-[state=checked]:translate-x-5"
           />
         </SwitchPrimitive.Root>
       )
@@ -68,13 +68,13 @@ export const Switch = React.forwardRef<
     return (
       <label
         className={joinClassNames(
-          "flex w-full max-w-xl items-center justify-between gap-6 rounded-bm-field p-2 outline-none focus-within:ring-2 focus-within:ring-bm-focus focus-within:ring-offset-2 focus-within:ring-offset-bm-paper",
+          "inline-grid max-w-xl gap-1 rounded-bm-field p-2 outline-none focus-within:ring-2 focus-within:ring-bm-focus focus-within:ring-offset-2 focus-within:ring-offset-bm-paper",
           isDisabled ? "cursor-not-allowed opacity-50" : "cursor-pointer",
           className
         )}
         htmlFor={controlId}
       >
-        <span className="min-w-0">
+        <span className="flex min-w-0 items-center gap-3">
           <span
             className={joinClassNames(
               "block text-sm font-semibold text-bm-ink",
@@ -84,30 +84,30 @@ export const Switch = React.forwardRef<
           >
             {label}
           </span>
-          {description ? (
-            <span
-              className={joinClassNames(
-                "mt-1 block text-xs leading-5 text-bm-muted-text",
-                descriptionClassName
-              )}
-              id={descriptionId}
-            >
-              {description}
-            </span>
-          ) : null}
+          <SwitchPrimitive.Root
+            {...props}
+            aria-busy={pending || undefined}
+            aria-describedby={descriptionId}
+            aria-labelledby={labelId}
+            className="relative h-6 w-11 shrink-0 rounded-bm-switch bg-bm-control-muted p-0.5 outline-none transition-colors data-[state=checked]:bg-bm-ink disabled:cursor-not-allowed"
+            disabled={isDisabled}
+            id={controlId}
+            ref={ref}
+          >
+            <SwitchPrimitive.Thumb className="block size-5 translate-x-0 rounded-bm-switch bg-bm-paper shadow-bm-control transition-transform data-[state=checked]:translate-x-5" />
+          </SwitchPrimitive.Root>
         </span>
-        <SwitchPrimitive.Root
-          {...props}
-          aria-busy={pending || undefined}
-          aria-describedby={descriptionId}
-          aria-labelledby={labelId}
-          className="relative h-[30px] w-20 shrink-0 rounded-bm-switch bg-bm-control-muted p-0.5 outline-none transition-colors data-[state=checked]:bg-bm-ink disabled:cursor-not-allowed"
-          disabled={isDisabled}
-          id={controlId}
-          ref={ref}
-        >
-          <SwitchPrimitive.Thumb className="block h-[26px] w-8 translate-x-0 rounded-bm-switch bg-bm-paper shadow-bm-control transition-transform data-[state=checked]:translate-x-11" />
-        </SwitchPrimitive.Root>
+        {description ? (
+          <span
+            className={joinClassNames(
+              "block text-xs leading-5 text-bm-muted-text",
+              descriptionClassName
+            )}
+            id={descriptionId}
+          >
+            {description}
+          </span>
+        ) : null}
       </label>
     )
   }

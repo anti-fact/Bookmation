@@ -6,6 +6,35 @@ import { describe, expect, it, vi } from "vitest"
 import { Button } from "./button"
 
 describe("Button", () => {
+  it("renders a solid button with a white resting state", () => {
+    render(<Button variant="solid">保存する</Button>)
+
+    const classNames = screen
+      .getByRole("button", { name: "保存する" })
+      .className.split(" ")
+    expect(classNames).toContain("bg-bm-paper")
+    expect(classNames).toContain("text-bm-ink")
+    expect(classNames).not.toContain("bg-bm-ink")
+    expect(classNames).not.toContain("text-bm-paper")
+    expect(classNames).toContain("hover:bg-bm-ink")
+    expect(classNames).toContain("hover:text-bm-paper")
+  })
+
+  it("uses the shared red danger color for solid delete actions", () => {
+    render(
+      <Button tone="danger" variant="solid">
+        削除する
+      </Button>
+    )
+
+    const classNames = screen
+      .getByRole("button", { name: "削除する" })
+      .className.split(" ")
+    expect(classNames).toContain("border-bm-danger")
+    expect(classNames).toContain("bg-bm-danger")
+    expect(classNames).toContain("text-bm-paper")
+  })
+
   it("defaults to type button and forwards props, className, ref, and click", () => {
     const onClick = vi.fn()
     const ref = React.createRef<HTMLButtonElement>()

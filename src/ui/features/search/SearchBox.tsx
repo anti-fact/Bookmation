@@ -15,6 +15,7 @@ export function SearchBox({
   port: SearchPort
 }) {
   const [query, setQuery] = React.useState(initialQuery)
+  const [suggestionQuery, setSuggestionQuery] = React.useState("")
   const [items, setItems] = React.useState<SearchSuggestion[]>([])
   const [activeIndex, setActiveIndex] = React.useState(-1)
   const [open, setOpen] = React.useState(false)
@@ -25,18 +26,22 @@ export function SearchBox({
 
   React.useEffect(() => {
     setQuery(initialQuery)
+    setSuggestionQuery("")
+    setItems([])
+    setActiveIndex(-1)
+    setOpen(false)
   }, [initialQuery])
 
   React.useEffect(() => {
     const current = ++request.current
-    if (!query.trim() || isComposing) {
+    if (!suggestionQuery.trim() || isComposing) {
       setItems([])
       setOpen(false)
       return
     }
     const timer = window.setTimeout(() => {
       void port
-        .suggest(query)
+        .suggest(suggestionQuery)
         .then((next) => {
           if (request.current !== current) return
           setItems(
@@ -60,7 +65,20 @@ export function SearchBox({
         })
     }, 200)
     return () => window.clearTimeout(timer)
-  }, [isComposing, port, query])
+  }, [isComposing, port, suggestionQuery])
+
+  const dismissSuggestions = () => {
+    request.current += 1
+    setSuggestionQuery("")
+    setItems([])
+    setActiveIndex(-1)
+    setOpen(false)
+  }
+
+  const select = (item: SearchSuggestion) => {
+    dismissSuggestions()
+    onSelect(item)
+  }
 
   const submit = () => {
     const value = query.trim()
@@ -82,18 +100,23 @@ export function SearchBox({
           aria-label="ブックマーク、カテゴリ、タグを検索"
           className="min-w-0 flex-1 bg-transparent px-5 text-sm outline-none"
           onBlur={() => window.setTimeout(() => setOpen(false), 100)}
-          onChange={(event) => setQuery(event.target.value)}
+          onChange={(event) => {
+            const nextQuery = event.target.value
+            setQuery(nextQuery)
+            if (!composing.current) setSuggestionQuery(nextQuery)
+          }}
           onCompositionEnd={(event) => {
             composing.current = false
             setIsComposing(false)
             setQuery(event.currentTarget.value)
+            setSuggestionQuery(event.currentTarget.value)
           }}
           onCompositionStart={() => {
             composing.current = true
             setIsComposing(true)
           }}
           onFocus={() => {
-            if (query.trim()) setOpen(true)
+            if (query.trim()) setSuggestionQuery(query)
           }}
           onKeyDown={(event) => {
             if (event.key === "ArrowDown") {
@@ -112,9 +135,8 @@ export function SearchBox({
             if (event.key === "Enter" && !composing.current) {
               event.preventDefault()
               const active = items[activeIndex]
-              if (active) onSelect(active)
+              if (active) select(active)
               else submit()
-              setOpen(false)
             }
           }}
           placeholder="ブックマーク、カテゴリ、タグを検索"
@@ -123,7 +145,7 @@ export function SearchBox({
         />
         <button
           aria-label="検索する"
-          className="inline-flex w-[2.875rem] items-center justify-center bg-bm-ink text-bm-paper"
+          className="inline-flex w-[2.875rem] items-center justify-center bg-bm-paper text-bm-ink transition-colors hover:bg-bm-ink hover:text-bm-paper"
           onClick={submit}
           type="button"
         >
@@ -145,8 +167,7 @@ export function SearchBox({
                 key={`${item.entityType}:${item.entityId}`}
                 onMouseDown={(event) => {
                   event.preventDefault()
-                  onSelect(item)
-                  setOpen(false)
+                  select(item)
                 }}
                 role="option"
               >

@@ -165,10 +165,14 @@ export function ArchiveSettingsSection({
               </Button>
             </div>
           </div>
-          <ul className="m-0 grid list-none gap-3 p-0">
+          <ul
+            aria-label="アーカイブ済みブックマーク一覧"
+            className="m-0 grid max-h-96 list-none gap-2 overflow-y-auto overscroll-contain rounded-bm-field border-2 border-bm-border p-2 outline-none focus-visible:ring-2 focus-visible:ring-bm-focus"
+            tabIndex={0}
+          >
             {snapshot.archived.map((item) => (
               <li
-                className="rounded-bm-field border-2 border-bm-border p-4"
+                className="rounded-bm-field border-2 border-bm-border bg-bm-paper px-3 py-2 text-sm"
                 key={item.id}
               >
                 <LabeledCheckbox
@@ -183,13 +187,13 @@ export function ArchiveSettingsSection({
                     })
                   }}
                 />
-                <p className="mb-0 mt-2 break-all text-xs text-bm-muted-text">
-                  {item.url}
-                </p>
-                <p className="mb-0 mt-2 text-xs text-bm-muted-text">
-                  カテゴリ: {item.categories.join("、") || "なし"} / タグ:{" "}
-                  {item.tags.join("、") || "なし"}
-                </p>
+                <div className="ml-8 mt-1 flex min-w-0 flex-wrap gap-x-3 gap-y-1 text-xs text-bm-muted-text">
+                  <span className="min-w-0 max-w-full break-all">
+                    {item.url}
+                  </span>
+                  <span>カテゴリ: {item.categories.join("、") || "なし"}</span>
+                  <span>タグ: {item.tags.join("、") || "なし"}</span>
+                </div>
               </li>
             ))}
           </ul>

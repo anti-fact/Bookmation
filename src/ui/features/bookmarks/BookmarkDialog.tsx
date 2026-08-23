@@ -561,7 +561,7 @@ export function BookmarkDialog({
                   onClick={() => void handleDelete()}
                   tone="danger"
                   type="button"
-                  variant="outline"
+                  variant="solid"
                 >
                   削除する
                 </Button>
