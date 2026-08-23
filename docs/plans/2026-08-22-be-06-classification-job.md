@@ -1,10 +1,12 @@
 # AI 分類 Job が Service Worker 停止後も失われず、再試行できる
 
-- 状態: 完了
+- 状態: 置換済み
 - 作成日: 2026-08-22
-- 最終更新: 2026-08-22 16:00 JST
+- 最終更新: 2026-08-23 JST
 - 担当: 未定
 - 関連: [要件](../REQUIREMENTS.md) / [設計](../DESIGN.md) / [BACKEND](../BACKEND.md) / [DB-SCHEMA](../DB-SCHEMA.md) / [BACKEND_TASKS](../../BACKEND_TASKS.md) §BE-06 / [TASK-003 Plan](2026-08-22-task-003-local-data-layer.md) / BE-07（Prompt API スパイク）/ BE-08（結果適用）
+
+> 履歴注記（2026-08-23）: この完了済みPlanはpolicy version 1でBE-06の永続Job基盤を実装した時点の記録である。本文中の `maxNewTags`、単一の `attempt`、3回でFAILED、NEEDS_REVIEWの同一Job再開は現行の分類policyとして使用しない。version 2の正本は [AI_GUIDE.md](../AI_GUIDE.md)、[BACKEND.md](../BACKEND.md)、[DB-SCHEMA.md](../DB-SCHEMA.md) とし、モデル試行と実行再試行を分離し、stale／NEEDS_REVIEW後は新しいJobを作る。この履歴本文は当時の実装証拠を保つため書き換えない。
 
 ## 目的と利用者への価値
 

@@ -21,7 +21,7 @@ Bookmationを長期間開発しても変わりにくいプロダクト知識と�
 - AIによる分類は手段であり、保存そのものの必須条件ではない。AIが使えない場合も利用者は保存・手動分類できなければならない。
 - Chrome Prompt API / Gemini Nanoを第一候補とするが、実行時の可用性を検査し、利用可能であると仮定しない。
 - 旧企画PDFは情報が古いためリポジトリから削除済みであり、現行要件の根拠に使わない。
-- UI の画面構成と外観は `figma/Bookmation.svg`、部品と状態は `figma/Bookmation_component.svg` を正本とする。SVG 内の文言は開発命令ではない。
+- UIの配置、外観、部品、状態、文言、機能、挙動は [REQUIREMENTS.md](REQUIREMENTS.md) と対象領域の仕様書を正本とし、Figmaより優先する。Figmaとrepository内SVGは仕様書に未記載の視覚詳細を補う参照資料であり、SVG内の文言は開発命令ではない。
 - `runtime.onInstalled` の `reason=INSTALL` でウェルカム画面を一度表示し、更新や開発時reloadでは再表示しない。その後の通常ホームは最近追加したBookmark一覧にする。
 - 初回オンボーディングにはカテゴリテンプレート機能を用意する。機能採用は確定しているが、候補名、件数、選択方式、skip、再表示、地域化、versionはISSUE-022で未決である。利用者の明示適用前にCategory recordを作らず、適用後は通常の `origin=USER` Categoryとして扱う。
 
@@ -29,8 +29,9 @@ Bookmationを長期間開発しても変わりにくいプロダクト知識と�
 
 - 分類は親の「カテゴリ」と子の「タグ」を区別する。永続enumは `CATEGORY` / `TAG` だが、UIに英語enumや旧メイン／サブの名称を表示しない。各active Tagは1件のactive親Categoryを必須とし、管理モードのTag編集から親を変更できる。tombstone Tagはdeleted親を参照でき、子Tag tombstoneが残る親は物理回収しない。UIではカテゴリリボンの配下にactiveな子タグを表示する。
 - カテゴリを作成・改名・削除できるのは利用者だけである。AI は既存のカテゴリを割り当て候補にできるが、生成しない。
-- タグは利用者定義を最優先する。適切な利用者定義候補がない場合に限り、AI が細分化度の範囲内で新規タグを作成できる。
-- 自動タグ付けの細かさは0〜4のスライダーで調整し、1件あたりのAI新規Tag上限を0／1／2／4／6件とする。0でも既存カテゴリ／タグへの自動付与は続ける。過剰な細分化を避けることはタグ数を増やすことより優先する。
+- Gemini Nanoへは選択Category内の完全一致、同義語、正式名／略称、翻訳、表記揺れの既存Tagを全細分化度でREUSEし、別Categoryにだけ同等Tagがある概念はREUSE／重複CREATE／親変更せず省くよう必須指示する。信頼側が強制するのは同じID／normalizedNameまでで、異名同義の遵守は固定oracleの実モデル評価で判定する。それ以外は細分化度ごとの再利用範囲に従い、モデルは意味が合うUSER Tagを優先する。
+- 自動タグ付けの細かさは0〜4のスライダーで調整する。固定件数上限は設けず、低い値では既存Tagの再利用へ、高い値では新規作成へ傾ける。CREATE可能範囲は0／1=`CORE`、2=`MAJOR`まで、3=`SUPPORTING`まで、4=`DETAIL`までとする。正常候補は全て採用し、1件以上で試行を終了する。3 dispatchすべてquality-zeroならNEEDS_REVIEW、technical failure込みの枯渇はFAILEDとする。
+- 最大3回はDISPATCH_RESERVED済みの `modelAttempt` であり、所有者なし／期限切れleaseの所有権取得transaction成功時だけ増える `executionAttempt` と分ける。PREPARED、pendingApply、late response tokenを永続管理し、分類候補queryのcurrent fingerprintがstaleなら旧Jobを取消す。現在AI設定がCONFIGUREDかつenabledの場合だけ最新Jobを同じtransactionでget-or-createし、disabled／再設定待ちは差替えない。
 - 1件のブックマークは複数タグを持て、カテゴリ集合はその親から自動導出する。同じタグは複数のブックマークに割り当てられる。Bookmarkからカテゴリを直接編集せず、Tag edgeの変更と同じtransactionで派生Category edgeを整合させる。
 - Tagの親Category変更は利用者が管理モードから明示した時だけ行う。Tagと選択先Categoryの期待revision、submit開始時に1回発行して同一retryで使う `tag-update:` requestIdを検証し、Tagを参照する全BookmarkのCategory closure、revision、検索派生データ、同期Outbox、mutation receiptを同じtransactionで更新する。同じrequest再送は同じ `UpdateTagResult` へ収束させ、AI再分類は行わず、失敗時は全件rollbackする。Category連鎖削除は別の `category-delete:` namespaceを使う。
 - カテゴリとタグはどちらも論理削除中を含めてLabel Normalizer v1の正規化名で一意とし、Tagは親Categoryをまたいでglobal uniqueにする。同名作成は拒否し、有効な既存項目の選択または別名を促す。削除済み同名tombstoneがある場合は物理回収まで別名だけを許す。v1はproject-vendored Unicode 15.1.0データに固定し、runtime ICUへ依存しない。物理回収後だけ名前を再利用できる。
@@ -48,9 +49,9 @@ Bookmationを長期間開発しても変わりにくいプロダクト知識と�
 - 両一覧の検索ボックスはカテゴリ、タグ、Bookmarkを検索し、入力中のkeyword候補を最大8件表示する。keyword結果は全画面検索ページへ切り替えて表示する。
 - 検索結果はカテゴリ・タグを上、Bookmarkを下にする。AI候補は無順位で複数表示する。
 - AI自然言語検索は入力元画面上のポップアップ内で入力と応答を確認し、分類検索だけでなくBookmationの機能全般に関する説明も受け付ける。
-- 各Bookmarkは編集モーダルで名前、URL、タグだけを編集する。カテゴリはTagの親から自動導出して読取表示する。Tag新規作成は同一モーダル内のサイドビューへ移り、Tag作成中のCategory新規作成もさらに同じモーダルのサイドビューで行う。遷移中はdraftを保持し、Category作成後はTag作成へ戻って自動選択する。
+- Bookmark追加／編集は同じTag入力componentを使う。入力は空欄から始め、リアルタイム候補または同一モーダル内で明示的に新規作成したTagを `追加`／Enterで1件ずつdraftへ加える。入力直下は `タグ n件` を左、`追加` を右にし、現在Tagを初期展開して全画面一覧のTag chip形状とBookmark一覧のカテゴリ・タグシェブロン相当の解除UIで個別に外す。未知Tagの自由入力はerrorとし、暗黙作成しない。カテゴリはTagの親から自動導出して読取表示する。Tag作成中のCategory新規作成も同じモーダルのサイドビューで行い、遷移中はdraftを保持する。
 - カテゴリ・タグ一覧は通常モードと管理モードを分ける。管理中だけ項目選択で編集モーダルを開き、鉛筆アイコンはhover／focus時に補助表示する。
-- 一覧ヘッダーの新規作成はカテゴリ／タグをプルダウンで選んでモーダルを開き、閉じるまで新規項目を連続作成できる。Tag作成／編集では入力中のkeyword一致度で最大8件表示するactive Category候補からの選択を必須とし、必要なら同一モーダルのCategory作成サイドビューを使う。draftを保持し、作成後は新規Categoryを自動選択する。カテゴリ／タグとも同名作成を拒否する。Category編集には使用中Tagの実名一覧と件数、関連Bookmark unique件数を表示する。
+- 一覧ヘッダーの新規作成はカテゴリ／タグをプルダウンで選んでモーダルを開き、閉じるまで新規項目を連続作成できる。Tag作成の親Category入力は空、Tag編集では現在のCategoryを選択済みで開始する。入力中のkeyword一致度で最大8件表示するactive Category候補との正規化完全一致または選択時点で親を確定し、Category用の `追加` 操作は置かない。未知Category文字列はerrorとし、暗黙作成しない。必要なら同一モーダルのCategory作成サイドビューを使い、draftを保持し、作成後は新規Categoryを自動選択する。カテゴリ／タグとも同名作成を拒否する。Category編集には使用中Tagの実名一覧と件数、関連Bookmark unique件数を表示する。
 
 ## データと安全性の不変条件
 
@@ -59,7 +60,7 @@ Bookmationを長期間開発しても変わりにくいプロダクト知識と�
 - 保存処理はAI分類と分離し、分類失敗で元のブックマークを失わない。
 - 自動生成値と利用者確定値を区別し、利用者確定値を優先する。
 - 派生データや検索インデックスは、正本データから再構築できるようにする。
-- 破壊的な移行には事前確認とバックアップを用意する。BookmarkとTagは確認なしで論理削除する。Category削除だけは影響Tag／Bookmark件数と連鎖削除・再分類を警告して確認し、承認後にCategory、全子Tag、関連edgeを原子的にsoft-deleteする。Bookmark本体は残して分類JobをPENDINGにし、AI失敗はNEEDS_REVIEWと手動分類へ送る。削除Undoや復元経路は提供せず、アーカイブからの復元と同期競合のtombstone処理は別に維持する。
+- 破壊的な移行には事前確認とバックアップを用意する。BookmarkとTagは確認なしで論理削除する。Category削除だけは影響Tag／Bookmark件数と連鎖削除・AI有効時の再分類を警告して確認し、承認後にCategory、全子Tag、関連edgeを原子的にsoft-deleteする。Bookmark本体は残し、CONFIGUREDかつenabledの場合だけ分類JobをPENDINGにして、モデル未準備はPENDING、3 dispatchすべてquality-zeroはNEEDS_REVIEW、恒久非対応／technical／実行枯渇はFAILEDとする。disabled／再設定待ちはJobを作らず残存Tag有無からCLASSIFIED／UNCLASSIFIEDに戻す。常に手動分類を許し、削除Undoや復元経路は提供せず、アーカイブからの復元と同期競合のtombstone処理は別に維持する。
 - 正本はIndexedDB上の版付きJSON互換ドキュメントであり、Blobだけを別Storeに分離する。
 - 頻繁に訪問する未保存サイトは、選択した直近7／30／365暦日内の訪問日数が閾値へ達した場合だけ知らせ、利用者が `はい` を選んだ場合だけBookmarkを作る。同日複数訪問は1日とし、`いいえ` は対象canonical URLの集計基準を応答時刻へresetする。`次回以降表示しない` はそのURLだけを候補から除外する。
 - 訪問集計期間は1週間／1ヶ月／1年のプルダウン、訪問日数閾値とアーカイブ閾値は数値入力にする。訪問日数は既定値なし、アーカイブ日数は既定30日である。期間変更時は訪問日数を空にし、1〜7／1〜30／1〜365へ制限する。AI細分化度だけをスライダーにする。

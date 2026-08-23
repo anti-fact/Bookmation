@@ -3,7 +3,7 @@
 ## 文書の位置づけ
 
 - 状態: **提案・未実装・マイグレーション未検証**
-- 保存先: ドメインデータはIndexedDB、設定はchrome.storage.local、同一ユーザー同期は明示接続したGoogle Drive appDataFolder
+- 保存先: ドメインデータとAI分類用のversion付き設定snapshotはIndexedDB、一般設定とAI設定のUI mirrorはchrome.storage.local、同一ユーザー同期は明示接続したGoogle Drive appDataFolder
 - 関連: [全体設計](./DESIGN.md) / [バックエンド](./BACKEND.md) / [セキュリティ](./SECURITY.md) / [技術的負債](./TECH-DEBT-TRACKER.md)
 
 本書は関係を表形式で説明するが、RDB／SQLではない。IndexedDBを保存エンジンにし、Blob以外を版付きJSON互換ドキュメントとして保存する。TypeScript interfaceはJSON Schemaから生成または同時検証し、型注釈だけで永続データを信用しない。
@@ -29,7 +29,7 @@
 | Bookmark | BookmarkRevision | 1対多 | AI・ユーザーによる非削除変更の監査 |
 | Bookmark / Label | SearchDocument | 1対0または1 | 再生成可能な検索用派生データ |
 
-カテゴリとタグはどちらも0件以上であり、1件のBookmarkは複数Tagを通じて複数Categoryに所属できる。BookmarkのACTIVE Category edge集合は、ACTIVE Tag edgeが参照するTagの `parentCategoryId` の重複なし集合と常に完全一致させる。
+カテゴリとタグはどちらも0件以上であり、1件のBookmarkは複数Tagを通じて複数Categoryに所属できる。BookmarkのACTIVE Category edge集合は、ACTIVE Tag edgeが参照するTagの `parentCategoryId` の重複なし集合と常に完全一致させる。Gemini Nanoが1回のAI分類で選ぶCategoryは厳密に1件だが、これはその試行のAI Tag候補の親を制約する規則である。既存の手動Tagは保持するため、適用後のBookmark全体が複数Categoryを持つこととは矛盾しない。
 
 ## 共通型
 
@@ -53,6 +53,12 @@ type ClassificationState =
   | "FAILED"
   | "NEEDS_REVIEW"
   | "CANCELED"
+type BookmarkClassificationState =
+  | "UNCLASSIFIED"
+  | "PENDING"
+  | "CLASSIFIED"
+  | "NEEDS_REVIEW"
+  | "FAILED"
 ~~~
 
 通常のID付きドメインJSONドキュメントは次の共通Envelopeを満たす。`ArchivedBookmarkRecord` だけは、トップレベルの `id` / `archiveState`、版を持つ `metadata`、最小利用者データの `payload` を分離し、時刻・revision等を `ArchiveOperationRecord` に持たせる。`schemaMeta` と設定等のkey-addressed documentは、固有keyと対応するschema versionを必須にする。
@@ -108,6 +114,7 @@ v1 fixtureは最低限次を固定し、Category／Tag作成、改名、Import�
 | tagMutationReceipts | id | P0必須 | Tag名称・親更新requestの冪等receipt |
 | bookmarkLabels | id | P0必須 | BookmarkとCategory／Tagの整合した関連 |
 | classificationJobs | id | 必須 | 中断・再試行可能なAIジョブ |
+| classificationSettings | key | 必須 | AI分類Jobと同一transactionで読む設定正本 |
 | bookmarkRevisions | id | 推奨 | 非削除変更の監査履歴 |
 | searchDocuments | id | 必須 | BookmarkとCategory／Tagの再生成可能な検索用データ |
 | blobs | id | 条件付き | サムネイル等のBlobとメタ情報 |
@@ -137,12 +144,7 @@ interface ActiveBookmarkRecord {
   faviconUrl: string | null
   faviconBlobId: Id | null
   thumbnailBlobId: Id | null
-  classificationState:
-    | "UNCLASSIFIED"
-    | "PENDING"
-    | "CLASSIFIED"
-    | "NEEDS_REVIEW"
-    | "FAILED"
+  classificationState: BookmarkClassificationState
   source:
     | "CURRENT_TAB"
     | "MANUAL_URL"
@@ -232,10 +234,10 @@ interface LabelRecord {
 - `kind="TAG"` なら `parentCategoryId` は物理的に存在する `CATEGORY` のIDを必須とし、`origin` は `USER`、`AI`、P1の `IMPORT` / `SHARE` を許す。ACTIVE TAGはACTIVE CATEGORYだけを参照できる。削除済みTAGはACTIVEまたは削除済みCATEGORYを参照できるが、親CATEGORY record自体が欠損してはならない。
 - CATEGORYは論理削除状態を問わず `categoryUniqueName = normalizedName` を持ち、同じ正規化名の別IDを作らない。論理削除でもunique keyを外さず、物理回収後だけ名前を再利用できる。
 - TAGは論理削除状態を問わず `tagUniqueName = normalizedName` を持ち、`categoryUniqueName` は持たない。親カテゴリが同じか異なるかを問わず、同じ正規化名の別IDを作らない。論理削除でもunique keyを外さない。
-- AIは意味候補の並びではorigin USERを優先するが、`tagUniqueName` の競合判定はoriginを問わず全TAGを対象にする。同じ正規化名があれば既存TAGを再評価し、親カテゴリと意味が適合する場合だけそのIDを再利用する。親または意味が適合しなければ別IDを作らずNEEDS_REVIEWにする。
+- AIは候補提示ではorigin USERを優先するが、`tagUniqueName` の競合判定はoriginを問わず全TAGを対象にする。同じnormalizedNameがあれば、選択Category内のactive TAGだけを信頼側でそのIDのREUSEへ解決できる。親不一致またはtombstone競合はその候補だけを棄却し、別IDを作らない。normalizedNameが異なる同義語等の意味判断はGemini Nanoの品質責務であり、本番validatorが未定義のalias推測でIDへ変換・棄却しない。他に正常候補があれば全正常候補を適用してJobをSUCCEEDEDとし、正常候補0件の場合だけ再試行する。
 - AIはorigin USERのレコードを上書きしない。
 - `kind` は変更しない。ACTIVE Tagの `parentCategoryId` は、期待Tag revisionと選択したACTIVE親Categoryの期待revisionを検証する専用 `UpdateTag` transactionでだけ変更できる。Import、AI出力、同期の暗黙merge、名称一致を親変更commandへ変換しない。
-- `creationRequestId` は作成操作の冪等キーであり一意とする。同じ操作の再送は同じrequestIdを使い、別requestIdでも既存と同じ正規化タグ名なら新規作成を拒否する。AIは `jobId:proposalKey` から安定して生成する。
+- `creationRequestId` は作成操作の冪等キーであり一意とする。同じ操作の再送は同じrequestIdを使い、別requestIdでも既存と同じ正規化タグ名なら新規作成を拒否する。AIのCREATE候補を検証・正規化した後、信頼済みコードがCategory IDと正規化名から `proposalKey` を決定的に作り、`jobId:proposalKey` から安定生成する。モデルに `proposalKey` を生成させない。
 - 削除は初期段階でdeletedAtによる論理削除とし、参照中の即時物理削除を避ける。CATEGORYの物理回収は、ACTIVE／削除済みを問わず `parentCategoryId` がそのIDであるTAG recordが0件になるまでBLOCKする。
 - 論理削除ではrevisionを1つ進め、`deletedAt` を必須にする。削除Undoや利用者向けのLabel復元は提供しない。
 - 通常作成・編集・単独Tag削除では `cascadeDeleteRequestId=null` とする。Category連鎖削除では対象Categoryとその操作で新たに削除する子Tagへ同じrequestIdを記録し、再送判定と同期batch照合にだけ使う。Undoや復元tokenとして解釈しない。
@@ -325,10 +327,11 @@ interface BookmarkLabelRecord {
 
 - 同じ `bookmarkId` と `labelId` の組は、論理削除済みも含めて1レコードだけとする。再割当時は既存レコードの `deletedAt` を戻し、別レコードを追加しない。
 - 同じBookmarkには複数TAGを割り当てられる。TAG edgeを追加または復元する時は、その `parentCategoryId` のCATEGORY edgeも同じtransactionで追加または復元する。
-- CATEGORY edgeは直接編集しない。Tag差分適用後、ACTIVEなTAG edgeの親CATEGORY ID集合を求め、その集合にないACTIVE CATEGORY edgeを論理削除し、不足するedgeを追加または復元する。同じ親の最後のTAG edgeを解除した時は親CATEGORY edgeも解除される。
+- CATEGORY edgeは直接編集しない。Tag差分適用後、ACTIVEなTAG edgeの親CATEGORY ID集合を求め、その集合にないACTIVE CATEGORY edgeを論理削除し、不足するedgeを追加または復元する。同じ親の最後のTAG edgeを解除した時は親CATEGORY edgeも解除される。派生CATEGORY edgeの `assignedBy` は、同じ親へ寄与するactive TAG edgeにUSERがあればUSER、なければIMPORT、SHARE、AIの順で決め、`confidence` と `classificationJobId` は常にnullとする。
 - 同じLabelを複数のBookmarkから参照できる。名称変更や同期後も関連は表示名ではなく `labelId` で維持する。
-- AI適用はユーザーが割り当てた関連を暗黙に削除しない。置換操作は対象差分を明示し、BookmarkRevisionへ残す。
-- confidenceはAI割当時だけ0〜1の値を許し、それ以外はnull。
+- AI適用の置換対象は `assignedBy=AI` のTAG edgeだけであり、派生CATEGORY edge、USER／IMPORT／SHAREのTAG edgeを暗黙に削除しない。置換操作は対象差分を明示し、BookmarkRevisionへ残す。
+- Bookmarkの手動保存／編集で利用者が明示選択したTagのactive edgeが `assignedBy=AI` なら、同じtransactionで `assignedBy=USER`、`confidence=null`、`classificationJobId=null` へ昇格し、edge revisionを進める。後続AI適用はこれをAIへ戻さない。
+- confidenceはAI割当のTAG edgeだけ0〜1の値を許し、それ以外と全CATEGORY edgeはnull。
 - edgeの論理削除ではrevisionを1つ進め、`deletedAt` を必須にする。
 
 ### 索引
@@ -345,32 +348,152 @@ interface BookmarkLabelRecord {
 ## classificationJobs
 
 ~~~ts
-type ClassificationPolicySnapshot =
+type TagImportance = "CORE" | "MAJOR" | "SUPPORTING" | "DETAIL"
+
+type ClassificationRetryReasonCode =
+  | "RESPONSE_SCHEMA_INVALID"
+  | "CANDIDATE_SCHEMA_INVALID"
+  | "MODEL_TIMEOUT"
+  | "MODEL_RESPONSE_INTERRUPTED"
+  | "MODEL_RESPONSE_TRUNCATED"
+  | "MODEL_RESPONSE_SIZE_EXCEEDED"
+  | "MODEL_RESULT_LOST"
+  | "MODEL_NEEDS_REVIEW"
+  | "CATEGORY_INVALID"
+  | "NO_VALID_CANDIDATE"
+  | "REUSE_ID_INVALID"
+  | "REUSE_PARENT_MISMATCH"
+  | "EVIDENCE_INVALID"
+  | "IMPORTANCE_NOT_ALLOWED"
+  | "NAME_INVALID"
+  | "DUPLICATE"
+
+type LegacyClassificationPolicySnapshotV1 =
   | { policyVersion: 1; granularity: 0; maxNewTags: 0 }
   | { policyVersion: 1; granularity: 1; maxNewTags: 1 }
   | { policyVersion: 1; granularity: 2; maxNewTags: 2 }
   | { policyVersion: 1; granularity: 3; maxNewTags: 4 }
   | { policyVersion: 1; granularity: 4; maxNewTags: 6 }
 
-interface ClassificationJobRecord {
-  schemaVersion: number
+type ClassificationPolicySnapshotV2 =
+  | {
+      policyVersion: 2
+      granularity: 0
+      reusePolicy: "STRONG_REUSE"
+      allowedCreateImportance: readonly ["CORE"]
+    }
+  | {
+      policyVersion: 2
+      granularity: 1
+      reusePolicy: "PREFER_REUSE"
+      allowedCreateImportance: readonly ["CORE"]
+    }
+  | {
+      policyVersion: 2
+      granularity: 2
+      reusePolicy: "BALANCED"
+      allowedCreateImportance: readonly ["CORE", "MAJOR"]
+    }
+  | {
+      policyVersion: 2
+      granularity: 3
+      reusePolicy: "NEAR_EXACT_REUSE"
+      allowedCreateImportance:
+        readonly ["CORE", "MAJOR", "SUPPORTING"]
+    }
+  | {
+      policyVersion: 2
+      granularity: 4
+      reusePolicy: "EXACT_EQUIVALENT_REUSE"
+      allowedCreateImportance:
+        readonly ["CORE", "MAJOR", "SUPPORTING", "DETAIL"]
+    }
+
+type ClassificationDiagnosticReasonCode =
+  | ClassificationRetryReasonCode
+  | "INPUT_CONTEXT_TOO_LARGE"
+  | "STALE_CLASSIFICATION_INPUT"
+  | "AI_DISABLED"
+  | "SETTINGS_RECONFIGURATION_REQUIRED"
+  | "EXECUTION_ATTEMPT_LIMIT_EXCEEDED"
+  | "CLASSIFICATION_JOB_INVARIANT_VIOLATION"
+
+type ClassificationModelAttemptPhase =
+  | "PREPARED"
+  | "DISPATCH_RESERVED"
+  | "VALIDATED"
+  | "CLOSED"
+
+interface ClassificationModelAttemptRecord {
+  attemptId: Id
+  ordinal: 1 | 2 | 3
+  leaseNonce: string
+  phase: ClassificationModelAttemptPhase
+  outcome:
+    | null
+    | "GLOBAL_INVALID"
+    | "ZERO_VALID"
+    | "APPLIED"
+    | "TECHNICAL_FAILURE"
+    | "ABANDONED_PRE_DISPATCH"
+    | "CANCELED_STALE"
+    | "CANCELED_SETTINGS"
+    | "CANCELED_USER"
+  acceptedCount: number
+  rejectedCount: number
+  reasonCodes: ClassificationDiagnosticReasonCode[]
+  preparedAt: EpochMs
+  dispatchReservedAt: EpochMs | null
+  closedAt: EpochMs | null
+}
+
+type PersistedValidatedClassificationCandidate =
+  | {
+      action: "REUSE"
+      tagId: Id
+      importance: TagImportance
+      confidence: number
+    }
+  | {
+      action: "CREATE"
+      name: string
+      normalizedName: string
+      proposalKey: string
+      creationRequestId: string
+      importance: TagImportance
+      confidence: number
+    }
+
+interface PersistedClassificationApplyCommandV2 {
+  validatorVersion: 2
+  attemptId: Id
+  modelAttempt: 1 | 2 | 3
+  inputFingerprint: string
+  categoryId: Id
+  candidates: PersistedValidatedClassificationCandidate[]
+}
+
+type ClassificationJobState =
+  | "PENDING"
+  | "RUNNING"
+  | "SUCCEEDED"
+  | "FAILED"
+  | "NEEDS_REVIEW"
+  | "CANCELED"
+
+interface LegacyClassificationJobRecordV1 {
+  schemaVersion: 1
   id: Id
   bookmarkId: Id
   requestId: Id
   reason: "INITIAL_SAVE" | "USER_RECLASSIFY" | "CATEGORY_CASCADE_DELETE"
   triggerOperationId: Id | null
-  state:
-    | "PENDING"
-    | "RUNNING"
-    | "SUCCEEDED"
-    | "FAILED"
-    | "NEEDS_REVIEW"
-    | "CANCELED"
+  state: ClassificationJobState
   inputFingerprint: string
   bookmarkRevision: number
   settingsVersion: number
-  policy: ClassificationPolicySnapshot
-  maxCandidateCategories: number // Tag親候補の上限。Category edgeの直接割当上限ではない
+  policy: LegacyClassificationPolicySnapshotV1
+  maxCandidateCategories: number
   maxAssignedTags: number
   provider: "CHROME_PROMPT"
   providerModel: string | null
@@ -384,18 +507,130 @@ interface ClassificationJobRecord {
   createdAt: EpochMs
   updatedAt: EpochMs
 }
+
+interface ClassificationJobRecordV2 {
+  schemaVersion: 2
+  id: Id
+  bookmarkId: Id
+  requestId: Id
+  reason: "INITIAL_SAVE" | "USER_RECLASSIFY" | "CATEGORY_CASCADE_DELETE"
+  triggerOperationId: Id | null
+  state: ClassificationJobState
+  activeInputKey?: string // PENDING／RUNNINGだけに存在する一意なbookmarkId＋inputFingerprint key
+  inputFingerprint: string
+  bookmarkRevision: number
+  bookmarkStateBeforeJob: Exclude<BookmarkClassificationState, "PENDING">
+  settingsVersion: number
+  promptVersion: "gemini-nano-tag-classifier-v2"
+  responseSchemaVersion: 2
+  candidateQueryVersion: "all-active-labels-v1"
+  policy: ClassificationPolicySnapshotV2
+  maxPromptInputBytes: 262144
+  maxModelResponseBytes: 262144
+  maxModelAttempts: 3
+  modelAttempt: 0 | 1 | 2 | 3
+  executionAttempt: number
+  maxExecutionAttempts: 3
+  provider: "CHROME_PROMPT"
+  providerModel: string | null
+  executionContext: "TOP_LEVEL_EXTENSION_DOCUMENT" | null
+  executorInstanceId: string | null
+  leaseExpiresAt: EpochMs | null
+  leaseNonce: string | null
+  appliedCandidateCount: number
+  rejectedCandidateCount: number
+  activeAttemptId: Id | null
+  modelAttempts: ClassificationModelAttemptRecord[]
+  pendingApply: PersistedClassificationApplyCommandV2 | null
+  errorCode: string | null
+  startedAt: EpochMs | null
+  finishedAt: EpochMs | null
+  createdAt: EpochMs
+  updatedAt: EpochMs
+}
+
+type PersistedClassificationJobRecord =
+  | LegacyClassificationJobRecordV1
+  | ClassificationJobRecordV2
 ~~~
 
-ページ本文、完全なプロンプト、AIの自由文応答は既定で保存しない。デバッグ用に必要な場合も個人データを除去し、開発ビルドに限定する。
+新規作成・実行できるのは `ClassificationJobRecordV2` だけとする。version 1 recordはversion別decoderで読み、terminal recordは監査表示だけ、PENDING／RUNNING recordは移行処理による取消だけを許す。ページ本文、完全なプロンプト、AIの自由文応答は既定で保存しない。正常候補1件以上の時だけ、process loss後のDB再適用に必要な `pendingApply` を一時保存する。これは検証済みID、正規化済みCREATE名、proposalKey、importance、confidenceに限定し、evidenceText、生応答、title、URLを含めず、Job終端時に削除する。デバッグ用ログが必要な場合も個人データを除去し、開発ビルドに限定する。
+
+全ての新規version 2 Jobは `state=PENDING`、`modelAttempt=0`、`executionAttempt=0`、`modelAttempts=[]`、`activeAttemptId=null`、`pendingApply=null`、`executorInstanceId=null`、`leaseExpiresAt=null`、`leaseNonce=null`、適用／棄却件数0、error／開始／終了時刻nullで作る。`executionAttempt` は整数0〜3に限定する。INITIAL_SAVE、CATEGORY_CASCADE_DELETE、USER_RECLASSIFY、stale差替え、version 1移行のいずれも、旧Jobのcounter、attempt、leaseを引き継がない。
+
+復旧時はdurable migration gateがないことを確認してから、active Job、Bookmark、Label、classificationSettings正本を同じtransactionで読む。AI Host可用性、claim、executionAttempt上限より先に設定stateを判定し、RECONFIGURATION_REQUIREDまたはCONFIGUREDかつdisabledならpolicy必須のfingerprintを生成せず、未CLOSED attemptをCANCELED_SETTINGS／CLOSED、Jobを差替えなしのCANCELED、BookmarkをbookmarkStateBeforeJobへ戻す。CONFIGUREDかつenabledの場合だけcurrent base fingerprintを再計算し、不一致ならcounter非消費でstale差替えへ移る。一致して `pendingApply` があればService WorkerのDB-only経路で同じcommandを適用する。この経路ではexecutionAttempt／modelAttemptを増やさない。再試行不能なquota／schema破損だけをDB失敗のFAILEDとし、executionAttempt上限を理由にpendingApplyを破棄しない。一致かつpendingApplyなしの場合だけclaim／実行上限を判定する。
 
 ### 索引
 
 - byStateUpdatedAt: state, updatedAt
 - byBookmarkCreatedAt: bookmarkId, createdAt
 - byFingerprint: inputFingerprint
+- byActiveInputKey: activeInputKey（unique。terminal Jobはproperty自体を持たない）
 - byRequestId: requestId（unique）
 
-同じ入力fingerprintのSUCCEEDEDがある場合は再適用しない。通常Jobの `triggerOperationId` はnullとし、Category連鎖削除では削除requestIdを入れ、`requestId = categoryDeleteRequestId + ":" + bookmarkId` のようにBookmarkごとに安定生成して再送を1件へ収束させる。Job作成時に設定値から上記discriminated unionを生成し、`granularity` と `maxNewTags` の任意の組合せを受け付けない。policyVersionをfingerprintへ含め、後から設定や対応表が変わっても実行中Jobの上限を変えない。JobはService Worker内でAI実行しない。長時間RUNNINGのJobはAI Hostのトップレベル拡張ページが閉じた可能性があるため、lease期限後、attempt上限内でPENDINGへ戻せる。
+同じ入力fingerprintのSUCCEEDEDがある場合は再適用しない。PENDING／RUNNING Jobだけが `activeInputKey = "classification-active:" + bookmarkId + ":" + inputFingerprint` を持ち、terminal化と同じtransactionでpropertyを削除する。同一Bookmarkのactive Jobを作る時は `byBookmarkCreatedAt` を同じreadwrite transactionで確認し、同じinputFingerprintなら既存Jobを返し、異なるfingerprintなら旧active Jobを取消してからget-or-createする。`byActiveInputKey` の一意制約とtransactionの直列化により、別の旧Jobから同時にstaleを検出しても現在snapshotのactive Jobを1件へ収束させる。通常Jobの `triggerOperationId` はnullとし、Category連鎖削除では削除requestIdを入れ、`requestId = categoryDeleteRequestId + ":" + bookmarkId` のようにBookmarkごとに安定生成して再送を1件へ収束させる。Job作成時に設定値からpolicy version 2のdiscriminated unionを生成し、granularity、reusePolicy、allowedCreateImportanceの不一致を拒否する。
+
+version 2 Jobをterminal化するtransactionでは、`activeAttemptId` と `pendingApply` をnull、`executorInstanceId`、`leaseExpiresAt`、`leaseNonce` をnullにし、`activeInputKey` propertyを削除する。current attemptがCLOSEDでなければ、stale差替えでは `CANCELED_STALE`、設定による差替えなし取消では `CANCELED_SETTINGS`、利用者取消では `CANCELED_USER` として `phase=CLOSED`、`closedAt=now` にする。実行上限finalizerはattempt phaseに応じて後述のABANDONED_PRE_DISPATCHまたはTECHNICAL_FAILUREを使う。DISPATCH_RESERVED済みordinalは旧JobのmodelAttempt監査に残すが、差替えJobへ引き継がない。Job state、attempt、token clear、差替えJobまたはBookmark状態復帰の一部だけをcommitしない。
+
+`candidateQueryVersion="all-active-labels-v1"` は件数・意味shortlistをしない。全active USER CategoryをID順、それらを親とする全active TagをUSER／AI／IMPORT／SHAREの順かつorigin内ID順でpromptへ入れる。active Tagの親がこのCategory集合にない場合は入力不変条件違反としてFAILEDにする。各attemptのretryContext込み `ClassificationPromptInput` をcanonical JSON化したUTF-8 byte長が `maxPromptInputBytes=262144` を超える場合、または固定system prompt込みの実requestがProvider入力quotaを超える場合は、候補を切らずdispatch前にINPUT_CONTEXT_TOO_LARGEでFAILEDにする。base input fingerprintは、retryContextを除く別の `BaseFingerprintPayload` に `fingerprintVersion="classification-base-v1"`、bookmarkId、bookmarkRevision、settingsVersion、およびprompt／response schema version、candidateQueryVersion、maxPromptInputBytes、maxModelResponseBytes、policy、title／normalizedUrl、実際のprompt順のCategory／Tag全fieldを持つpromptInputを入れ、canonical JSON v1のSHA-256にする。`updatedAt`、Job state、lease、model／execution attemptも含めない。再試行入力の `retryContext` はallowlist済み理由コードだけを渡す。Tag出力には業務上の件数上限を持たせない。raw応答はJSON parse前にUTF-8で測り、`maxModelResponseBytes=262144` 超過なら部分採用せずMODEL_RESPONSE_SIZE_EXCEEDEDのtechnical failure、Providerの小さいquotaによる切断はMODEL_RESPONSE_TRUNCATEDとする。`modelAttempts.reasonCodes` にtitle、URL、Tag名、生のモデル応答を保存しない。JobはService Worker内でAI実行しない。
+
+canonical JSON v1はJSON互換finite値だけを受け、`undefined`、sparse array、関数、symbol、BigInt、循環、NaN、Infinityを拒否する。object keyは `Object.keys(value).sort()` と同じUTF-16 code unit昇順、arrayは指定順を保持し、primitive／key escapeはwell-formed `JSON.stringify` に従う。`BaseFingerprintPayload` のcanonical UTF-8 bytesをSHA-256 lowercase hexへし、attemptごとの `ClassificationPromptInput` は同じalgorithmで別途canonicalizeしてモデルへ渡しbyte長を測る。retryContext込みpromptとretryContextなしfingerprint payloadを同じ文字列として扱わない。固定system promptを含む実request全体はProvider quotaでも別途検査する。この規則に合わない既存helperはv2実装時に更新し、別property順への再serializeを許さない。
+
+`bookmarkStateBeforeJob` は取消後に実データと矛盾しない復帰先とする。INITIAL_SAVEでは保存transactionの手動Tag適用後、CATEGORY_CASCADE_DELETEでは連鎖削除後の残存active Tag計算後に、1件以上ならCLASSIFIED、0件ならUNCLASSIFIEDを保存する。USER_RECLASSIFYではPENDINGへ変える直前の非PENDING状態を保存し、既にactive Jobがある場合はそのJobの値を引き継ぐ。active Job中の手動Tag追加／解除transactionは、編集後のactive TAG edgeが1件以上ならCLASSIFIED、0件ならUNCLASSIFIEDへ旧JobのbookmarkStateBeforeJobを更新し、その値をstale差替えJobへ引き継ぐ。Tag差分を伴わないstaleは旧値を引き継ぐ。利用者が差替えなしで取消す時は、JobのCANCELED化、`activeInputKey` 削除、Bookmarkの `bookmarkStateBeforeJob` への復帰を同じtransactionで行う。version 1には旧fieldがないため、v2 Jobを作る場合も設定不明で作らない場合もactive Tag edgeがあればCLASSIFIED、なければUNCLASSIFIEDを取消復帰先とし、設定不明時は旧Job取消／AI無効化／Bookmark復帰を同じtransactionで行う。
+
+AI HostはPrompt APIが利用可能な時だけclaimする。モデル未取得／download中／対応ページなしではJobをPENDINGに保ち、恒久非対応ならJob／BookmarkをFAILEDにして手動分類を案内する。各readwrite transactionの開始時に `now` を1回取得し、`leaseExpiresAt > now` だけを有効、`leaseExpiresAt <= now` を期限切れとする。所有者のないPENDING Jobまたは期限切れleaseから回収したJobの所有権を取得するclaim transactionが成功するたび、executorInstanceIdが前回と同じかを問わず `executionAttempt` を1増やして新しい `leaseNonce` を発行する。現在の有効なleaseNonceを提示したrenew、同lease内の結果再送、DB retryでは増やさない。`executionAttempt=3` でも3回目のleaseが有効な間は同ownerのrenew、結果受付、pendingApply適用を許す。ownerlessまたはlease失効により4回目の所有権取得が必要になった時だけ新しいclaimを拒否し、後述のfinalizerでインフラ失敗のFAILEDとする。
+
+モデル呼出しでは、snapshot検証後に一意なattemptIdを `PREPARED` で保存する。PREPAREDのままleaseを失いexecutionAttemptが3未満なら、次にlease所有権を取得したexecutorが旧attemptを `ABANDONED_PRE_DISPATCH`／CLOSEDにしてactiveAttemptIdを外し、同じ次ordinalの新attemptIdを現在のleaseNonceで作る。executionAttempt=3の失効時は新ownerを作らずfinalizerが同じCLOSED化を行う。旧attemptIdを別leaseへ再bindせず、この回収ではmodelAttemptを消費しない。外部call直前の別readwrite transactionでは設定stateを先に確認し、CONFIGUREDかつenabledの場合だけ現在のJob／lease／PREPARED attemptを照合してall-active-labels-v1 queryからcurrent base fingerprintを再計算する。一致時だけ `DISPATCH_RESERVED`、ordinal、現在leaseNonceをcommitし、その後だけPrompt APIを1回呼ぶ。不一致ならmodelAttemptを増やさずstale差替えへ移る。同attemptIdを再dispatchしない。外部callとIndexedDBはatomicにできないため、reservation commit直後のHost停止でも安全側にそのmodelAttemptを消費済みとする。結果messageはjobId、attemptId、modelAttempt、inputFingerprint、leaseNonceを必須とし、結果受付transactionの同じ `now` で `leaseExpiresAt > now` かつ現在のactive attemptと完全一致する時だけ受理する。結果受付とfinalizerはreadwrite transaction順に直列化し、先にcommitした側の状態を正として後続側をterminal no-op、pendingApply回復、RUNNING Jobの実行上限finalize、またはlate response拒否へ収束させる。
+
+結果受付とfinalizerの競合で結果側が先にcommitした場合、terminalはno-op、VALIDATED／pendingApplyはDB-only回復とする。一方、quality-zero／technical failureをCLOSEDで保存後もRUNNING、activeAttemptId=null、pendingApply=nullのJobはno-op対象ではない。`executionAttempt=3` なら次のfinalizer表に従い、新ownerや新attemptを作らずFAILEDへ収束させる。finalizer側が先にcommitした場合は、後続結果をlate responseとして拒否する。
+
+4回目claimが必要な実行上限では、lease-expiry finalizerが設定取消、configured-enabled時のstale差替え、fingerprint一致済みpendingApply回復をこの順で先に評価し、いずれにも該当しない場合だけ次を1つのterminal transactionで行う。
+
+| current attempt | finalizer処理 |
+| --- | --- |
+| なし／既にCLOSED | attempt recordを変更しない |
+| PREPARED | `ABANDONED_PRE_DISPATCH`／CLOSED。modelAttemptは増やさない |
+| DISPATCH_RESERVED | `TECHNICAL_FAILURE`、reason=`MODEL_RESULT_LOST`／CLOSED。modelAttemptは消費済みのまま |
+| VALIDATEDかつpendingApplyあり | finalizerへ入らず先にDB-only適用 |
+| VALIDATEDかつpendingApplyなし | `TECHNICAL_FAILURE`／CLOSED、reason=`CLASSIFICATION_JOB_INVARIANT_VIOLATION` |
+
+finalizerはexecutionAttemptを3のまま、新attemptId／leaseNonceを発行せず、Job／BookmarkをFAILEDにする。errorCodeの優先順は、VALIDATEDなのにpendingApplyがなければ `CLASSIFICATION_JOB_INVARIANT_VIOLATION`、finalizerのattempt処理後にmodelAttempt=3かつTECHNICAL_FAILUREが1件以上あれば `AI_TECHNICAL_FAILURE`、それ以外は `EXECUTION_ATTEMPT_LIMIT_EXCEEDED` とする。第3 DISPATCH_RESERVEDの結果喪失でmodel／execution両枠が同時に枯渇する場合はdispatch枠枯渇を優先する。同じtransactionでactiveAttemptId、pendingApply、executor／lease fieldsをnull、activeInputKey propertyを削除し、全late responseを拒否する。
+
+timeout、応答切断、truncated、応答byte上限超過、dispatch後の結果喪失はtechnical failureであり、dispatch枠は消費するがquality-zeroには数えない。結果喪失後のretryContextには `MODEL_RESULT_LOST` だけを渡せる。JSON／envelope／候補検証による正常候補0件だけをquality-zeroとする。3 dispatchすべてquality-zeroの場合だけNEEDS_REVIEWとし、technical failureを含んでdispatch枠を使い切ればFAILEDとする。all-active-labels-v1の全入力が固定byte予算／Provider quotaに収まらない時はdispatch前にINPUT_CONTEXT_TOO_LARGEでFAILEDとし、modelAttemptを消費しない。正常候補1件以上では `pendingApply` を先に永続化し、process loss後も再検証して同じcommandを適用する。旧policy version 1のterminal Jobは監査履歴として保持する。旧settingsはdurable migration gateに固定したraw schemaをversion allowlistで判定し、既知のLOCAL_SETTINGS_V1だけを暗黙enabledとして同じgranularity位置からv2 policyへ変換する。PENDING／RUNNINGのversion 1 Jobはversionを書き換えず、CONFIGUREDかつenabledなら旧Job取消と `classification-v2-migration:<legacyJobId>:<newInputFingerprint>` のversion 2 Job get-or-createを同じtransactionで行う。RECONFIGURATION_REQUIREDなら、旧Job取消とBookmarkをactive TAG edgeありならCLASSIFIED、なしならUNCLASSIFIEDへ戻す更新だけを同じtransactionで行い、version 2 Jobを作らない。
+
+## classificationSettings
+
+AI分類がJob作成、stale検出、適用直前検証で参照する設定正本を、関連Storeと同じIndexedDB transactionで読めるようにする。
+
+~~~ts
+type ClassificationSettingsRecord = {
+  schemaVersion: 1
+  key: "current"
+  settingsRevision: number
+  lastMutationRequestId: string | null
+  lastMutationFingerprint: string | null
+  updatedAt: EpochMs
+} & (
+  | {
+      configurationState: "CONFIGURED"
+      aiEnabled: boolean
+      aiGranularity: 0 | 1 | 2 | 3 | 4
+      policy: ClassificationPolicySnapshotV2
+    }
+  | {
+      configurationState: "RECONFIGURATION_REQUIRED"
+      aiEnabled: false
+      aiGranularity: null
+      policy: null
+    }
+)
+~~~
+
+`settingsRevision` は1から始まる単調増加safe integerとする。新規installのrevision 1は `configurationState="CONFIGURED"`、`aiEnabled=true`、`aiGranularity=2`、policy version 2の `BALANCED` とし、`lastMutationRequestId`／fingerprintはnullにする。モデル未取得や端末非対応はこの設定値を暗黙にOFFへ変えず、JobをPENDINGまたは規定のFAILEDへ遷移させる。configurationState、`aiEnabled` または `aiGranularity` の実効値が変わる成功commandだけが、`classificationSettings` の1つのreadwrite transactionでrevisionをちょうど1進め、CONFIGUREDでは同じtransactionでgranularityからpolicy version 2を導出する。旧値を確定できない移行では値0を補わずRECONFIGURATION_REQUIRED、null policyで保存する。commandは `expectedSettingsRevision`、`settings-update:` requestId、変更payloadのcanonical fingerprintを必須とする。同じ最新requestId／fingerprintの応答再送はrevisionを再加算せず同じ結果へ収束し、別payload再利用または古いexpected revisionを拒否する。
+
+version 2 Jobの `settingsVersion` はJob作成transactionで読んだCONFIGUREDかつ `aiEnabled=true` の `ClassificationSettingsRecord.settingsRevision` のsnapshotである。RECONFIGURATION_REQUIREDまたは `aiEnabled=false` では新しい分類Jobを作らない。base fingerprint再計算、claim前stale判定、DISPATCH_RESERVED直前、pendingApply適用transactionも同じStoreを同じIndexedDB transactionで読み、`chrome.storage.local` をtransaction途中に参照しない。各transactionは設定stateを先に分岐し、disabled／再設定待ちはpolicy必須のBaseFingerprintPayloadを構築せず、未CLOSED attemptをCANCELED_SETTINGS／CLOSED、旧Jobを差替えなしでCANCELED、Bookmarkを `bookmarkStateBeforeJob` へ戻す。CONFIGUREDかつenabledの場合だけpolicyを導出してcurrent fingerprintを計算し、不一致ならstale差替え、一致かつpendingApplyありならDB-only適用、一致かつpendingApplyなしならclaim／上限判定へ進む。これによりnull policyのfingerprint構築不能と設定変更のTOCTOUを閉じる。
+
+設定UIはService WorkerのcommandだけでAI設定を変更する。IndexedDB commit後に `LocalSettings` へconfiguration state、値、`classificationSettingsRevision` をmirrorするが、両保存先はatomicでないためIndexedDBを正本とする。mirror失敗はAI設定commitを巻き戻さず、UIはService Worker経由で正本を読み、通常時の起動／`storage.onChanged` でmirrorを修復する。durable migration gateが存在する間はmigration owner以外のmirror repairを停止し、gateやsnapshotの書込みを外部設定変更として処理しない。外部からchrome.storage.localだけを書き換えてもAI実効値に採用せず、正本値へ戻す。空DBの新規installではversionchange後に上記のrevision 1既定recordを作り、作成完了までcommand受付を開始しない。旧DBの移行では後述のdurable migration gateが固定した旧設定snapshotだけからrevision 1を作り、CONFIGUREDかつenabledの場合だけversion 2 Jobを作る。
 
 ## bookmarkRevisions
 
@@ -487,7 +722,11 @@ IndexedDBのversionとアプリ内部のschemaVersionを対応付ける。`norma
 type FrequentVisitWindow = "LAST_7_DAYS" | "LAST_30_DAYS" | "LAST_365_DAYS"
 
 interface LocalSettings {
-  settingsSchemaVersion: number
+  settingsSchemaVersion: 2
+  classificationSettingsRevision: number
+  classificationConfigurationState:
+    | "CONFIGURED"
+    | "RECONFIGURATION_REQUIRED"
   onboardingState: {
     status: "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED"
     currentStepId: string | null
@@ -495,7 +734,7 @@ interface LocalSettings {
     updatedAt: EpochMs
   }
   aiEnabled: boolean
-  aiGranularity: 0 | 1 | 2 | 3 | 4
+  aiGranularity: 0 | 1 | 2 | 3 | 4 | null
   viewMode: "LIST" | "GRID"
   thumbnailEnabled: boolean
   contextMenuBookmarkEnabled: boolean
@@ -508,11 +747,43 @@ interface LocalSettings {
 }
 ~~~
 
+旧設定からIndexedDB正本へ移す間だけ、`chrome.storage.local` に次のdurable gateを1値として置く。`CapturedLegacySetting` は移行判断に必要な型だけを固定し、破損値を有効値へ変換しない。旧実装の `schemaVersion` と現行mirrorの `settingsSchemaVersion` を別fieldで捕捉し、どちらを読んだかを曖昧にしない。
+
+~~~ts
+type CapturedLegacySetting =
+  | { kind: "MISSING" }
+  | { kind: "BOOLEAN"; value: boolean }
+  | { kind: "FINITE_NUMBER"; value: number }
+  | { kind: "INVALID"; valueType: string }
+
+interface ClassificationSettingsMigrationGate {
+  schemaVersion: 1
+  state: "CAPTURED" | "IDB_COMMITTED"
+  migrationId: string
+  snapshot: {
+    schemaVersion: CapturedLegacySetting
+    settingsSchemaVersion: CapturedLegacySetting
+    aiEnabled: CapturedLegacySetting
+    aiGranularity: CapturedLegacySetting
+  }
+  snapshotSha256: string
+  createdAt: EpochMs
+  updatedAt: EpochMs
+}
+~~~
+
+Service Workerは起動時に移行と、classificationSettingsへ依存する全command／background処理を同じ排他キューへ入れる。旧DBを検出したら他commandを受理する前に、既存の `migrateLocalSettings` を通さずraw `LocalSettings` の `schemaVersion`、`settingsSchemaVersion`、`aiEnabled`、`aiGranularity` を上記表現へ変換し、canonical JSON v1のhashと `state=CAPTURED` を同じ `chrome.storage.local.set` で永続化する。
+
+gateはCAPTURED／IDB_COMMITTEDのどちらでも、存在自体を排他barrierとする。全LocalSettings read／write commandと、classificationSettingsの値でcommit内容が変わるBookmark保存、Category cascade、USER_RECLASSIFY、Job作成／差替え／claim／DISPATCH_RESERVED／結果受付／pendingApply適用／lease回収は、処理開始前に同じキューでgateを確認する。gate存在中の利用者commandはIndexedDB／LocalSettingsへ何も書かずretryableな `SETTINGS_MIGRATION_IN_PROGRESS` を返し、設定readもmirror値を返さず同状態を返す。background処理はJob、attempt、lease、counterを変更せず再実行待ちにする。分類設定に依存しない検索、一覧、手動Tag編集等だけは継続できる。
+
+gateまたは分類設定mirror 4項目を書けるのはmigration ownerだけとする。通常のmirror repair、`storage.onChanged` handler、他のLocalSettings mutationはgate中に待機し、gate自身の変更を外部設定変更として処理しない。versionchange後のdata migrationは保存済みsnapshotとhashだけを読み、hash不一致なら推測せずmigrationをFAILEDにする。IDB commit後だけ同じsnapshotのgateを `IDB_COMMITTED` にし、IDB正本から `classificationConfigurationState`、`classificationSettingsRevision`、`aiEnabled`、`aiGranularity` をmirrorへ書き戻して読取照合し、その後だけgateを削除して待機commandを解放する。`CAPTURED`／`IDB_COMMITTED` の途中停止は同じmigrationIdとsnapshotから再開し、外部によるstorage変更を移行入力へ取り込まず最終repairで上書きする。
+
 - 不明なenum値は安全な既定値へ戻す。
 - 設定の破損でBookmarkデータを初期化しない。
+- `classificationConfigurationState`、`classificationSettingsRevision`、`aiEnabled`、`aiGranularity` は `classificationSettings` 正本のUI mirrorであり、AI Jobやfingerprintはこのmirrorを直接読まない。mirror欠損／不一致は正本から修復する。再設定待ちはaiEnabled=false、aiGranularity=nullで表し、値0へ変換しない。`settingsSchemaVersion` はデータ形式の版であり、AI設定変更検知には使わない。
 - `frequentVisitDayThreshold` は新規installでも既定値を持たずnullとする。`frequentVisitWindow` は3 enumだけを許可し、当日を含む直近7／30／365暦日へ対応させる。期間選択を変更した時点でも `frequentVisitDayThreshold=null` とし、判定を `REMINDER_CONFIG_REQUIRED` で停止する。再入力値は期間ごとに1〜7／1〜30／1〜365の有限整数だけを許可する。`archiveAfterDays` は新規installと欠損／不正値migrationで30とし、それ以外は有限の正整数として検証する。空文字、指数表記、NaN、Infinity、範囲外を有効設定へ変換しない。
 - 旧 `frequentVisitThreshold` は回数から日数へ暗黙変換しない。migrationでは旧fieldを除去し、`frequentVisitWindow=null`、`frequentVisitDayThreshold=null`、`frequentVisitReminderEnabled=false` として利用者の再設定を要求する。
-- `aiGranularity` だけを0〜4のスライダー値として扱う。Job作成時にpolicyVersion 1の対応 `0→0`、`1→1`、`2→2`、`3→4`、`4→6` でmaxNewTagsを固定する。0でもAIによる既存カテゴリ／既存タグの自動割当は実行する。
+- CONFIGURED時の `aiGranularity` だけを0〜4のスライダー値として扱う。Job作成時にpolicy version 2の `reusePolicy` と `allowedCreateImportance` を固定する。0／1は `CORE`、2は `MAJOR`まで、3は `SUPPORTING`まで、4は `DETAIL`までCREATEでき、0でも中心主題を表せる既存Tagがなければ必要最小限の `CORE` を作成できる。`maxNewTags` や `maxAssignedTags` へ変換しない。RECONFIGURATION_REQUIREDではsliderを未設定表示にし、利用者の明示選択までJobを作らない。
 - `frequentVisitReminderEnabled=false` の間は新規候補の生成と通知を行わない。端末固有表示設定は同期せず、行動履歴関連の設定を同期するかは同期Planで固定する。
 - `contextMenuBookmarkEnabled` は端末固有設定としてDrive同期しない。旧settingsにfieldがない場合は既存の右クリック保存を維持するため `true` へ移行し、boolean以外の破損値は安全側の `false` として扱う。`true` はBookmation所有のpage／link menu IDを重複なく登録し、`false` はその2件を解除する。クリック処理も保存直前に現在値を再確認し、`false` なら保存しない。
 - `onboardingState` は `runtime.onInstalled` の `reason="install"` でレコードがない時だけ初期化する。update、startup、Service Worker再起動で上書きせず、currentStepIdから途中再開し、完了後もCOMPLETEDを保持する。端末固有のためDrive同期しない。
@@ -652,22 +923,21 @@ commitは選択fingerprint、全Folder解決、URL、重複、Label revisionを�
 
 ### 保存
 
-Service Worker側のアプリケーション層がbookmarksとPENDING classificationJobsを1トランザクションで更新する。AI呼び出しはService WorkerでもDBトランザクション内でも行わず、対応を実証したトップレベル拡張ページで行う。
+Service Worker側のアプリケーション層がbookmarks、DashboardのBookmark追加で明示選択したTag edge、そのTag親から導出したCategory edge、classificationSettings正本を1トランザクションで扱う。設定がCONFIGUREDかつaiEnabled=trueなら同じtransactionでPENDING classificationJobを作り、BookmarkをPENDINGにする。disabled／再設定待ちならJobを作らず、active TAG edgeが1件以上ならBookmarkをCLASSIFIED、0件ならUNCLASSIFIEDにする。全Tag IDがACTIVE TAGで、その親がACTIVE CATEGORYであることを再検証し、自由入力文字列やクライアント指定`categoryIds`は保存しない。AI呼び出しはService WorkerでもDBトランザクション内でも行わず、対応を実証したトップレベル拡張ページで行う。
 
 ### 分類適用
 
-AI Hostが外形検証した結果をService Workerへメッセージ送信し、Service Worker側のアプリケーション層が次を実行する。
+AI Hostは生の結果と、jobId、attemptId、modelAttempt、inputFingerprint、leaseNonceをService Workerへメッセージ送信する。Service Worker側のアプリケーション層が次を実行する。固定プロンプト、出力型、候補検証の正本は [AI_GUIDE.md](AI_GUIDE.md) とする。
 
-1. requestId、lease、BookmarkのrevisionがJob開始時と一致するか確認する。
-2. 返却された既存Label IDがJob開始時に提示した候補内で、有効なレコードか確認する。表示名だけで特定せず、kind、ID、revisionを確認し、TAGは候補時点の `parentCategoryId` と一致することも確認する。
-3. AIが選ぶCategoryはTag候補の親を制約する入力としてだけ扱い、Bookmarkへ独立したCategory edgeとして適用しない。新規作成候補はタグだけであり、TAGの親は有効なユーザー作成カテゴリに限定する。
-4. JobのClassificationPolicySnapshotを検証し、granularity / maxNewTags / policyVersionが定義済みunionと完全一致することを確認する。上限0なら新規タグ出力を拒否する。上限1／2／4／6では新規 `TAG` の件数・文字列・親カテゴリを確認し、originを問わず論理削除済みを含む `tagUniqueName` と競合しない場合だけ `creationRequestId = jobId:proposalKey` で作成する。同じrequestIdの再送は同じ作成結果を再利用する。同名の有効TAGは親・意味が適合する時だけ再利用し、不適合または論理削除済みならNEEDS_REVIEWにする。
-5. `byBookmarkAndLabel` を使って既存TAG edgeを差分更新する。適用後に残るACTIVE TAGの `parentCategoryId` を重複除外し、ACTIVE CATEGORY edge集合をその親集合へ完全一致させる。親edgeの追加・復元だけでなく、同じ親の最後のTagがなくなった場合の余分な親edge削除も同じtransactionで行う。ユーザー割当を暗黙に削除せず、同じedgeの再送は更新として扱う。
-6. BookmarkのclassificationStateとrevisionを更新する。
-7. bookmarkRevisionsを追加する。
-8. classificationJobsをSUCCEEDEDへ更新する。
+1. durable migration gateがないことを確認し、transaction開始時の `now` を1回取得してactive Job、Bookmark、Label、classificationSettings正本を同じtransactionで読む。RECONFIGURATION_REQUIREDまたはCONFIGUREDかつdisabledならfingerprintを生成せず、未CLOSED attemptを `CANCELED_SETTINGS`／CLOSED、Jobを差替えなしでCANCELED、Bookmarkを `bookmarkStateBeforeJob` へ戻し、activeAttemptId、pendingApply、executor／lease fields、activeInputKeyをclearする。CONFIGUREDかつenabledの場合だけ、`leaseExpiresAt > now`、現在のRUNNING Job、`activeAttemptId`、`phase=DISPATCH_RESERVED`、leaseNonce、inputFingerprint、modelAttemptがmessageと完全一致することを確認する。`leaseExpiresAt <= now`、古いlease、別attempt、CLOSED／VALIDATED attempt、terminal Jobへのlate responseは適用しない。同じ決定的候補queryからCategory／Tagの追加・復元・消滅を含むcurrent base fingerprintを再計算してJob.inputFingerprintと比較し、不一致なら `STALE_CLASSIFICATION_INPUT` としてcurrent attemptを未CLOSEDなら `CANCELED_STALE`／CLOSED、旧JobをCANCELEDにし、現在値からのversion 2 Job get-or-createとBookmarkのPENDINGを同じtransactionで行う。差替えrequest IDは `classification-stale:<oldJobId>:<newInputFingerprint>` とし、同じrequest IDまたは `(bookmarkId, newInputFingerprint)` のactive Jobを再利用する。選ばれた差替えJob以外の旧active Jobも同じterminal invariantで取消す。dispatch前のstaleでは `modelAttempt` を増やさず、dispatch後の回数は新Jobへ引き継がない。結果受付とlease-expiry finalizerが競合した時はIndexedDBのreadwrite transaction順に直列化し、先にcommitした側の状態を正とする。
+2. 応答を受信できた時だけJSON、envelope schema、Category 1件、Jobのpolicy version 2 snapshotを全体検証する。JSON不正、top-level未知property、Category 0件／複数／snapshot候補外はattempt outcome=`GLOBAL_INVALID` のquality-zeroとする。正常envelopeの `outcome=NEEDS_REVIEW` はoutcome=`ZERO_VALID` とする。candidate itemの構造やREUSE IDはenvelopeのresponseConstraintで全体拒否しない。timeout、応答切断、truncated、応答byte上限超過、dispatch後の結果喪失は `TECHNICAL_FAILURE` としてattemptを閉じ、quality-zeroに数えない。GLOBAL_INVALID／ZERO_VALID／TECHNICAL_FAILUREのcloseは同じtransactionで `phase=CLOSED`、`closedAt=now`、`activeAttemptId=null` とし、次のPREPAREDだけが新しいactiveAttemptIdを設定する。
+3. raw arrayの各要素をcandidate schemaへ個別に通してから、各REUSE／CREATE候補を独立にDomain検証する。field欠損、未知property、型不正、REUSE／CREATE混在はその候補だけを棄却する。REUSEはsnapshot候補内ID、選択Categoryとの親一致、根拠を確認する。候補外IDまたは別親はその候補だけを棄却し、snapshot内IDの現在revision／ACTIVE状態／親が変わった場合は手順1のstaleとする。CREATEはallowedCreateImportance、根拠、Normalizer、禁止値までを基礎検証し、同一試行内と全TAG／tombstoneのnormalizedName重複は手順5のcanonical化で解決する。重複し得ることだけを理由に、REUSEへ変換できるCREATEを先に棄却しない。重複候補は、重複以外の検証を先に行い、同じREUSE IDの先頭正常要素、同じnormalizedNameではREUSE優先、USER／AI／IMPORT／SHAREとID順、CREATEの先頭正常要素という決定的規則で1件へ収束させる。
+4. 正常なCLASSIFIED envelopeでも配列が空または全candidate棄却ならattempt outcome=`ZERO_VALID`, phase=`CLOSED` とし、同じtransactionで `activeAttemptId=null` にする。GLOBAL_INVALID／ZERO_VALIDのどちらも残りdispatch枠があればallowlist済み理由コードだけを次の `retryContext` へ設定し、前試行の候補を結合せず次へ進む。3 dispatchすべてquality-zeroの場合だけJobとBookmarkをNEEDS_REVIEWへ移す。technical failureを含んで3 dispatchを使い切った場合はFAILEDにする。
+5. CREATE名を全TAG／tombstoneと照合し、選択Category内のactive TAGとnormalizedNameが一致する候補は、重複棄却より先に必ずそのIDのREUSEへcanonical化する。選択Category外のactive TAGとnormalizedNameが一致する場合、またはtombstoneが同名を予約する場合はCREATEを棄却し、新規ID、REUSE、親変更を行わない。normalizedNameが異なる同義語等を本番validatorが未定義の意味推測で変換・棄却せず、その遵守は固定oracleの実モデル評価で測る。その後に正常候補が1件以上なら、その試行の全正常候補を適用集合にする。残ったCREATEには信頼済みコードが `proposalKey` と `creationRequestId = jobId:proposalKey` を安定生成する。生応答やevidenceTextを含まない `pendingApply` を先に短いtransactionで保存し、attemptをVALIDATEDにする。process loss後はmessageを待たず、このcommandを再検証して再開する。
+6. `pendingApply` を使うwrite transactionの冒頭で、同じ候補queryとcurrent base fingerprintを再計算する。一致しなければedgeを1件も変更せず、手順1のstale差替えを同じtransactionで行う。一致した場合だけ `byBookmarkAndLabel` を読み、このJobの正常Tag候補を現在のAI割当集合とする。置換対象はTAG edgeだけとし、以前の成功Job由来で今も `assignedBy=AI` のTAG edgeは、今回の集合にないものだけ論理削除する。残るAI TAG edgeは現在JobのclassificationJobId／confidenceへ更新する。USER／IMPORT／SHAREおよびUSERへ昇格済みのTAG edgeは削除もprovenance上書きもせず、新規AI TAG edgeだけを `assignedBy=AI` とする。既付与REUSEは冪等な正常候補として数える。
+7. 適用後に残る全ACTIVE TAGの `parentCategoryId` を重複除外し、ACTIVE CATEGORY edge集合をその親集合へ完全一致させる。派生CATEGORY edgeのprovenanceはUSER、IMPORT、SHARE、AIの寄与順で再計算し、confidence／classificationJobIdをnullにする。BookmarkをCLASSIFIEDにしてrevision、bookmarkRevisions、検索派生データ、accepted／rejected診断を更新し、attemptを `outcome="APPLIED"`, `phase="CLOSED"`、JobをSUCCEEDEDへ変更して `activeAttemptId`、`activeInputKey`、`pendingApply` とexecutor／lease fieldsをclearする。棄却候補が混在していても `PARTIAL_SUCCESS` は作らない。
 
-上記を単一トランザクションで行う。revisionが変わっていれば自動上書きせずCONFLICTまたはNEEDS_REVIEWにする。
+6〜7を単一トランザクションで行う。途中失敗は全正常候補をrollbackし、JobをSUCCEEDEDにしない。同じlease内のtransaction retryと同じ `pendingApply` の再送では `executionAttempt` を増やさず、モデルも再呼出ししない。lease失効後、executionAttemptが3未満なら所有権再取得claimがexecutorInstanceIdを問わずcounterを増やし、3なら新ownerなしのfinalizerへ進む。どちらも設定state、snapshot stale、pendingApplyを上限判定より先に処理し、モデル出力不正の再試行とは区別する。
 
 ### タグ統合
 
@@ -676,8 +946,8 @@ sourceTagの関連を同じ親CategoryのtargetTagへ移し、同じ `(bookmarkI
 ### カテゴリ／タグの作成・編集・削除
 
 - カテゴリ作成とタグ作成は種類ごとの正規化名一意性を同じtransactionで検証する。Tag作成commandは `name`、ACTIVEな既存 `parentCategoryId`、`expectedParentCategoryRevision`、`creationRequestId` を必須とし、親CategoryのID・kind・deletedAt・revisionを保存直前にも確認する。作成モーダルから連続作成しても各送信に別 `creationRequestId` を使い、同じ送信の再送だけを冪等化する。既存Labelを選択して「作成済み」に数える操作や、既存と同名の新規作成は提供しない。
-- Tag作成・編集の親カテゴリautocompleteはACTIVE CATEGORYだけを一致度順に最大8件返す。side-viewでCategoryを新規作成する場合はTag draftを永続正本へ書かずUI stateに保持し、`CreateCategory` 成功後に返ったIDとrevisionを選択状態へ設定する。その後の `CreateTag` / `UpdateTag` は別requestとしてcommitし、Category作成失敗・取消・再送でTag draftや親選択を別Categoryへすり替えない。
-- Bookmark編集commandは `bookmarkId`、期待revision、`title`、`url`、`tagIds` だけを受け、`categoryIds` はschema上拒否する。TAG候補は親カテゴリID付きで最大8件返す。保存時は全tagIdsがACTIVEであることを確認し、Tag edge差分を適用した後、そのBookmarkのCategory edgeをACTIVE Tag親集合と完全一致するよう追加・復元・論理削除する。
+- Tag作成の親Category autocompleteは空から、Tag編集では現在の親Category ID／revisionを選択済みで開始し、ACTIVE CATEGORYだけを一致度順に最大8件返す。正規化完全一致または候補選択時点で新しいID／revisionをdraftへ設定する。side-viewでCategoryを新規作成する場合はTag draftを永続正本へ書かずUI stateに保持し、`CreateCategory` 成功後に返ったIDとrevisionを選択状態へ設定する。その後の `CreateTag` / `UpdateTag` は別requestとしてcommitし、未知文字列、Category作成失敗・取消・再送でTag draftや親選択を別Categoryへすり替えない。
+- Bookmark追加／編集commandは `title`、`url`、`tagIds` だけを分類入力として受け、編集ではさらに`bookmarkId`と期待revisionを必須にする。`categoryIds`とTag自由入力文字列はschema上拒否する。TAG候補は親Category ID付きで最大8件返す。保存時は全tagIdsがACTIVEであることを確認し、Tag edge差分を適用した後、そのBookmarkのCategory edgeをACTIVE Tag親集合と完全一致するよう追加・復元・論理削除する。
 - Label作成・改名の名称入力でもkind別候補を最大8件まで提示できるが、候補IDの選択を作成・改名・merge commandへ暗黙変換しない。同じkindの正規化名が一致すれば一意索引で拒否する。
 - Category改名では `kind` や `parentCategoryId=null` を変えず、`byCategoryUniqueName` とrevisionで重複・競合を拒否する。Tag編集は次の専用transactionでnameと `parentCategoryId` を変更できるが、`kind` は変えない。Tag名は親に依存しない `byTagUniqueName` で論理削除済みを含むTAG全体の重複を拒否する。
 - Category編集queryはACTIVE子Tagの実名一覧と件数、およびその子Tagを参照するACTIVE Bookmarkのunique件数を同一snapshotから返す。削除済みTagと削除済みBookmarkは件数から除く。
@@ -722,17 +992,17 @@ interface DeleteCategoryCascadeCommand {
 }
 ~~~
 
-`warningAcknowledged` がtrueでないrequest、空または形式不正な `expectedImpactFingerprint`、`category-delete:` 以外のrequestId、AI出力、名称だけの指定は拒否する。use case別namespaceによりTag更新の `tag-update:` requestIdやbatch IDとの衝突を防ぐ。実行時は `labels.byParentCategory` から対象Categoryを親とする物理的に存在する全TAGを取得し、ACTIVE／削除済みを含む対象ID集合と、対象Labelを参照する全edge、影響するACTIVE Bookmark集合を固定する。次を `labels`、`bookmarkLabels`、`bookmarks`、`classificationJobs`、`bookmarkRevisions`、`searchDocuments`、P1の `syncOutbox` にまたがる1 transactionで行う。
+`warningAcknowledged` がtrueでないrequest、空または形式不正な `expectedImpactFingerprint`、`category-delete:` 以外のrequestId、AI出力、名称だけの指定は拒否する。use case別namespaceによりTag更新の `tag-update:` requestIdやbatch IDとの衝突を防ぐ。実行時は `labels.byParentCategory` から対象Categoryを親とする物理的に存在する全TAGを取得し、ACTIVE／削除済みを含む対象ID集合と、対象Labelを参照する全edge、影響するACTIVE Bookmark集合を固定する。次を `labels`、`bookmarkLabels`、`bookmarks`、`classificationJobs`、`classificationSettings`、`bookmarkRevisions`、`searchDocuments`、P1の `syncOutbox` にまたがる1 transactionで行う。
 
 1. まず `byCascadeDeleteRequestId` でrequestIdの既存利用を確認する。同じCategoryの `cascadeDeleteRequestId` が同じ完了済みrequestなら、ACTIVE状態、期待revision、fingerprintを再検証する前に `alreadyCompleted=true` の冪等成功を返し、追加変更やJob作成を行わない。別CategoryのCategory／子Tagに同じrequestIdがあれば `REQUEST_ID_REUSED` として拒否する。対象Categoryが別requestIdで削除済みなら再削除しない。未完了requestだけCategoryのID・期待revision・ACTIVE状態を検証し、同じtransaction内で現在の影響集合をpreviewと同じcanonical規則で再計算する。`expectedImpactFingerprint` と一致しなければ `CATEGORY_DELETE_PREVIEW_STALE` で1件も変更せず、最新detailによる再警告を要求する。
 2. 対象Categoryと全子TAGを同じ削除時刻のtombstoneにする。ACTIVE recordだけrevisionを進め、既に削除済みの子TAGは名前予約と元の削除情報を保つ冪等no-opにする。
 3. Categoryまたは子TAGを参照するACTIVE edgeを論理削除し、既存tombstone edgeの再削除はno-opにする。名称一致だけの別Labelや別edgeを対象へ加えない。
-4. 影響ACTIVE Bookmarkごとに残ったACTIVE Tag edgeを読み、その親集合へCategory edgeを完全一致させる。Bookmark本体は保持し、revisionを進め、`classificationState="PENDING"` とし、`reason="CATEGORY_CASCADE_DELETE"` のBookmarkRevisionを追加する。
-5. 影響Bookmarkの既存PENDING／RUNNING JobをCANCELEDにしてleaseを無効化し、`reason="CATEGORY_CASCADE_DELETE"`、`triggerOperationId=requestId`、Bookmark別の安定 `requestId` を持つPENDING Jobを1件ずつ作る。同一削除requestの再送でJobを増やさない。
+4. 影響ACTIVE Bookmarkごとに残ったACTIVE Tag edgeを読み、その親集合へCategory edgeを完全一致させる。Bookmark本体は保持してrevisionを進め、`reason="CATEGORY_CASCADE_DELETE"` のBookmarkRevisionを追加する。classificationSettingsがCONFIGUREDかつaiEnabled=trueなら `classificationState="PENDING"`、それ以外は残存active TAG edgeが1件以上ならCLASSIFIED、0件ならUNCLASSIFIEDとする。
+5. 影響Bookmarkの既存PENDING／RUNNING Jobをterminal invariantでCANCELEDにする。classificationSettingsがCONFIGUREDかつaiEnabled=trueの場合だけ、`reason="CATEGORY_CASCADE_DELETE"`、`triggerOperationId=requestId`、Bookmark別の安定 `requestId` を持つPENDING Jobを1件ずつ作る。disabled／再設定待ちは差替えJobを作らない。同一削除requestの再送でJobを増やさない。
 6. Category／子TAGのSearchDocumentを無効化し、影響BookmarkのSearchDocumentを新revisionと残存Tag／親Categoryだけから再生成する。Category削除前の分類名を検索へ残さない。
 7. 同期対象では同じrequestIdをoperation batch IDとするOutboxを作る。全更新とJob／Outbox作成が成功した時だけcommitし、期待revision不一致、quota、schema不正など1件でも失敗すれば全件rollbackする。
 
-削除後の再分類は通常のAI Hostで処理し、AIをtransaction内やService Workerから呼ばない。AI不可・失敗・候補不足ではBookmarkを削除せず `classificationState="NEEDS_REVIEW"`、JobをNEEDS_REVIEWにして手動Tag編集を許す。削除前にRUNNINGだったJobの結果はJob state、Bookmark revision、候補LabelのACTIVE状態を再検証して拒否する。子TAG tombstoneは名称を予約したまま同期保持・edge参照・conflict参照が解消してから先に物理GCし、Category tombstoneは物理的な子TAG recordが0件になった後だけ回収する。
+削除後の再分類は通常のAI Hostで処理し、AIをtransaction内やService Workerから呼ばない。モデル未取得／download中／AI Host不在ではPENDINGを保つ。3 dispatchすべてquality-zeroならJob／BookmarkをNEEDS_REVIEW、恒久非対応、executionAttempt上限、またはtechnical failure込みのdispatch枯渇ならFAILEDにする。どの場合もBookmark本体と手動Tagを保持して手動Tag編集を許す。削除前にRUNNINGだったJobの結果はJob state、Bookmark revision、候補LabelのACTIVE状態を再検証して拒否する。子TAG tombstoneは名称を予約したまま同期保持・edge参照・conflict参照が解消してから先に物理GCし、Category tombstoneは物理的な子TAG recordが0件になった後だけ回収する。
 
 ### Bookmark削除
 
@@ -825,7 +1095,7 @@ interface AiAssistantResponse {
 ### 入力中のautocomplete
 
 - 検索画面の共通検索ボックスはカテゴリ、タグ、Bookmarkを対象にし、前方一致、完全一致、部分一致等の決定的規則で候補を並べ、最大8件で打ち切る。
-- ブックマーク編集のタグ欄はTAGだけ、Tag作成・編集の親カテゴリ欄はACTIVE CATEGORYだけを最大8件返す。Category候補はID、name、revisionを持ち、nested side-viewの `CreateCategory` 成功結果も同じ選択型へ変換する。TAG候補には親カテゴリを必ず含める。Bookmark編集に独立したカテゴリ入力欄は設けない。
+- Bookmark追加／編集のTag欄はACTIVE TAGだけ、Tag作成／編集の親Category欄はACTIVE CATEGORYだけをリアルタイム一致度順に最大8件返す。Category候補はID、name、revisionを持ち、nested side-viewの `CreateCategory` 成功結果も同じ選択型へ変換する。TAG候補には親Categoryを必ず含める。Bookmark追加／編集に独立したCategory入力欄は設けず、候補へ解決できない文字列をIDとして扱わない。
 - autocompleteはAIを待たず字句索引だけで応答し、スコア自体はUIや永続データへ公開しない。選択後は表示名ではなくIDとrevisionを送る。
 
 ### 自然言語検索の候補と検証
@@ -857,17 +1127,36 @@ interface BookmarkCursor {
 
 現時点の文書は未実装であるため、新規実装では本スキーマを最初の正本として作る。旧設計を試作済みの環境が存在する場合だけ、次の順序で移行する。
 
+AI設定のsource allowlistは次だけとする。判定はraw objectのown propertyに対して行い、既存の `migrateLocalSettings` を通さない。同helperは欠損schemaVersionを1、不正aiGranularityを0へ補うため、移行判定に使うと欠損／破損の区別を失う。
+
+| source形式 | 必須条件 | revision 1への変換 |
+| --- | --- | --- |
+| `LOCAL_SETTINGS_V1` | `schemaVersion` が数値1、`settingsSchemaVersion` と `aiEnabled` はMISSING、`aiGranularity` はown propertyの整数0〜4 | v1にAI無効化設定がなかったため暗黙enabled。下表で同じslider位置をv2へ移す |
+| それ以外 | version欠損／未知、`settingsSchemaVersion` または `aiEnabled` の存在、granularity欠損／不正を含む | RECONFIGURATION_REQUIRED、aiEnabled=false、granularity／policy=null |
+
+| v1 granularity | v2 reusePolicy | v2 allowedCreateImportance |
+| ---: | --- | --- |
+| 0 | `STRONG_REUSE` | `CORE` |
+| 1 | `PREFER_REUSE` | `CORE` |
+| 2 | `BALANCED` | `CORE`, `MAJOR` |
+| 3 | `NEAR_EXACT_REUSE` | `CORE`, `MAJOR`, `SUPPORTING` |
+| 4 | `EXACT_EQUIVALENT_REUSE` | `CORE`, `MAJOR`, `SUPPORTING`, `DETAIL` |
+
+この対応はgranularityの相対的なslider位置だけを引き継ぎ、旧 `maxNewTags` の件数上限や値0のCREATE禁止をv2へ持ち込まない。正常なLOCAL_SETTINGS_V1でもgate snapshotのaiEnabledは `MISSING` のまま保存し、capture後にtrueへ書き換えない。
+
 1. 破壊的変更前にエクスポートを用意し、旧Storeをただちに削除しない。
 2. 旧平坦 `labels` を読める新旧両対応Readerを先に導入し、`parentCategoryId` と親索引を追加した新documentへ移す。Label名をproject-vendored Unicode 15.1.0 dataのv1で再正規化し、`nameNormalizationVersion=1`、`unicodeVersion="15.1.0"`、実assetから生成したSHA-256を記録する。`byCategoryUniqueName`、`byTagUniqueName`、一意な `byCreationRequestId` を作る前に、論理削除済みも含めた重複と禁止文字を検出する。
 3. 旧カテゴリは `parentCategoryId=null` とする。同名カテゴリが複数ある場合は自動削除せず競合一覧を作り、利用者が正本を選ぶまで `NEEDS_REVIEW` とする。
 4. 旧TAGには親が存在しないため、既存Bookmarkとの共起、旧データの由来、利用者選択から親カテゴリを1件決める。確定できないTAGは自動で架空カテゴリへ寄せず、隔離して `NEEDS_REVIEW` とする。同じnormalizedNameの旧TAGが複数ある場合も自動削除・統合せず、改名または正本選択まで隔離する。
 5. BookmarkLabelは `Label.kind` で再判定し、Bookmarkごとに有効TAG edgeの親集合を求め、ACTIVE CATEGORY edgeをその集合へ完全一致するよう追加・復元・論理削除する。同じ `(bookmarkId, labelId)` が複数あれば最新の有効状態と監査情報を残して1件にまとめ、その後 `byBookmarkAndLabel` unique索引を作る。
 6. 各Labelへ安定した `creationRequestId` を割り当てる。移行値は既存IDから `migration:<labelId>` のように決定的に生成し、再実行で変えない。空の `tagMutationReceipts` Storeを追加し、過去のTag編集requestIdを推測してreceiptを捏造しない。
-7. 旧 `aiGranularity=1..5` は意味対応表を固定して0〜4へ変換する。単純な `value-1` とするかは旧段階の意味を確認してから決め、未確認値は安全に新規AIタグ作成なしへ倒す。
-8. 旧訪問回数閾値を訪問日数へ変換せず、`frequentVisitDayThreshold=null` とする。`archiveAfterDays` の欠損／不正値は30、`autoArchiveEnabled` の欠損はfalseへ移し、旧「toggleなし」状態や保存済みhistory権限だけから自動的にtrueへしない。
-9. 旧ARCHIVED Bookmarkは `metadata` と `payload { title, url, categories, tags }` を構造上分けた最小スナップショットへ変換し、favicon、thumbnail、訪問統計等をpayloadへ残さない。理由・時刻・revision等はarchiveOperationsへ分離し、復元テストが通るまで旧値を回収しない。
-10. `searchDocuments` を親カテゴリ情報付きでバッチ再構築し、`migrationCursor` に完了位置を保存する。lastKeyはJSON round-trip可能な文字列、有限数、またはそれらだけの一次元配列へ限定し、表現できないkeyには別のversion付きcursor形式を定義する。
-11. 件数、参照整合、カテゴリ作成元、全TAGの親CATEGORY record存在、ACTIVE TAGのACTIVE親、BookmarkのACTIVE CATEGORY edgeとACTIVE Tag親集合の完全一致、edge一意性を確認してから新Readerへ切り替える。旧平坦フィールドは少なくとも1リリースの復旧期間後に別バージョンで削除する。
+7. 旧DBを検出したService Workerは、classificationSettingsに依存するcommand／background処理を受け付ける前に前述の排他キューを取得する。durable gateがなければ旧 `chrome.storage.local` のraw objectから `schemaVersion`、`settingsSchemaVersion`、`aiEnabled`、`aiGranularity` を1回だけ型付きcaptureし、canonical JSON v1 hash、migrationId、`state=CAPTURED` と同じstorage writeで保存する。既存gateがあれば現在の旧fieldを再読込せず、そのsnapshotから再開する。上記allowlistを満たすLOCAL_SETTINGS_V1だけをCONFIGURED候補とし、それ以外はRECONFIGURATION_REQUIRED候補にする。この時点では新Storeへ書けないため `classificationSettings` recordやv2 Jobをまだ作らない。gateが消えるまで分類設定に依存する処理は何もcommitしない。
+8. version別decoderを先に導入してからIndexedDBのversionchangeを行い、`classificationSettings` Storeと `byActiveInputKey` unique indexを作る。既に試作版のv2 active recordがある場合は、重複した旧keyでindex作成がabortしないよう、同じversionchange transaction内で旧 `activeInputKey` propertyだけを外す。version 1 recordにはkeyを付けない。index／Store作成前にclassificationSettings recordや新しいv2 Jobを作らない。
+9. upgrade完了後のdata migrationはdurable gateのsnapshot hashを再計算し、一致した場合だけreadwrite transactionを開始する。手順7の判定からrevision 1のclassificationSettings recordを作り、LOCAL_SETTINGS_V1はCONFIGURED、aiEnabled=true、captured granularity由来policyを保存し、それ以外はRECONFIGURATION_REQUIRED、aiEnabled=false、granularity／policy=nullとする。同じtransactionで試作版v2およびversion 1のPENDING／RUNNING JobをCANCELEDへ移し、terminal v1 Jobは監査専用で保持する。CONFIGUREDかつenabledの場合だけ、旧Job取消と、現在のBookmark revision、Label snapshot、classificationSettings正本からのversion 2 Job get-or-createを同じtransactionで行う。RECONFIGURATION_REQUIREDでは旧Job取消とBookmarkをactive TAG edgeありならCLASSIFIED、なしならUNCLASSIFIEDへ戻す更新だけを行い、v2 Jobを作らない。request IDは `classification-v2-migration:<legacyJobId>:<newInputFingerprint>` として安定生成し、classificationSettingsの `lastMutationRequestId` は `classification-settings-migration:<migrationId>`、`lastMutationFingerprint` はgateの `snapshotSha256` とする。再実行時にこのIDとfingerprintが一致する既存commitを再利用し、revisionやJobを増やさない。`byActiveInputKey` も照合して、別の旧Jobから同じBookmarkを移行しても現在snapshotのactive Jobを1件にする。IDB commit後だけgateをIDB_COMMITTEDへ進め、migration ownerが正本からchrome.storage.local mirrorを修復・照合してgateを削除するまで他の設定依存処理を解放しない。
+10. 旧訪問回数閾値を訪問日数へ変換せず、`frequentVisitDayThreshold=null` とする。`archiveAfterDays` の欠損／不正値は30、`autoArchiveEnabled` の欠損はfalseへ移し、旧「toggleなし」状態や保存済みhistory権限だけから自動的にtrueへしない。
+11. 旧ARCHIVED Bookmarkは `metadata` と `payload { title, url, categories, tags }` を構造上分けた最小スナップショットへ変換し、favicon、thumbnail、訪問統計等をpayloadへ残さない。理由・時刻・revision等はarchiveOperationsへ分離し、復元テストが通るまで旧値を回収しない。
+12. `searchDocuments` を親カテゴリ情報付きでバッチ再構築し、`migrationCursor` に完了位置を保存する。lastKeyはJSON round-trip可能な文字列、有限数、またはそれらだけの一次元配列へ限定し、表現できないkeyには別のversion付きcursor形式を定義する。
+13. 件数、参照整合、カテゴリ作成元、全TAGの親CATEGORY record存在、ACTIVE TAGのACTIVE親、BookmarkのACTIVE CATEGORY edgeとACTIVE Tag親集合の完全一致、edge一意性、activeInputKey一意性を確認してから新Readerへ切り替える。旧平坦フィールドは少なくとも1リリースの復旧期間後に別バージョンで削除する。
 
 変換は冪等にし、Object Store・索引変更と大量レコード変換を分ける。失敗時はUIに状態と復旧方法を示し、旧バージョン、空DB、カテゴリ名競合、タグ名競合、親不明タグ、複数カテゴリ／タグ、最大想定件数、途中中断でテストする。
 
@@ -1124,19 +1413,21 @@ interface SyncOperationRecord {
 - Tag作成・編集は既存ACTIVE Categoryの選択を必須とし、親候補は最大8件である。side-viewのCategory作成後もTag draftを保持して新Categoryを選択できる。UpdateTagはexpectedTagRevision、expectedParentRevision、submit開始時に1回発行する `tag-update:` requestIdを検証し、Tag名と親Categoryを原子的に変更できる。
 - Tag親変更はTag、新旧親Category、全参照ACTIVE Bookmark・edgeを単一transactionで再検証する。各BookmarkのCategory edgeを全ACTIVE Tag親集合へ完全一致させ、Bookmark revision、`TAG_PARENT_CHANGE` のBookmarkRevision、SearchDocument、`TAG_UPDATE` Outboxを更新し、AI再分類Jobを作らない。Tag名の一意性は親Categoryに依存しない。
 - 同じUpdateTag requestId・fingerprintの再送はTagMutationReceiptに保存した同じ `UpdateTagResult` へ収束し、別対象／別payloadでの再利用を拒否する。`tag-update:` とCategory連鎖削除の `category-delete:` namespaceを相互に受理しない。Tag／親／Bookmark／edgeの競合または途中失敗ではTag、edge、Bookmark、検索文書、Outbox、receiptのいずれも部分commitしない。
-- AI経路からカテゴリを新規作成・改名・削除できず、タグ新規作成はグローバルなタグ名一意性、親カテゴリ、`creationRequestId` の冪等性を満たす。policyVersion 1は `0→0 / 1→1 / 2→2 / 3→4 / 4→6` のdiscriminated union以外を拒否し、細分化0でも既存Labelの自動割当は継続する。同名TAGはoriginを問わず再評価し、USER候補を優先する一方、親・意味不適合はNEEDS_REVIEWにする。
+- AI経路からカテゴリを新規作成・改名・削除できず、1試行で既存Categoryを厳密に1件選ぶ。タグ新規作成はグローバルなタグ名一意性、選択Category、信頼側生成 `creationRequestId` の冪等性を満たす。policy version 2の5組以外を拒否し、Tag件数上限を設けない。選択Category内の同じnormalizedNameはoriginを問わず再評価してUSERを優先し、別Categoryの同じnormalizedNameはREUSE／CREATE／親変更しない。異なるnormalizedNameの同義語等はGemini NanoへREUSE／省略を指示し、固定oracleの実モデル評価で品質判定するが、本番validatorが未定義の意味推測でID操作しない。構造、親、revision、importance、根拠、名前の不正candidateだけを棄却し、正常候補1件以上なら全正常候補を原子的に適用してSUCCEEDEDとする。3 DISPATCH_RESERVEDすべてquality-zeroの場合だけNEEDS_REVIEW、technical failure込みのdispatch枯渇、executionAttempt枯渇、恒久非対応、input過大はFAILEDとなる。all-active-labels-v1の入力／応答byte境界と永続attempt tokenを検証する。
+- 新規installのclassificationSettingsはrevision 1、CONFIGURED、AI有効、granularity 2、BALANCEDである。旧設定移行はraw LOCAL_SETTINGS_V1のschemaVersion=1、settingsSchemaVersion／aiEnabled欠損、整数granularity 0〜4だけをallowlistし、暗黙enabledと同じslider位置のv2 policyへ移す。それ以外はRECONFIGURATION_REQUIREDとする。durable gate存在中は全設定read／writeと分類設定依存command／background処理を無変更で待機させ、CAPTURED／IDB_COMMITTED各crash、mirror失敗、外部storage改変から同じsnapshotで冪等に回復する。Job.settingsVersionは常に同じIDB transactionで読んだ正本revisionと一致し、disabled／再設定待ちはfingerprintを作らず新規／差替えJobも作らない。
 - autocompleteは種類・親情報付き候補を一致度順に最大8件だけ返す。1つの自然言語検索はLabel / Bookmarkの無順位候補集合を返し、AIが候補外ID、重複ID、古いrevisionを混入させても拒否する。
 - favicon BlobはfaviconBlobIdから参照でき、参照中のBlobを回収しない。外部favicon URLを一覧表示のたびに自動読込しない。
 - AI失敗時もBookmarkが残る。
 - AI Hostを途中で閉じ、次の対応ページでJobを再開しても重複タグを作らない。
 - Service WorkerからLanguageModelを実行せず、PENDING JobはAI Hostが開くまで保持される。
 - URL hash衝突でも異なるURLを誤って同一扱いしない。
+- Bookmark追加／編集で選択した0件以上のactive Tag IDだけがedgeになり、不在／非TAG／inactive IDまたは自由入力文字列が1件でも含まれる場合はBookmark、edge、Jobを部分保存しない。Category edgeは選択Tagのactive親集合と完全一致する。
 - 設定破損でIndexedDBを初期化しない。onboardingStateはinstall時だけ初期化され、途中stepと完了状態をupdate／startup／Service Worker再起動後も保持する。
 - Category template catalogを表示しただけではLabel件数が変わらない。明示適用した候補だけが `origin=USER` Categoryとして作成され、同じ適用request、onboarding再開、update／reloadで重複せず、既存／tombstone同名は通常の一意性エラーになる。
 - `archiveState` が文字列 `ACTIVE` / `ARCHIVED` で保存され、ARCHIVEDはmetadataと `payload { title, url, categories, tags }` が分離され、設定から復元できる。`archiveAfterDays` の新規／移行既定は30、`autoArchiveEnabled` の既定はfalseである。history実権限がある時だけtoggleをONへcommitでき、拒否／取消時はfalseのまま、後発取消時もfalseへ戻ってalarmが停止する。履歴なし項目は変更せずOPENな `ARCHIVE_HISTORY_NOT_FOUND` として表示でき、notificationsを要求しない。
 - 訪問日数閾値の既定値はnullであり、訪問期間3種と日数閾値の有効な組だけを受理する。期間変更時は閾値をnullへ戻して判定を停止する。同日複数訪問を1日にまとめ、同じURLのReminderを重複生成せず、利用者が `はい` を選ぶまでBookmarkを作らない。`いいえ` は応答前の訪問日を次回集計から除外し、「次回以降表示しない」はグローバル設定を変えずそのURLを再候補化しない。
 - Bookmark／Tag削除は確認画面なし、Category削除は影響件数を示す警告確認済みrequestだけで対象IDと期待revisionを検証する。1件でも失敗したら全件をrollbackし、Undo tokenや利用者向け復元導線は作らない。削除済みLabelのunique keyは物理GCまで名称を予約し、その間は同名別IDを拒否して別名だけを許可する。Bookmark削除でSearchDocumentを同時に除外し、参照Blobは同期tombstone保持と参照解消が済むまで回収しない。
-- Category連鎖削除requestIdは1つのCategoryだけに結び付ける。同じCategoryの完了済みrequest再送はACTIVE／revision／fingerprint検証より先にno-op成功へ収束し、別Categoryでの再利用を拒否する。新規requestでは警告snapshotの `impactFingerprint` をtransaction内で再計算し、不一致なら再警告して無変更とする。一致時だけCategory、ACTIVE／削除済み全子TAG、関連edgeを冪等にtombstone化し、影響ACTIVE Bookmarkを保持する。残存TagからCategory closureと検索文書を再計算し、Bookmark revisionを進め、旧RUNNING結果を拒否し、削除request起点のPENDING再分類JobをBookmarkごとに1件だけ作る。AI失敗時はNEEDS_REVIEWと手動Tag編集へ移り、子TAG tombstoneを先に、Category tombstoneを最後に物理GCする。
+- Category連鎖削除requestIdは1つのCategoryだけに結び付ける。同じCategoryの完了済みrequest再送はACTIVE／revision／fingerprint検証より先にno-op成功へ収束し、別Categoryでの再利用を拒否する。新規requestでは警告snapshotの `impactFingerprint` をtransaction内で再計算し、不一致なら再警告して無変更とする。一致時だけCategory、ACTIVE／削除済み全子TAG、関連edgeを冪等にtombstone化し、影響ACTIVE Bookmarkを保持する。残存TagからCategory closureと検索文書を再計算し、Bookmark revisionを進め、旧RUNNING結果を拒否する。classificationSettingsがCONFIGUREDかつenabledの場合だけ削除request起点のPENDING再分類JobをBookmarkごとに1件作り、未準備時PENDING、3 quality-zeroでNEEDS_REVIEW、恒久非対応／technical／実行枯渇でFAILEDとする。disabled／再設定待ちはJobを作らず残存active Tag有無でCLASSIFIED／UNCLASSIFIEDとする。常に手動Tag編集を許し、子TAG tombstoneを先に、Category tombstoneを最後に物理GCする。
 - QRとCSVは検索・チェック選択を同じ固定Bookmark集合へ展開する。QRは実encoderで容量検査し、超過時はfragmentを生成せず `QR_CAPACITY_EXCEEDED` とCSV actionを返し、分割・切捨てを行わない。CSV v1は固定header・1 Bookmark 1行・UTF-8で、構造列をJSON fieldとしてescapeし、数式注入をneutralizeして秘密情報を含めない。checksumを真正性保証に使わない。QR読取Importで破損、過大、カテゴリ／タグ名競合、親不明タグを適用前に拒否または確認へ送り、payload内部の同名TAG・複数親はpreview前に拒否する。既存の別親同名TAGは自動reuse／rename／moveせず、skip／cancelまたは明示別名後の全件再previewだけを許す。CSV importは要求しない。
 - 標準Bookmarkインポートは、`A/B/ページ` から直上Folder `B` だけを1件のTagへ解決し、祖先／full path／AI Tagを付与しない。同名active Tagは再利用し、新規Tagは利用者が選択／作成したactive親Categoryでだけ作る。空／不正Folder名とtombstone同名はskip／cancelへ送り、元データを書き換えず、中断・再送後もBookmark／Tag／edgeの重複を抑止する。
 - タグ統合と大量edge更新が途中失敗時に部分適用されない。

@@ -57,7 +57,7 @@ Plan は `docs/plans/YYYY-MM-DD-短い名称.md` に置く。`AGENTS.md` にはP
 - 作成日: YYYY-MM-DD
 - 最終更新: YYYY-MM-DD HH:MM JST
 - 担当: <名前またはチーム>
-- 関連: [要件](../REQUIREMENTS.md) / [設計](../DESIGN.md) / <Issue等>
+- 関連: [要件](REQUIREMENTS.md) / [設計](DESIGN.md) / <Issue等>
 
 ## 目的と利用者への価値
 
@@ -80,7 +80,9 @@ Plan は `docs/plans/YYYY-MM-DD-短い名称.md` に置く。`AGENTS.md` にはP
 
 データの流れ、責務境界、重要なインターフェースを文章で説明する。判断済み事項と仮説を区別する。
 
-設定を扱うPlanでは、訪問期間 `LAST_7_DAYS`／`LAST_30_DAYS`／`LAST_365_DAYS`、既定nullの日数、期間変更時の日数clear、1〜7／1〜30／1〜365の境界、同日重複排除、`いいえ` のcanonical URL別 `countingResetAt`、旧回数設定を日数へ暗黙移行しないmigration、`frequentVisitReminderEnabled`、URL単位SUPPRESSED、既定falseでhistory権限gate付きの `autoArchiveEnabled`、既定30日のarchive設定、権限取消時OFF、履歴なし項目エラー、AI細分化 `0`〜`4` と上限 `0 / 1 / 2 / 4 / 6` のdiscriminated snapshotを列挙する。カテゴリ／タグを扱うPlanでは、project-vendored Unicode 15.1.0に固定したLabel Normalizer v1、tombstone中の名前予約、active Tag／active親、子Tag tombstoneが残る親の物理回収拒否、Tag作成／編集時のactive Category最大8候補とCategory作成side view／draft復帰、BookmarkのCategory自動導出、Category編集の使用Tag実名／件数とBookmark unique件数を記載する。Tag親変更はTag／選択親expected revisionとsubmit開始時に1回発行する `tag-update:` requestIdを検証し、全参照BookmarkのCategory closure・revision・検索派生データ、同期Outbox、mutation receiptを原子的に更新する。同request再送を同じ `UpdateTagResult` へ収束させ、別payload再利用を拒否し、AI再分類を行わない。Category連鎖削除は別の `category-delete:` namespaceを使う。Bookmark／Tagは確認なしsoft-delete、Categoryだけは警告確認後にCategory／全子Tag／edgeをcascade soft-deleteし、Bookmarkを保持してPENDING再分類、失敗時NEEDS_REVIEW／手動分類へ送る。削除Undoの操作／token／期限／復元経路は作らない。検索を扱うPlanでは、フルページkeyword検索と、入力・応答をポップアップ内で完結するAIアシスタントを別状態として扱う。
+設定を扱うPlanでは、訪問期間 `LAST_7_DAYS`／`LAST_30_DAYS`／`LAST_365_DAYS`、既定nullの日数、期間変更時の日数clear、1〜7／1〜30／1〜365の境界、同日重複排除、`いいえ` のcanonical URL別 `countingResetAt`、旧回数設定を日数へ暗黙移行しないmigration、`frequentVisitReminderEnabled`、URL単位SUPPRESSED、既定falseでhistory権限gate付きの `autoArchiveEnabled`、既定30日のarchive設定、権限取消時OFF、履歴なし項目エラー、AI新規install既定のenabled／細分化2、AI細分化 `0`〜`4` とpolicy version 2のreusePolicy／allowedCreateImportance、IndexedDB正本、旧 `aiEnabled`／granularityのdurable migration gateを列挙する。AI分類を扱うPlanでは、Category厳密1件、Tag件数上限なし、候補単位棄却、正常候補全件の原子的適用、1件以上で終了、正常候補0件なら残り3dispatch枠まで再試行し、quality-zeroとtechnical failureの終端を分離すること、試行間非結合、`modelAttempt`／`executionAttempt` 分離、retryContextのallowlist、AI enabled gate付きstale Job差替えを記載する。カテゴリ／タグを扱うPlanでは、project-vendored Unicode 15.1.0に固定したLabel Normalizer v1、tombstone中の名前予約、active Tag／active親、子Tag tombstoneが残る親の物理回収拒否、Tag作成／編集時のactive Category最大8候補とCategory作成side view／draft復帰、BookmarkのCategory自動導出、Category編集の使用Tag実名／件数とBookmark unique件数を記載する。Tag親変更はTag／選択親expected revisionとsubmit開始時に1回発行する `tag-update:` requestIdを検証し、全参照BookmarkのCategory closure・revision・検索派生データ、同期Outbox、mutation receiptを原子的に更新する。同request再送を同じ `UpdateTagResult` へ収束させ、別payload再利用を拒否し、AI再分類を行わない。Category連鎖削除は別の `category-delete:` namespaceを使う。Bookmark／Tagは確認なしsoft-delete、Categoryだけは警告確認後にCategory／全子Tag／edgeをcascade soft-deleteしてBookmarkを保持する。CONFIGUREDかつenabledの場合だけPENDING再分類し、モデル未準備はPENDING、3 dispatchすべてquality-zeroはNEEDS_REVIEW、恒久非対応／technical failure込みdispatch枯渇／executionAttempt枯渇はFAILEDとする。disabled／再設定待ちはJobなしでCLASSIFIED／UNCLASSIFIEDへ戻し、いずれも手動分類を許す。削除Undoの操作／token／期限／復元経路は作らない。検索を扱うPlanでは、フルページkeyword検索と、入力・応答をポップアップ内で完結するAIアシスタントを別状態として扱う。
+
+AI設定移行を扱うPlanでは、raw LOCAL_SETTINGS_V1のschemaVersion=1、settingsSchemaVersion／aiEnabled欠損、整数granularity 0〜4だけを暗黙enabledとして同じslider位置のv2へ移し、それ以外は再設定待ちにする。durable gate中は全設定read／writeと分類設定依存command／background処理を無変更で待機させる。AI Job処理は設定stateをfingerprintより先に分岐し、3回目leaseが有効な間は完了を許すが、4回目claimが必要なら設定取消、stale、pendingApplyを先に評価してから新ownerなしのfinalizerで閉じる。
 
 右クリック保存を扱うPlanでは、端末固有の `contextMenuBookmarkEnabled`、field欠損時ON／破損値OFFのmigration、固定page／link ID、install／startup／storage変更時のreconcile、ON／OFF反復、失敗rollback、OFF直前の遅延click拒否を列挙する。Drive同期対象には含めない。
 
@@ -127,7 +129,7 @@ Chrome標準Bookmark取込を扱うPlanは、各URL nodeの直上Folderだけを
 - [ ] AIエージェントE2E: ビルド済み拡張機能をPlaywrightで確認し、report、screenshot、trace、skipを記録する。
 - [ ] 手動検証: <操作> の結果、<観察可能な結果> になる。
 - [ ] 人間受入: AIエージェント確認後、同じcommit／buildを人間が承認または差戻しする。
-- [ ] 状態fixture: 初回／再訪、Category templateの未適用／適用／同名競合／再送／途中再開、0件／8件／9件以上候補、Tag作成／編集のCategory候補／side view／draft、Tag親変更の参照Bookmark 0件／1件／多数、expected revision競合、同request再送／別payload再利用拒否、全件rollback、AI再分類なし、BookmarkのCategory自動導出、Category使用状況、Normalizer v1、設定境界値、右クリックtoggleの欠損移行／ON／OFF／登録失敗／worker再起動／遅延click、AI snapshot、権限拒否、Bookmark／Tagの確認なし削除、Category警告付きcascade削除、PENDING／NEEDS_REVIEW再分類、tombstone中の同名作成拒否、削除Undo経路なし、archiveの既定30／toggle権限gate／履歴なしエラー／復元、QR容量超過CSV fallback／Drive競合、標準Bookmarkの直上FolderだけをTag化する取込を必要に応じて含める。
+- [ ] 状態fixture: 初回／再訪、Category templateの未適用／適用／同名競合／再送／途中再開、0件／8件／9件以上候補、Tag作成／編集のCategory候補／side view／draft、Tag親変更の参照Bookmark 0件／1件／多数、expected revision競合、同request再送／別payload再利用拒否、全件rollback、AI再分類なし、BookmarkのCategory自動導出、Category使用状況、Normalizer v1、設定境界値、右クリックtoggleの欠損移行／ON／OFF／登録失敗／worker再起動／遅延click、AI snapshot、権限拒否、Bookmark／Tagの確認なし削除、Category警告付きcascade削除、CONFIGUREDかつenabled時のPENDING／NEEDS_REVIEW／FAILED再分類、disabled／再設定待ちのJobなしCLASSIFIED／UNCLASSIFIED、tombstone中の同名作成拒否、削除Undo経路なし、archiveの既定30／toggle権限gate／履歴なしエラー／復元、QR容量超過CSV fallback／Drive競合、標準Bookmarkの直上FolderだけをTag化する取込を必要に応じて含める。
 - [ ] エラー経路: <条件> でも保存済みデータを失わず、<案内> を表示する。
 - [ ] 文書: 関連文書と実装が一致する。
 
@@ -149,7 +151,7 @@ UIまたは利用者導線を変更するPlanは [TESTING.md](TESTING.md) の順
 1. 手動入力したURLを専用ストアへ保存し、再読込後も一覧に残る。
 2. 保存時にPrompt APIの可用性を判定し、利用不可でも手動タグ付けへ進める。
 3. ユーザーだけが定義する一意名の親カテゴリと、既存ユーザー定義を優先してAIが必要時だけ作る一意名の子タグを、版付きJSON documentとして保存する。カテゴリ名とタグ名は別namespace、タグ名は親をまたいでglobal uniqueである。Tag作成／編集の親Category候補を最大8件から選べ、親変更時は全参照BookmarkのCategoryが原子的に再導出され、AI再分類が動かないことを確認する。
-4. AI細分化 `0`〜`4` が新規タグ上限 `0 / 1 / 2 / 4 / 6` に対応し、`0` でも既存タグの自動付与は続くこと、AI入力ポップアップ内で検索結果とBookmationの機能説明を確認できることを実証する。
+4. AI細分化 `0`〜`4` がpolicy version 2の再利用範囲とCREATE重要度へ対応し、Category 1件、正常候補全件採用、1件以上で終了、正常候補0件なら残り3dispatch枠まで再試行してquality-zeroはNEEDS_REVIEW、technical／execution枯渇はFAILEDとすること、model／execution counter分離、stale Job差替えになること、およびAI入力ポップアップ内で検索結果とBookmationの機能説明を確認できることを実証する。
 
 各マイルストーンには、成功時だけでなく失敗時の期待動作も含める。
 

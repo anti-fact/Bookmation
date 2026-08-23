@@ -98,20 +98,20 @@ Prompt API の初回モデル取得には利用者の操作、対応環境、空
 - 初回ホームでCategory template機能へ進める。catalogを表示しただけではCategoryは増えず、利用者が適用したものだけが通常のCategoryとして作成される。具体的な候補と選択UIはISSUE-022の決定後に確認項目を固定する。
 - 同じ操作を連打しても意図しない重複登録をしない。
 - Prompt APIが利用不可でも、URLとタイトルを保存して手動分類できる。
-- AIがカテゴリを新規作成せず、既存のユーザー定義カテゴリだけを割り当てる。
-- AI細分化スライダーは `0`〜`4` だけを取り、新規AIタグ上限 `0 / 1 / 2 / 4 / 6` に対応する。Jobには両値をdiscriminated snapshotとして保存し、不一致を拒否する。`0` では新規AIタグを作らず既存のユーザー定義タグを自動付与できる。
+- AIが1回の分類でactiveな既存USER Categoryを厳密に1件だけ選び、その試行の全AI Tag候補を同じCategory配下にし、Categoryを新規作成しない。選択Category内の同等TagはREUSEし、別Categoryにだけある同等TagはREUSE／重複CREATE／親変更しない。
+- AI細分化スライダーは `0`〜`4` だけを取り、固定件数上限ではなく既存Tagの再利用範囲とCREATE可能な重要度を切り替える。policy version 2の全5組、候補単位検証、正常候補全件採用、正常候補1件以上で終了、3 dispatchすべてquality-zeroの時だけNEEDS_REVIEW、technical failure込みの枯渇でFAILEDとなることを確認する。
 - カテゴリを親、タグを子として表示・保存する。カテゴリ名はカテゴリ全体、タグ名は親をまたぐタグ全体で重複不可であり、カテゴリ名とタグ名の相互一致だけを許す。Label Normalizer v1はproject-vendored Unicode 15.1.0へ固定し、tombstone中も名前を予約する。active Tagはactive親を必須とし、親Categoryの物理回収は子Tag tombstoneがなくなった後だけ許す。
-- ブックマーク編集では名前、URL、Tagだけを変更し、Categoryは選択Tagの親から自動導出する。Tag候補を最大8件から選び、説明横の新規作成から同じmodalのTag作成side viewへ進んでも元の入力を失わない。
+- ブックマーク追加／編集では空のTag入力から最大8件のリアルタイム候補または明示的に新規作成したTagを `追加`／Enterで1件ずつ加えられる。入力直下で `タグ n件` が左、`追加` が右に並び、現在Tagが初期展開され、Tag chip形状とカテゴリ・タグシェブロン相当の解除UIで個別に外せる。未知Tagはerrorとなり、Categoryは選択Tagの親から自動導出される。
 - Bookmark／Tag削除は確認画面なしのsoft-deleteとし、Category削除だけは影響件数と連鎖削除・再分類を警告して確認する。削除後のUndo toast、token、期限、復元入口は設けない。アーカイブ一覧からの復元は削除Undoとは別機能として維持する。
 - カテゴリ・タグ一覧の新規作成は種類を選択してmodalを開き、閉じるまで連続作成できる。Tag作成では入力に一致するactive Categoryを最大8候補から必ず選ぶ。必要なCategoryは同じmodalのside viewで作成し、Tag draftを保持して戻った時に自動選択する。有効な同名は元画面で選択し、削除済み同名は物理回収まで別名へ直す。
-- 管理モードのhover／focus鉛筆から編集できる。Tag編集では名前と親Categoryを変更し、active Categoryを最大8候補から選ぶか同じmodalのside viewで作成できる。Tag／選択親のexpected revisionを検証し、親変更後は全参照BookmarkのCategory表示と検索文書を原子的に更新するが、AI再分類は行わない。Category編集では使用中Tagの実名一覧・件数と関連Bookmark unique件数を確認できる。
-- Category削除を確認するとCategory、全子Tag、関連edgeがcascade soft-deleteされ、Bookmark本体は残って再分類される。AI失敗時はNEEDS_REVIEWとして手動分類へ進める。
+- 管理モードのhover／focus鉛筆から編集できる。Tag編集の親Category入力は現在値を選択済みで開始し、active Categoryとの正規化完全一致または最大8候補からの選択時点で置き換える。未知Categoryはerrorとし、必要なら同じmodalのside viewで作成できる。Tag／選択親のexpected revisionを検証し、親変更後は全参照BookmarkのCategory表示と検索文書を原子的に更新するが、AI再分類は行わない。Category編集では使用中Tagの実名一覧・件数と関連Bookmark unique件数を確認できる。
+- Category削除を確認するとCategory、全子Tag、関連edgeがcascade soft-deleteされ、Bookmark本体は残る。AI設定がCONFIGUREDかつenabledなら再分類され、モデル未準備時はPENDING、3 quality-zeroはNEEDS_REVIEW、恒久非対応／technical／実行枯渇はFAILEDとなる。disabled／再設定待ちはJobを作らず残存Tag有無からCLASSIFIED／UNCLASSIFIEDにし、どの状態でも手動分類へ進める。
 - 両一覧からフルページ検索へ移り、入力中の候補が最大8件に収まる。結果はカテゴリ・タグを上、Bookmarkを下に表示する。
 - AI入力ポップアップ内で自然言語検索の入力と結果を確認でき、保存、設定、分類、共有などBookmation全般の質問にも応答できる。AI検索候補は無順位で複数返す。
 - リスト／グリッドだけを切り替えられ、カテゴリは常時、タグはキーボードでも展開できる。
 - ホームには最近追加が表示され、全画面カテゴリ一覧の選択で対象一覧へ移動できる。
 - 両一覧の追従ヘッダー、無限スクロール、件数、トップへ戻る、編集モーダルが動作する。
-- 全画面設定では訪問集計期間が1週間／1ヶ月／1年のプルダウン、訪問日数とarchive日数が数値入力、AI細分化だけがスライダーである。訪問日数は既定値なし、archive日数は既定30日で、期間変更時は訪問日数が空になり1〜7／1〜30／1〜365の範囲へ切り替わる。リマインダー、自動archive、「右クリックメニューから保存」をそれぞれswitchで有効／無効にできる。
+- 全画面設定では訪問集計期間が1週間／1ヶ月／1年のプルダウン、訪問日数とarchive日数が数値入力、AI細分化だけがスライダーである。新規installのAIは有効・細分化度2（BALANCED）、訪問日数は既定値なし、archive日数は既定30日とする。期間変更時は訪問日数が空になり1〜7／1〜30／1〜365の範囲へ切り替わる。リマインダー、自動archive、「右クリックメニューから保存」をそれぞれswitchで有効／無効にできる。
 - URL指定保存が `http` / `https` を受け付け、メタデータ取得失敗時もURLを失わない。
 - service workerを停止・再起動しても、処理中状態が壊れず再開または安全に失敗する。
 - JSON正本がschema検証され、BlobがJSONへ埋め込まれない。

@@ -21,7 +21,7 @@ Bookmation は、閲覧中のページまたは指定URLを専用ストアへ保
 | [UI.md](UI.md) | 初回ホーム、popup、LIST / GRID、親カテゴリ／子タグ一覧、フルページ検索、編集・作成・設定・AI入力ポップアップ、共有、無限スクロール |
 | [SECURITY.md](SECURITY.md) | 権限、個人データ、AI、共有・同期の安全要件 |
 | [TESTING.md](TESTING.md) | 最新画面・設定・共有状態のWeb fixture、実拡張機能E2E、証拠、人間の最終受入 |
-| [AI_GUIDE.md](AI_GUIDE.md) | AI 実装ガイド。依頼どおり現在は空である |
+| [AI_GUIDE.md](AI_GUIDE.md) | Gemini Nano自動タグ分類の固定プロンプト、policy version 2、入出力型、候補検証、再試行仕様の正本 |
 
 ## 計画と運用
 
@@ -32,7 +32,7 @@ Bookmation は、閲覧中のページまたは指定URLを専用ストアへ保
 | [2026-08-16-dev-scaffold.md](plans/2026-08-16-dev-scaffold.md) | 開発基盤と最初の保存縦切り Plan |
 | [2026-08-22-task-003-local-data-layer.md](plans/2026-08-22-task-003-local-data-layer.md) | TASK-003 / BE-02 ローカルデータ層（IndexedDB・Repository）Plan |
 | [2026-08-22-task-004-save-ui-requirements.md](plans/2026-08-22-task-004-save-ui-requirements.md) | TASK-004 / BE-03・BE-04 保存 UI・commands・URL 指定保存 要件定義 |
-| [2026-08-22-be-06-classification-job.md](plans/2026-08-22-be-06-classification-job.md) | BE-06 永続 AI 分類 Job（claim / lease / 再送制御）Execution Plan |
+| [2026-08-22-be-06-classification-job.md](plans/2026-08-22-be-06-classification-job.md) | BE-06 永続 AI 分類 Jobのpolicy v1履歴。現行v2分類仕様は [AI_GUIDE.md](AI_GUIDE.md) |
 | [2026-08-23-be-10-security-hardening.md](plans/2026-08-23-be-10-security-hardening.md) | BE-10 / TASK-010 権限・入力・Blob 安全化 Execution Plan |
 | [TASKS.md](TASKS.md) | チームで分担する実装ワークパッケージ、依存関係、完了条件 |
 | [TODO.md](TODO.md) | 1 PR 程度で完了できる小規模タスク |
@@ -45,9 +45,9 @@ Bookmation は、閲覧中のページまたは指定URLを専用ストアへ保
 
 ## 文書の状態表現
 
-- **確定要件**: 利用者の明示依頼に由来し、画面構成・外観は `figma/Bookmation.svg`、部品と状態は `figma/Bookmation_component.svg` を正本とする。
+- **確定要件**: 利用者の明示依頼に由来し、配置、外観、部品、状態、文言、機能、挙動は仕様書を正本とする。Figmaとrepository内SVGは仕様書に未記載の視覚詳細を補う参照資料である。
 - **設計決定**: チームが実装基準として採用する案。コードが存在することを意味しない。
 - **候補**: スパイクまたは合意が必要である。
 - **実装済み**: コードと検証結果が存在する場合にだけ使う。
 
-文書間で矛盾を見つけた場合は [REQUIREMENTS.md](REQUIREMENTS.md) の出典優先順位に従い、関連文書と [WORKLOG.md](WORKLOG.md) を同じ変更で更新する。
+文書間、または仕様書とFigmaの間で矛盾を見つけた場合は [REQUIREMENTS.md](REQUIREMENTS.md) の優先順位に従う。仕様書をFigmaより優先し、関連する現行仕様書を同じ変更で更新する。履歴文書は、実施記録を追加する作業として明示的に依頼された場合だけ更新する。

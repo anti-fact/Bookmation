@@ -226,7 +226,7 @@ Chromeは拡張service workerを非活動時に終了するため、グローバ
 
 **考えられる原因**
 
-- 細分化スライダーの値がプロンプトや上限へ反映されていない。
+- 細分化スライダーの値がpolicy version 2の再利用方針やCREATE可能な重要度へ反映されていない。
 - AIが既存のユーザー定義タグより新規作成を先に評価している。
 - `tagUniqueName` のglobal unique indexまたは書込transaction検証がない。
 - 同名判定を親カテゴリ内だけで行い、別の親カテゴリにあるタグを見落としている。
@@ -238,8 +238,13 @@ Chromeは拡張service workerを非活動時に終了するため、グローバ
 
 - 問題のタグについて、タグID、表示名、正規化キー、親カテゴリID、利用者／AIの由来、利用件数、作成時の細分化設定を確認する。
 - `normalizerVersion=v1` と、NFKC、Unicode whitespace trim／collapse、固定locale非依存case fold、制御／禁止不可視文字拒否の結果を確認する。
-- 細分化 `0` の場合は新規AIタグが0件であることと、既存タグの自動付与が止まっていないことを分けて確認する。
-- Jobの `{ granularity, maxNewTags }` がdiscriminated snapshotとして `0→0 / 1→1 / 2→2 / 3→4 / 4→6` のいずれかに固定され、不一致が拒否されているか確認する。
+- 細分化0では関連する既存Tagを強く再利用し、中心主題を表す既存Tagがない場合だけ必要最小限のCOREをCREATEしているか確認する。0と1はCREATE可能importanceが同じCOREでも、再利用できる意味範囲が異なる。
+- Jobのgranularity／reusePolicy／allowedCreateImportanceがpolicy version 2の5組のいずれかに固定され、不一致、旧 `maxNewTags`、AI分類用 `maxAssignedTags` が拒否されているか確認する。
+- 1試行でCategoryが厳密に1件か、全AI Tag候補がその配下か、既存の手動Tag由来の別Categoryを削除していないか確認する。
+- accepted／rejected診断を確認し、不正候補だけが棄却され、正常候補が1件以上なら全正常候補を適用して試行を終了しているか確認する。受信済み出力の正常候補0件だけがquality-zeroとして残りdispatch枠で再試行され、試行間の候補が結合されていないことも確認する。
+- `modelAttempt` はDISPATCH_RESERVEDのcommitだけ、`executionAttempt` は所有者なし／期限切れleaseの所有権取得transaction成功だけで増えることを確認する。executionAttemptが3未満のPREPARED lease喪失はABANDONED_PRE_DISPATCHから同ordinalの新attemptへ移り、同じ失効前leaseの更新／結果再送／pendingApplyのDB retryではcounterを増やさない。3回目leaseが有効な間は完了を許し、失効して4回目claimが必要なら設定取消、stale、pendingApplyを先に確認し、新ownerなしのfinalizerがphase別にattemptをCLOSED、Job／BookmarkをFAILED、token／activeInputKeyをclearしているか確認する。3 dispatchすべてquality-zeroのNEEDS_REVIEWと、technical failure込みdispatch枯渇／実行枯渇のFAILEDを取り違えない。
+- `STALE_CLASSIFICATION_INPUT` ではBookmark／classificationSettings正本と決定的候補queryのcurrent base fingerprintを確認し、Category／Tagの追加・復元・消滅も検出する。旧JobがCANCELEDになり、CONFIGUREDかつenabledなら現在値のversion 2 Jobが `modelAttempt=0` でactiveInputKeyにより1件だけget-or-createされ、disabled／再設定待ちは差替えずbookmarkStateBeforeJobへ戻ることを確認する。staleを候補不正として同じJobで3回消費しない。
+- retryContextにallowlist済み理由コード以外のtitle、URL、Tag名、生の応答が入っていないか確認する。
 - 同じfixtureを同じ設定で再分類し、差分を見る。
 - 利用者定義候補をAIへ渡しているか確認する。
 - 同じブックマークに同じタグIDの関連が2件以上ないか確認する。
@@ -248,7 +253,7 @@ Chromeは拡張service workerを非活動時に終了するため、グローバ
 **対処**
 
 - 利用者定義の一致候補を最優先する。
-- 新規タグ数、文字数、禁止値を決定的な後処理で検証し、細分化 `0`〜`4` と新規タグ上限 `0 / 1 / 2 / 4 / 6` の規則外の候補を拒否する。
+- Category 1件、候補ごとのID、親、revision、importance、根拠、文字数、禁止値、同じID／normalizedName重複を決定的な後処理で検証する。異なるnormalizedNameの同義語等は未定義の意味推測で変換せず、実モデル評価の固定oracleで品質判定する。許可外importance等の不正候補だけを棄却し、正常候補を件数やconfidence順位で切り捨てない。
 - カテゴリは利用者だけが新規作成できる。AIが返した未知のカテゴリ名やIDは保存しない。
 - activeなタグにはactiveな親カテゴリを必須とし、タグだけが親から外れた状態を保存しない。tombstoneタグはdeleted親を参照でき、子tombstoneが残る親を物理回収しない。
 - タグ作成時はLabel Normalizer v1の結果を使い、tombstoneを含め親カテゴリをまたいで名前競合を検出する。有効なら元画面で選び、削除済みなら物理回収まで別名へ直す。物理回収前に別IDを作らない。
@@ -378,8 +383,8 @@ Chromeは拡張service workerを非活動時に終了するため、グローバ
 
 1. Bookmark／Tagのdeleteが確認なしのsoft-deleteであること、Category deleteは `GetCategoryEditDetail` の警告表示後に `DeleteCategoryCascade` を呼ぶことを確認する。
 2. Category警告に子Tagの実名一覧・件数、関連Bookmark unique件数、edge連鎖削除、Bookmark再分類が表示され、削除commandがexpected revision、`expectedImpactFingerprint`、`category-delete:<UUID>` requestId、`warningAcknowledged=true` を要求するか確認する。Tag更新の `tag-update:` requestIdを流用しない。
-3. Category、全子Tag、関連edgeの `deletedAt` とrevision更新、および影響BookmarkごとのPENDING再分類Job作成が1 transactionであるか確認する。Bookmark本体はactiveのままでなければならない。
-4. transaction途中失敗では全変更がrollbackされ、AI分類失敗ではBookmarkを残したままNEEDS_REVIEW／手動分類になるか確認する。
+3. Category、全子Tag、関連edgeの `deletedAt` とrevision更新、影響Bookmark、classificationSettings正本が1 transactionで扱われているか確認する。CONFIGUREDかつenabledの場合だけ影響BookmarkごとのPENDING再分類Jobが作られ、disabled／再設定待ちはJobなしでCLASSIFIED／UNCLASSIFIEDにならなければならない。Bookmark本体はactiveのままとする。
+4. transaction途中失敗では全変更がrollbackされることを確認する。再分類はモデル未準備ならPENDING、3 dispatchすべてquality-zeroならNEEDS_REVIEW、恒久非対応／technical failure込みdispatch枯渇／executionAttempt枯渇ならFAILEDとなり、いずれもBookmarkを残して手動分類できることを確認する。
 5. Undo用message、token、期限、error code、設定／管理画面の削除復元入口が存在しないことを確認する。
 6. active一覧、検索索引、通常の候補からtombstoneが除外されることを確認する。
 7. Category／Tagのtombstoneが物理回収まで名前を予約し、同名別ID作成を拒否することを確認する。

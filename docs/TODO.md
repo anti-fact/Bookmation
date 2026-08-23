@@ -10,8 +10,8 @@
 
 - [x] **TODO-001: 文書間リンクを検査する**（2026-08-14）
   - 完了結果: 最新UI要件への更新後、Markdown パーサーで相対リンク177件と見出しリンク13件を再検査し、参照先漏れ0件を確認した。`AGENTS.md` も見出しとリンクだけである。
-- [x] **TODO-002: `AI_GUIDE.md` が空であることを確認する**（2026-08-14）
-  - 完了結果: `wc -c docs/AI_GUIDE.md` が0バイトであり、本文・テンプレートがないことを確認した。
+- [x] **TODO-002: 2026-08-14時点で `AI_GUIDE.md` が空であることを確認する**
+  - 完了結果: 当時は0バイトだった。2026-08-23のISSUE-D38により、現在はGemini Nano分類仕様の正本として内容を追加済みである。
 - [x] **TODO-003: 初期実装用Execution Planの骨子を作る**（2026-08-16）
   - 完了結果: [docs/plans/2026-08-16-dev-scaffold.md](plans/2026-08-16-dev-scaffold.md) に縦切り Plan を置いた。M1（scaffold）まで完了。保存→一覧は M2 / M3。
 - [x] **TODO-004: Node.jsとパッケージマネージャーの候補を記録する**（2026-08-16）
@@ -23,8 +23,8 @@
 
 ## P1 — 最初のprototype前
 
-- [ ] **TODO-007: 分類fixtureを10件作る**
-  - 完了条件: 親カテゴリ一致／不一致、カテゴリ／タグ各namespaceの同名拒否、カテゴリ名とタグ名の相互一致、親子不整合、USER／AI由来タグ競合、細分化と上限のdiscriminated snapshotを含むfixtureを用意する。親／意味不適合はNEEDS_REVIEW、`0` は新規AIタグ0件かつ既存タグ自動付与ありを確認する。
+- [ ] **TODO-007: 分類fixtureとpolicy v2評価batchを作る**
+  - 完了条件: Category 0件／1件／複数、親一致／不一致、選択Category内／外の同じnormalizedName、カテゴリ／タグ各namespaceの同名拒否、USER／AI由来タグ競合、policy version 2全5値、4重要度、正常・不正候補混在、重複canonical化、再分類時のAI edge置換と非AI provenance保持、旧件数上限を超える正常候補の全件採用、1件以上で試行終了、quality-zero／technical failure分離、PREPARED／DISPATCH_RESERVED／pendingApply、model／execution counter分離、3回目lease失効finalizer、lease期限直前／一致／直後と結果-finalizer race、retryContext allowlist、設定state先行分岐、AI enabled gate付きstale Job差替え、試行間非結合、3 quality-zeroのNEEDS_REVIEWをfake／記録済みProviderで決定的に試験する。実モデルは [AI_GUIDE.md](AI_GUIDE.md#必須の実モデル評価) のfixtureSchemaVersion 3／resultSchemaVersion 1／scorerVersion v2、事前固定artifact hash、補充allowlistとrunSequence、MODEL_DECISION／APPLICABLE／COMMITTED、期待Category、REUSE ID／CREATE normalizedNameのconcept oracle、action／importance／duplicate採点、非曖昧期待集合非空、N=10、成功率閾値、隣接4境界20 points、同等表現6種×Category内外を満たす。新規install既定、LOCAL_SETTINGS_V1 allowlist、durable migration gate中の全設定依存command排他と中断再開もfixture化する。
 - [ ] **TODO-008: 重複URLの期待動作を決める**
   - 完了条件: URL正規化、再保存、タグ統合、利用者確認の4ケースを [REQUIREMENTS.md](REQUIREMENTS.md) または [DB-SCHEMA.md](DB-SCHEMA.md) に記録する。
 - [ ] **TODO-009: 表示設定の初期値を決める**
@@ -50,7 +50,7 @@
 - [ ] **TODO-019: フルページ検索の入力候補fixtureを作る**
   - 完了条件: ブックマーク一覧／カテゴリ・タグ一覧の両入口、IME、0件、1件、8件、9件以上、カテゴリ名とタグ名の相互一致、古い応答を用意し、候補が最大8件で選択後に正しい対象へ移動する。
 - [ ] **TODO-020: カテゴリ・タグ作成／管理fixtureを作る**
-  - 完了条件: 種類プルダウン、Tag作成／編集のactive Category候補0／1／8／9件以上と必須選択、同じmodalのCategory作成side view、Tag draft保持／復帰後の自動選択、Tag親変更の参照Bookmark 0件／1件／多数・同じ旧親を残す別Tagあり／なし・Tag／親revision競合・同request再送／別payload再利用拒否・mutation receipt・全件rollback・AI再分類なし、閉じるまでの連続作成、create-only、tombstone同名競合時の別名案内、active Tag／active親、tombstone Tag／deleted親、global Tag名unique、管理モード、hover／focus鉛筆、Category編集の使用Tag実名／件数とBookmark unique件数、Bookmark／Tagの確認なしsoft-delete、Category警告の取消／確認／revision競合、cascade soft-delete、Bookmark保持とPENDING／NEEDS_REVIEW再分類、削除Undo経路なし、削除後の同名作成拒否、親Category GC拒否を再現できる。
+  - 完了条件: 種類プルダウン、Tag作成／編集のactive Category候補0／1／8／9件以上と必須選択、同じmodalのCategory作成side view、Tag draft保持／復帰後の自動選択、Tag親変更の参照Bookmark 0件／1件／多数・同じ旧親を残す別Tagあり／なし・Tag／親revision競合・同request再送／別payload再利用拒否・mutation receipt・全件rollback・AI再分類なし、閉じるまでの連続作成、create-only、tombstone同名競合時の別名案内、active Tag／active親、tombstone Tag／deleted親、global Tag名unique、管理モード、hover／focus鉛筆、Category編集の使用Tag実名／件数とBookmark unique件数、Bookmark／Tagの確認なしsoft-delete、Category警告の取消／確認／revision競合、cascade soft-delete、Bookmark保持、CONFIGUREDかつenabled時のPENDING／NEEDS_REVIEW／FAILED再分類、disabled／再設定待ちのJobなしCLASSIFIED／UNCLASSIFIED、削除Undo経路なし、削除後の同名作成拒否、親Category GC拒否を再現できる。
 - [ ] **TODO-021: 初回ホームとBookmark編集fixtureを作る**
   - 完了条件: `runtime.onInstalled` のINSTALL／UPDATEと再訪のホーム分岐、名前／URL／Tagだけの編集、Tag最大8候補、Category直接入力なし、Category自動導出、Tag新規作成ボタン、同じmodal内side view、入力draft保持を確認できる。
 - [ ] **TODO-022: archive／共有fixtureを作る**
