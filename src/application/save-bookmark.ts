@@ -77,11 +77,24 @@ export class SaveBookmarkUseCase {
     })
   }
 
+  async saveFromVisitReminder(params: {
+    rawUrl: string
+    title?: string
+    creationRequestId: string
+  }): Promise<SaveBookmarkResult> {
+    return this.saveWithSource({
+      rawUrl: params.rawUrl,
+      title: params.title ?? "",
+      source: "VISIT_REMINDER",
+      creationRequestId: params.creationRequestId,
+    })
+  }
+
   private async saveWithSource(params: {
     rawUrl: string
     title: string
     tagIds?: readonly string[]
-    source: "MANUAL_URL" | "CONTEXT_PAGE" | "CONTEXT_LINK"
+    source: "MANUAL_URL" | "CONTEXT_PAGE" | "CONTEXT_LINK" | "VISIT_REMINDER"
     creationRequestId: string
   }): Promise<SaveBookmarkResult> {
     const title = pickTitle(params.title, params.rawUrl)

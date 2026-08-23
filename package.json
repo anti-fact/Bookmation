@@ -54,7 +54,9 @@
     "permissions": [
       "storage",
       "activeTab",
-      "contextMenus"
+      "contextMenus",
+      "history",
+      "alarms"
     ],
     "host_permissions": [
       "https://*/*",

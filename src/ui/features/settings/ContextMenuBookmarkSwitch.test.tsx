@@ -3,17 +3,25 @@ import userEvent from "@testing-library/user-event"
 import * as React from "react"
 import { describe, expect, it, vi } from "vitest"
 
-import type { GeneralSettingsPort } from "./general-settings-port"
+import type { GeneralSettingsPort, GeneralSettingsSnapshot } from "./general-settings-port"
 import { ContextMenuBookmarkSwitch } from "./ContextMenuBookmarkSwitch"
+
+const defaultSnapshot: GeneralSettingsSnapshot = {
+  contextMenuBookmarkEnabled: true,
+  frequentVisitReminderEnabled: false,
+  frequentVisitWindow: null,
+  frequentVisitDayThreshold: null,
+}
 
 function createPort(
   overrides: Partial<GeneralSettingsPort> = {}
 ): GeneralSettingsPort {
   return {
-    getSnapshot: vi.fn().mockResolvedValue({ contextMenuBookmarkEnabled: true }),
+    getSnapshot: vi.fn().mockResolvedValue(defaultSnapshot),
     setContextMenuBookmarkEnabled: vi
       .fn()
-      .mockResolvedValue({ contextMenuBookmarkEnabled: false }),
+      .mockResolvedValue({ ...defaultSnapshot, contextMenuBookmarkEnabled: false }),
+    updateReminderSettings: vi.fn().mockResolvedValue(defaultSnapshot),
     ...overrides
   }
 }
@@ -23,7 +31,7 @@ describe("ContextMenuBookmarkSwitch", () => {
     const port = createPort({
       getSnapshot: vi
         .fn()
-        .mockResolvedValue({ contextMenuBookmarkEnabled: true })
+        .mockResolvedValue({ ...defaultSnapshot, contextMenuBookmarkEnabled: true })
     })
     render(<ContextMenuBookmarkSwitch port={port} />)
 
@@ -38,11 +46,11 @@ describe("ContextMenuBookmarkSwitch", () => {
     const user = userEvent.setup()
     const setEnabled = vi
       .fn()
-      .mockResolvedValue({ contextMenuBookmarkEnabled: false })
+      .mockResolvedValue({ ...defaultSnapshot, contextMenuBookmarkEnabled: false })
     const port = createPort({
       getSnapshot: vi
         .fn()
-        .mockResolvedValue({ contextMenuBookmarkEnabled: true }),
+        .mockResolvedValue({ ...defaultSnapshot, contextMenuBookmarkEnabled: true }),
       setContextMenuBookmarkEnabled: setEnabled
     })
     render(<ContextMenuBookmarkSwitch port={port} />)
@@ -67,7 +75,7 @@ describe("ContextMenuBookmarkSwitch", () => {
     const port = createPort({
       getSnapshot: vi
         .fn()
-        .mockResolvedValue({ contextMenuBookmarkEnabled: true }),
+        .mockResolvedValue({ ...defaultSnapshot, contextMenuBookmarkEnabled: true }),
       setContextMenuBookmarkEnabled: vi
         .fn()
         .mockRejectedValue(new Error("設定の保存に失敗しました。もう一度お試しください。"))

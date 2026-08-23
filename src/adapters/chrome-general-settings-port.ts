@@ -2,9 +2,11 @@ import {
   EXTENSION_MESSAGE_SCHEMA_VERSION,
   type ExtensionMessageResponse
 } from "~/extension/messages"
+import type { FrequentVisitWindow } from "~/domain/types"
 import {
   type GeneralSettingsPort,
-  type GeneralSettingsSnapshot
+  type GeneralSettingsSnapshot,
+  type ReminderSettingsPatch
 } from "~/ui/features/settings/general-settings-port"
 
 export class GeneralSettingsPortError extends Error {
@@ -28,14 +30,46 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value)
 }
 
+function decodeWindow(value: unknown): FrequentVisitWindow | null {
+  if (value === null || value === undefined) {
+    return null
+  }
+  if (
+    value === "LAST_7_DAYS" ||
+    value === "LAST_30_DAYS" ||
+    value === "LAST_365_DAYS"
+  ) {
+    return value
+  }
+  return null
+}
+
 function decodeSnapshot(data: unknown): GeneralSettingsSnapshot {
-  if (!isRecord(data) || typeof data.contextMenuBookmarkEnabled !== "boolean") {
+  if (!isRecord(data)) {
     throw new GeneralSettingsPortError(
       "INVALID_RESPONSE",
       "設定を読み込めませんでした。"
     )
   }
-  return { contextMenuBookmarkEnabled: data.contextMenuBookmarkEnabled }
+
+  return {
+    contextMenuBookmarkEnabled:
+      typeof data.contextMenuBookmarkEnabled === "boolean"
+        ? data.contextMenuBookmarkEnabled
+        : true,
+    frequentVisitReminderEnabled:
+      typeof data.frequentVisitReminderEnabled === "boolean"
+        ? data.frequentVisitReminderEnabled
+        : false,
+    frequentVisitWindow: decodeWindow(data.frequentVisitWindow),
+    frequentVisitDayThreshold:
+      data.frequentVisitDayThreshold === null ||
+      data.frequentVisitDayThreshold === undefined
+        ? null
+        : typeof data.frequentVisitDayThreshold === "number"
+          ? data.frequentVisitDayThreshold
+          : null,
+  }
 }
 
 function decodeMessageResponse(
@@ -51,6 +85,18 @@ function decodeMessageResponse(
 
   const response = value as ExtensionMessageResponse
   if (!response.ok) {
+    if (response.error.code === "REMINDER_PERMISSION_DENIED") {
+      throw new GeneralSettingsPortError(
+        response.error.code,
+        "Bookmation の履歴権限を許可してください。Chrome アカウントの同期設定とは別です。"
+      )
+    }
+    if (response.error.code === "REMINDER_CONFIG_INVALID") {
+      throw new GeneralSettingsPortError(
+        response.error.code,
+        "選択した期間に合う訪問日数を入力してください。"
+      )
+    }
     throw new GeneralSettingsPortError(
       response.error.code,
       response.error.code === "INTERNAL_ERROR"
@@ -62,9 +108,9 @@ function decodeMessageResponse(
   return decodeSnapshot(response.data)
 }
 
-function sendSettingsMessage(
+function sendMessage(
   chromeApi: GeneralSettingsChromeApi,
-  action: "get-general-settings-snapshot" | "set-context-menu-bookmark-enabled",
+  action: string,
   payload: Record<string, unknown>,
   requestId: string
 ): Promise<GeneralSettingsSnapshot> {
@@ -95,7 +141,7 @@ export function createChromeGeneralSettingsPort(
   return {
     async getSnapshot() {
       const requestId = createRequestId()
-      return sendSettingsMessage(
+      return sendMessage(
         chromeApi,
         "get-general-settings-snapshot",
         {},
@@ -105,12 +151,22 @@ export function createChromeGeneralSettingsPort(
 
     async setContextMenuBookmarkEnabled(enabled) {
       const requestId = createRequestId()
-      return sendSettingsMessage(
+      return sendMessage(
         chromeApi,
         "set-context-menu-bookmark-enabled",
         { enabled },
         requestId
       )
-    }
+    },
+
+    async updateReminderSettings(patch) {
+      const requestId = createRequestId()
+      return sendMessage(
+        chromeApi,
+        "update-reminder-settings",
+        { ...patch },
+        requestId
+      )
+    },
   }
 }
