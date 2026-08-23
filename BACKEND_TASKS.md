@@ -97,7 +97,7 @@ flowchart TD
 | BE-10 | 権限・入力・Blob安全化 | 完了 | 🐳 | BE-03、BE-04 | 最小権限で危険入力と外部画像追跡を防げる |
 | BE-11 | 中断復旧とMigration | 未着手 | 未定 | BE-06、BE-08、BE-09 | 更新・再送・途中停止から安全に回復できる |
 | BE-12 | 統合テストとフロント引き渡し | 未着手 | 未定 | BE-04、BE-05、BE-08〜BE-11 | P0の一連操作を再現し、UIから利用できる |
-| BE-13 | 訪問日数閾値と保存リマインダー | 未着手 | 未定 | BE-03、BE-04、BE-10、BE-12 | 期間内の訪問日数とURL別resetに従い、確認したURLだけを保存できる |
+| BE-13 | 訪問日数閾値と保存リマインダー | レビュー中 | 🐳 | BE-03、BE-04、BE-10 | 期間内の訪問日数とURL別resetに従い、Dashboardダイアログだけで確認したURLを保存できる |
 | BE-14 | 権限gate付き自動アーカイブ | 未着手 | 未定 | BE-05、BE-13 | 既定30日、history許可時だけON、履歴なしエラー、最小archive、復元を扱える |
 | BE-15 | Chrome標準Bookmarkインポート | 未着手 | 未定 | BE-02、BE-10、BE-12 | 元treeを変えず、直上Folderだけを1件のTagにしてJSON documentへ取込できる |
 | BE-16 | context menu保存 | レビュー中 | 🐳 | BE-01、BE-03、BE-04、BE-10 | 設定toggleに従ってpage／link menuを重複なく登録／解除し、ON時だけ共通保存use caseへ渡せる（PR [#72](https://github.com/anti-fact/Bookmation/pull/72)） |
@@ -417,16 +417,16 @@ Plan: [docs/plans/2026-08-23-be-10-security-hardening.md](docs/plans/2026-08-23-
 
 目的: よく訪れる未保存サイトを、無断保存せず利用者へ知らせる。
 
-- [ ] `frequentVisitReminderEnabled` を明示設定とし、有効化時に用途を説明して `history` / `notifications` を任意要求する。
-- [ ] `chrome.history.search()` で候補を絞り、各URLの `getVisits()` が返す `visitTime` を検証する。canonical URLごとに端末ローカルの同一暦日を1日へまとめ、非HTTP(S)、保存済み、除外済みURLを候補から外す。
-- [ ] `frequentVisitDayThreshold` は新規installでも既定値なしのnullとする。`frequentVisitWindow` を `LAST_7_DAYS`／`LAST_30_DAYS`／`LAST_365_DAYS` の3値へ限定し、選択変更時も日数をnullへ戻す。1〜7／1〜30／1〜365の正整数が明示入力されるまで `REMINDER_CONFIG_REQUIRED` で判定を停止する。
-- [ ] 旧 `frequentVisitThreshold` を訪問日数へ暗黙変換せず、migration後は利用者へ期間と日数の再設定を求める。
-- [ ] 同一正規化URLのPENDING Reminderを1件にし、alarm再実行やworker再起動で重複通知しない。
-- [ ] `はい`、`いいえ`、`次回以降表示しない` を処理し、`はい` のときだけ通常のSaveBookmarkを呼ぶ。`いいえ` は `countingResetAt` を応答時刻へ更新し、次回はその後の訪問日だけを数える。最後の選択はresetより優先して対象canonical URLだけを `SUPPRESSED` にし、`frequentVisitReminderEnabled` を変更しない。
+- [x] `frequentVisitReminderEnabled` を明示設定とし、有効化時に用途を説明して `history` を任意要求する（OS通知・`notifications` 権限は v1 では使わない）。
+- [x] `chrome.history.search()` で候補を絞り、各URLの `getVisits()` が返す `visitTime` を検証する。canonical URLごとに端末ローカルの同一暦日を1日へまとめ、非HTTP(S)、保存済み、除外済みURLを候補から外す。
+- [x] `frequentVisitDayThreshold` は新規installでも既定値なしのnullとする。`frequentVisitWindow` を `LAST_7_DAYS`／`LAST_30_DAYS`／`LAST_365_DAYS` の3値へ限定し、初期値は未選択（null）。選択変更時も日数をnullへ戻す。1〜7／1〜30／1〜365の正整数が明示入力されるまで `REMINDER_CONFIG_REQUIRED` で判定を停止する。
+- [x] 旧 `frequentVisitThreshold` を訪問日数へ暗黙変換せず、migration後は利用者へ期間と日数の再設定を求める。
+- [x] 同一正規化URLのPENDING Reminderを1件にし、alarm再実行やworker再起動で重複ダイアログを出さない。
+- [x] Dashboard `VisitReminderDialog` で `はい`、`いいえ`、`次回以降表示しない`、および閉じた操作（`DISMISSED`＝`いいえ` と同じ reset）を処理し、`はい` のときだけ通常のSaveBookmarkを呼ぶ。`いいえ` / `DISMISSED` は `countingResetAt` を応答時刻へ更新し、次回はその後の訪問日だけを数える。`次回以降表示しない` は reset より優先して対象canonical URLだけを `SUPPRESSED` にし、`frequentVisitReminderEnabled` を変更しない。
 
-成果物: History/Notification Port、VisitReminder Repository、設定、alarm handler、権限拒否fallback。
+成果物: History Port、VisitReminder Repository（DB v2）、設定 UI、1時間 alarm 評価、Dashboard ダイアログ、message handler（`update-reminder-settings` / `get-pending-visit-reminder` / `handle-visit-reminder`）、history 権限拒否 fallback。
 
-完了条件: global toggle無効、期間未選択、期間変更時clear、各期間の境界値、同日複数訪問、閾値未満／到達、`いいえ` 前後、同日reset後再訪、canonical URL単位SUPPRESSED、別URLでは継続、通知再送、権限拒否、重複URL、worker再起動のテストが通り、確認前にBookmarkが作られない。
+完了条件: global toggle無効、期間未選択、期間変更時clear、各期間の境界値、同日複数訪問、閾値未満／到達、`いいえ` / `DISMISSED` 前後、同日reset後再訪、canonical URL単位SUPPRESSED、別URLでは継続、権限拒否、重複URL、worker再起動のテストが通り、確認前にBookmarkが作られない。
 
 ### BE-14 権限gate付き自動アーカイブ
 

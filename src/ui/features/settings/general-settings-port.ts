@@ -22,6 +22,12 @@ export type GeneralSettingsUpdate = Partial<
   >
 >
 
+export type ReminderSettingsPatch = Readonly<{
+  frequentVisitReminderEnabled?: boolean
+  frequentVisitWindow?: FrequentVisitWindow | null
+  frequentVisitDayThreshold?: number | null
+}>
+
 export interface GeneralSettingsPort {
   getSnapshot(): Promise<GeneralSettingsSnapshot>
   updateSettings(
@@ -33,6 +39,9 @@ export interface GeneralSettingsPort {
   setAutoArchiveEnabled(enabled: boolean): Promise<GeneralSettingsSnapshot>
   setContextMenuBookmarkEnabled(
     enabled: boolean
+  ): Promise<GeneralSettingsSnapshot>
+  updateReminderSettings(
+    patch: ReminderSettingsPatch
   ): Promise<GeneralSettingsSnapshot>
   subscribePermissionChanges(
     listener: (snapshot: GeneralSettingsSnapshot) => void
@@ -70,6 +79,9 @@ export const emptyGeneralSettingsPort: GeneralSettingsPort = {
       ...DEFAULT_GENERAL_SETTINGS_SNAPSHOT,
       contextMenuBookmarkEnabled: enabled
     }
+  },
+  async updateReminderSettings(patch) {
+    return { ...DEFAULT_GENERAL_SETTINGS_SNAPSHOT, ...patch }
   },
   subscribePermissionChanges() {
     return () => undefined

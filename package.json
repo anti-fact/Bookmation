@@ -54,10 +54,11 @@
     "permissions": [
       "storage",
       "activeTab",
-      "contextMenus"
+      "contextMenus",
+      "history",
+      "alarms"
     ],
     "optional_permissions": [
-      "history",
       "notifications"
     ],
     "host_permissions": [

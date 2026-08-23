@@ -216,6 +216,7 @@ export function AppShellFixture() {
       setFrequentVisitReminderEnabled: async (enabled) =>
         update({ frequentVisitReminderEnabled: enabled }),
       subscribePermissionChanges: () => () => undefined,
+      updateReminderSettings: update,
       updateSettings: update
     }
   }, [])

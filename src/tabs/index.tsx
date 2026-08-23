@@ -7,6 +7,7 @@ import { createChromeBookmarkFormPort } from "~/adapters/chrome-bookmark-form-po
 import { createChromeGeneralSettingsPort } from "~/adapters/chrome-general-settings-port"
 import { createChromeLabelManagementPort } from "~/adapters/chrome-label-management-port"
 import { createChromeOnboardingPort } from "~/adapters/chrome-onboarding-port"
+import { createChromeVisitReminderPort } from "~/adapters/chrome-visit-reminder-port"
 import { createIndexedDbBookmarkListPort } from "~/adapters/indexeddb-bookmark-list-port"
 import { createChromeSearchPort } from "~/adapters/chrome-search-port"
 import { AppProviders } from "~/ui/app/AppProviders"
@@ -42,6 +43,10 @@ export default function DashboardTab() {
     [bookmarkFormPort]
   )
   const searchPort = React.useMemo(() => createChromeSearchPort(), [])
+  const visitReminderPort = React.useMemo(
+    () => createChromeVisitReminderPort({ runtime: chrome.runtime }),
+    []
+  )
 
   return (
     <AppProviders>
@@ -54,6 +59,7 @@ export default function DashboardTab() {
           labelManagementPort={labelManagementPort}
           onboardingPort={onboardingPort}
           searchPort={searchPort}
+          visitReminderPort={visitReminderPort}
         />
       </AppErrorBoundary>
     </AppProviders>

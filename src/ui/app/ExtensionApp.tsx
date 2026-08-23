@@ -60,6 +60,11 @@ import {
   type SearchPort,
   type SearchSuggestion
 } from "~/ui/features/search/search-port"
+import {
+  emptyVisitReminderPort,
+  type VisitReminderPort
+} from "~/ui/features/visit-reminder/visit-reminder-port"
+import { VisitReminderDialog } from "~/ui/features/visit-reminder/VisitReminderDialog"
 import { Button } from "~/ui/primitives"
 import { joinClassNames } from "~/ui/primitives/class-names"
 
@@ -581,7 +586,8 @@ export function ExtensionApp({
   labelManagementPort = emptyLabelManagementPort,
   onboardingPort = emptyOnboardingPort,
   searchPort = emptySearchPort,
-  shareSettingsPort = emptyShareSettingsPort
+  shareSettingsPort = emptyShareSettingsPort,
+  visitReminderPort = emptyVisitReminderPort
 }: {
   aiAssistantPort?: AiAssistantPort
   archiveSettingsPort?: ArchiveSettingsPort
@@ -592,6 +598,7 @@ export function ExtensionApp({
   onboardingPort?: OnboardingPort
   searchPort?: SearchPort
   shareSettingsPort?: ShareSettingsPort
+  visitReminderPort?: VisitReminderPort
 }) {
   const routeStore = useHashRouteStore()
   const runtime = useAppRuntime()
@@ -618,6 +625,22 @@ export function ExtensionApp({
   const [notice, setNotice] = React.useState<string | null>(null)
   const [onboardingState, setOnboardingState] =
     React.useState<Awaited<ReturnType<OnboardingPort["load"]>>>(null)
+  const [visitReminderOpen, setVisitReminderOpen] = React.useState(false)
+  const [pendingVisitReminder, setPendingVisitReminder] =
+    React.useState<Awaited<ReturnType<VisitReminderPort["getPending"]>>>(null)
+
+  React.useEffect(() => {
+    let cancelled = false
+    void visitReminderPort.getPending().then((pending) => {
+      if (!cancelled && pending) {
+        setPendingVisitReminder(pending)
+        setVisitReminderOpen(true)
+      }
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [visitReminderPort])
 
   // ブラウザ標準とアプリ独自のスクロール復元が競合しないようにします。
   React.useEffect(() => runtime.setManualScrollRestoration(), [runtime])
@@ -836,6 +859,18 @@ export function ExtensionApp({
           port={aiAssistantPort}
         />
       ) : null}
+      <VisitReminderDialog
+        onClose={() => {
+          setVisitReminderOpen(false)
+          setPendingVisitReminder(null)
+        }}
+        onSaved={() => {
+          setBookmarkListRevision((revision) => revision + 1)
+        }}
+        open={visitReminderOpen}
+        pending={pendingVisitReminder}
+        port={visitReminderPort}
+      />
     </>
   )
 }
