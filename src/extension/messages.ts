@@ -20,8 +20,10 @@ export const EXTENSION_MESSAGE_ACTIONS = {
   LIST_LABEL_CANDIDATES: "list-label-candidates",
   GET_CATEGORY_TEMPLATE_CATALOG: "get-category-template-catalog",
   APPLY_CATEGORY_TEMPLATES: "apply-category-templates",
+  SEED_DEV_CLASSIFICATION_LABELS: "seed-dev-classification-labels",
   CLAIM_CLASSIFICATION_JOB: "claim-classification-job",
   APPLY_CLASSIFICATION_RESULT: "apply-classification-result",
+  APPLY_VALIDATED_CLASSIFICATION: "apply-validated-classification",
   GET_CLASSIFICATION_JOB: "get-classification-job",
   RETRY_CLASSIFICATION_JOB: "retry-classification-job",
   CANCEL_CLASSIFICATION_JOB: "cancel-classification-job",
@@ -59,6 +61,31 @@ export type ApplyClassificationResultPayload = Readonly<{
   outcome: "SUCCEEDED" | "FAILED" | "NEEDS_REVIEW" | "CANCELED"
   errorCode?: string | null
   tagIds?: string[]
+}>
+
+export type ApplyValidatedClassificationPayload = Readonly<{
+  jobId: string
+  executorInstanceId: string
+  bookmarkRevision: number
+  categoryId: string
+  candidates: ReadonlyArray<
+    | {
+        sourceIndex: number
+        action: "REUSE"
+        tagId: string
+        importance: string
+        confidence: number
+      }
+    | {
+        sourceIndex: number
+        action: "CREATE"
+        name: string
+        normalizedName: string
+        importance: string
+        confidence: number
+        proposalKey: string
+      }
+  >
 }>
 
 export type GetClassificationJobPayload = Readonly<{
@@ -116,8 +143,10 @@ export type ExtensionMessageRequest =
   | MessageRequest<"list-label-candidates", "dashboard", JsonValue>
   | MessageRequest<"get-category-template-catalog", "dashboard", Record<never, never>>
   | MessageRequest<"apply-category-templates", "dashboard", JsonValue>
+  | MessageRequest<"seed-dev-classification-labels", "dashboard", JsonValue>
   | MessageRequest<"claim-classification-job", "ai-host", ClaimClassificationJobPayload>
   | MessageRequest<"apply-classification-result", "ai-host", ApplyClassificationResultPayload>
+  | MessageRequest<"apply-validated-classification", "ai-host", JsonValue>
   | MessageRequest<"get-classification-job", "dashboard", GetClassificationJobPayload>
   | MessageRequest<"retry-classification-job", "dashboard", RetryClassificationJobPayload>
   | MessageRequest<"cancel-classification-job", "dashboard", CancelClassificationJobPayload>
@@ -163,6 +192,7 @@ function hasAllowedSource(
       return source === "popup" || source === "dashboard"
     case "claim-classification-job":
     case "apply-classification-result":
+    case "apply-validated-classification":
       return source === "ai-host"
     case "search-library":
       return source === "dashboard" || source === "ai-host"

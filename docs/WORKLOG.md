@@ -1006,6 +1006,32 @@ Chrome Prompt API v151 での型定義エラーを修正し、Availability チ�
 - repository管理されたPlaywright拡張E2Eと人間による実Chrome受入は未実施である。
 - 実装はbase commit `e770827`上の未commit差分であり、commit／pushは未実施である。
 
+## 2026-08-23 — TASK-008 AI分類 policy v2 縦スライス
+
+### 目的
+
+評価基盤と整合する Domain 正本の policy v2・結果検証・Tag適用を実装する。
+
+### 変更
+
+- Domain: `policyFromGranularity`→v2、`validateClassificationModelResult`、固定prompt、`buildClassificationPromptInput`
+- Adapter: `applyValidatedClassificationResult`（CREATE／REUSE 同TX）
+- evaluation: Domain policy を re-export（二重定義解消）
+- Plan: [plans/2026-08-23-task-008-ai-classification.md](plans/2026-08-23-task-008-ai-classification.md)
+
+### 検証
+
+- コマンド: `pnpm typecheck` / `pnpm test`
+- 結果: 成功（304 tests）
+- 証拠: Domain≡evaluation policy、混在候補検証、apply CREATE+REUSE
+
+### 残課題
+
+- pendingApply／DISPATCH_RESERVED／leaseNonce 永続化
+- classificationSettings durable gate
+- 再分類 AI edge 置換の完全規則
+- 実 Gemini Nano Host
+
 ## 2026-08-23 — TASK-015 分類評価基盤（fixture v3 / scorer v2）
 
 ### 目的

@@ -21,3 +21,7 @@ export {
   type CategoryTemplateApplyReceipt,
   type CategoryTemplateReceiptStore,
 } from "./category-templates"
+export {
+  seedDevClassificationLabels,
+  type SeedDevClassificationLabelsResult,
+} from "./seed-dev-classification-labels"

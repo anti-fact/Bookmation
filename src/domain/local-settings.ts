@@ -52,8 +52,8 @@ export interface LocalSettings {
   // --- AI 分類 ---
   /**
    * AI 分類の細分化度。0〜4 のみ有効。
-   * 0: 新規タグ作成なし (既存タグ自動付与あり)
-   * 1〜4: 最大新規タグ数が増える
+   * policy version 2 の reusePolicy / allowedCreateImportance に対応する。
+   * Tag 件数上限ではない。
    */
   readonly aiGranularity: 0 | 1 | 2 | 3 | 4
 }

@@ -1,13 +1,8 @@
 /**
- * AI 出力検証境界
+ * AI 出力検証境界（旧 schema）
  *
- * AI (Prompt API / 外部 LLM) が返した unknown 出力を Domain 型へ直接キャストすることを禁止する。
- *
- * 設計原則 (BACKEND.md §AI境界):
- * - `unknown` → Domain 型の変換は必ずこのモジュールを通す
- * - 外形スキーマ検証を挟み、構造が不正なら DomainError をスローする
- * - AI が CATEGORY を作成しようとした場合は拒否する
- * - AI が提案した Label ID がセッション候補に含まれない場合は拒否する
+ * @deprecated policy v2 では `classification-result.ts` の
+ * `validateClassificationModelResult` を使う。本モジュールは移行中の互換用。
  */
 import type { Id } from "./types"
 import { DomainError, DomainErrorCode } from "./errors"

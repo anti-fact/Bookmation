@@ -13,6 +13,11 @@
 
 import * as React from "react"
 import { Button } from "~/ui/primitives"
+import {
+  getLanguageModel,
+  PROMPT_API_JA_OPTIONS,
+  type LanguageModelSession,
+} from "~/adapters/prompt-api/types"
 
 type AvailabilityState = "unavailable" | "downloadable" | "downloading" | "available"
 
@@ -24,51 +29,12 @@ type PromptApiApplicationErrorCode =
   | "PROMPT_SESSION_ENDED"
   | "PROMPT_INVALID_STRUCTURED_OUTPUT"
 
-type PromptApiMonitor = EventTarget & {
-  addEventListener(
-    type: "downloadprogress",
-    listener: (event: Event & { loaded?: number }) => void
-  ): void
-}
-
 type PromptApiTest = {
   availability: AvailabilityState | null
   error: string | null
   modelLoading: boolean
   lastTestTime: string | null
   classificationResult: string | null
-}
-
-// Chrome Prompt API の型定義
-// Chrome v151+ での型定義に合わせる
-interface LanguageModelOptions {
-  expectedInputs: { type: "text"; languages: string[] }[]
-  expectedOutputs: { type: "text"; languages: string[] }[]
-  language?: string
-  monitor?: (monitor: PromptApiMonitor) => void
-  signal?: AbortSignal
-}
-
-interface LanguageModelSession {
-  prompt: (
-    text: string,
-    options?: {
-      responseConstraint?: Record<string, unknown>
-      signal?: AbortSignal
-    }
-  ) => Promise<string>
-  destroy: () => void
-}
-
-interface LanguageModel {
-  availability: (options: LanguageModelOptions) => Promise<AvailabilityState>
-  create: (options: LanguageModelOptions) => Promise<LanguageModelSession>
-}
-
-declare global {
-  interface Window {
-    LanguageModel?: LanguageModel
-  }
 }
 
 export function PromptApiTester() {
@@ -80,10 +46,7 @@ export function PromptApiTester() {
     classificationResult: null
   })
 
-  const promptOptions = {
-    expectedInputs: [{ type: "text" as const, languages: ["ja"] }],
-    expectedOutputs: [{ type: "text" as const, languages: ["ja"] }]
-  }
+  const promptOptions = PROMPT_API_JA_OPTIONS
 
   const setApplicationError = (
     code: PromptApiApplicationErrorCode,
@@ -99,7 +62,7 @@ export function PromptApiTester() {
   const checkAvailability = async () => {
     try {
       // Service Worker では実行しない - top-level extension page のみ
-      const lm = window.LanguageModel
+      const lm = getLanguageModel()
       if (!lm) {
         setApplicationError("PROMPT_API_UNAVAILABLE")
         return
@@ -127,7 +90,7 @@ export function PromptApiTester() {
     let session: LanguageModelSession | null = null
 
     try {
-      const lm = window.LanguageModel
+      const lm = getLanguageModel()
       if (!lm) {
         setApplicationError("PROMPT_API_UNAVAILABLE")
         return
@@ -317,9 +280,7 @@ export function PromptApiTester() {
           <div className="flex justify-between">
             <dt>LanguageModel 定義:</dt>
             <dd>
-              {typeof window.LanguageModel !== "undefined"
-                ? "✓ 利用可能"
-                : "✗ 利用不可"}
+              {getLanguageModel() !== null ? "✓ 利用可能" : "✗ 利用不可"}
             </dd>
           </div>
           <div className="flex justify-between">

@@ -11,7 +11,7 @@ export function serializeClassificationJob(job: PersistedClassificationJobRecord
     state: job.state,
     inputFingerprint: job.inputFingerprint,
     bookmarkRevision: job.bookmarkRevision,
-    policy: job.policy,
+    policy: JSON.parse(JSON.stringify(job.policy)) as JsonValue,
     attempt: job.attempt,
     leaseExpiresAt: job.leaseExpiresAt,
     executorInstanceId: job.executorInstanceId,

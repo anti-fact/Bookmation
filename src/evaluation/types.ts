@@ -1,58 +1,35 @@
 /**
  * Classification evaluation types (AI_GUIDE §必須の実モデル評価)
- * production runtime とは分離。policy v2 / fixture v3 / result v1 / scorer v2。
+ * production runtime とは分離。policy / prompt の正本型は Domain から共有。
  */
 import type { Id } from "~/domain"
+import type {
+  ClassificationPolicySnapshotV2,
+  TagImportance,
+  AiGranularity,
+} from "~/domain"
+import {
+  PROMPT_VERSION as DOMAIN_PROMPT_VERSION,
+  RESPONSE_SCHEMA_VERSION as DOMAIN_RESPONSE_SCHEMA_VERSION,
+  CANDIDATE_QUERY_VERSION as DOMAIN_CANDIDATE_QUERY_VERSION,
+  MAX_PROMPT_INPUT_BYTES as DOMAIN_MAX_PROMPT_INPUT_BYTES,
+  MAX_MODEL_RESPONSE_BYTES as DOMAIN_MAX_MODEL_RESPONSE_BYTES,
+} from "~/domain"
+
+export type { ClassificationPolicySnapshotV2, TagImportance }
+export type Granularity = AiGranularity
 
 export const FIXTURE_SCHEMA_VERSION = 3 as const
 export const RESULT_SCHEMA_VERSION = 1 as const
 export const SCORER_VERSION = "classification-eval-scorer-v2" as const
-export const PROMPT_VERSION = "gemini-nano-tag-classifier-v2" as const
-export const RESPONSE_SCHEMA_VERSION = 2 as const
-export const CANDIDATE_QUERY_VERSION = "all-active-labels-v1" as const
-export const MAX_PROMPT_INPUT_BYTES = 262_144
-export const MAX_MODEL_RESPONSE_BYTES = 262_144
+export const PROMPT_VERSION = DOMAIN_PROMPT_VERSION
+export const RESPONSE_SCHEMA_VERSION = DOMAIN_RESPONSE_SCHEMA_VERSION
+export const CANDIDATE_QUERY_VERSION = DOMAIN_CANDIDATE_QUERY_VERSION
+export const MAX_PROMPT_INPUT_BYTES = DOMAIN_MAX_PROMPT_INPUT_BYTES
+export const MAX_MODEL_RESPONSE_BYTES = DOMAIN_MAX_MODEL_RESPONSE_BYTES
 export const EVAL_SAMPLE_SIZE = 10
 
-export type TagImportance = "CORE" | "MAJOR" | "SUPPORTING" | "DETAIL"
-export type Granularity = 0 | 1 | 2 | 3 | 4
-
-export type ClassificationPolicySnapshotV2 =
-  | {
-      policyVersion: 2
-      granularity: 0
-      reusePolicy: "STRONG_REUSE"
-      allowedCreateImportance: readonly ["CORE"]
-    }
-  | {
-      policyVersion: 2
-      granularity: 1
-      reusePolicy: "PREFER_REUSE"
-      allowedCreateImportance: readonly ["CORE"]
-    }
-  | {
-      policyVersion: 2
-      granularity: 2
-      reusePolicy: "BALANCED"
-      allowedCreateImportance: readonly ["CORE", "MAJOR"]
-    }
-  | {
-      policyVersion: 2
-      granularity: 3
-      reusePolicy: "NEAR_EXACT_REUSE"
-      allowedCreateImportance: readonly ["CORE", "MAJOR", "SUPPORTING"]
-    }
-  | {
-      policyVersion: 2
-      granularity: 4
-      reusePolicy: "EXACT_EQUIVALENT_REUSE"
-      allowedCreateImportance: readonly [
-        "CORE",
-        "MAJOR",
-        "SUPPORTING",
-        "DETAIL",
-      ]
-    }
+// ClassificationPolicySnapshotV2 / TagImportance / Granularity: Domain 共有
 
 export type ClassificationRetryReasonCode =
   | "RESPONSE_SCHEMA_INVALID"

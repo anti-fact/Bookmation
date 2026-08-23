@@ -10,6 +10,7 @@ import {
   getCategoryTemplateCatalog,
   type CategoryTemplateReceiptStore,
 } from "./category-templates"
+import { seedDevClassificationLabels } from "./seed-dev-classification-labels"
 import type { ExtensionMessageApplication } from "./extension-message-application"
 
 function record(value: unknown): Record<string, unknown> | null {
@@ -100,6 +101,26 @@ export function createLibraryApplication(
           requestId: request.requestId,
           ok: true,
           data: { categoryId: category.id, revision: category.revision },
+        }
+      }
+
+      if (request.action === "seed-dev-classification-labels") {
+        const result = await seedDevClassificationLabels(layer)
+        return {
+          requestId: request.requestId,
+          ok: true,
+          data: {
+            seedVersion: result.seedVersion,
+            categoriesCreated: result.categoriesCreated,
+            categoriesReused: result.categoriesReused,
+            tagsCreated: result.tagsCreated,
+            tagsReused: result.tagsReused,
+            categories: result.categories.map((category) => ({
+              id: category.id,
+              name: category.name,
+              tagCount: category.tagCount,
+            })),
+          },
         }
       }
 

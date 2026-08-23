@@ -79,17 +79,62 @@ export interface JsonDocumentEnvelope {
 // 分類ポリシースナップショット
 // ---------------------------------------------------------------------------
 
+export type TagImportance = "CORE" | "MAJOR" | "SUPPORTING" | "DETAIL"
+
+export type AiGranularity = 0 | 1 | 2 | 3 | 4
+
 /**
- * AI 分類ジョブに埋め込む policy snapshot。
- * granularity と maxNewTags の組み合わせは仕様で固定された 5 種のみ許可。
- * claim 後の設定変更で実行中ジョブの上限を変えない。
+ * AI 分類 Job に埋め込む policy snapshot。
+ * 現行正本は policyVersion 2（reusePolicy + allowedCreateImportance）。
+ * version 1（maxNewTags）は端末履歴・移行監査用に型として残す。
  */
-export type ClassificationPolicySnapshot =
+export type ClassificationPolicySnapshotV1 =
   | { readonly policyVersion: 1; readonly granularity: 0; readonly maxNewTags: 0 }
   | { readonly policyVersion: 1; readonly granularity: 1; readonly maxNewTags: 1 }
   | { readonly policyVersion: 1; readonly granularity: 2; readonly maxNewTags: 2 }
   | { readonly policyVersion: 1; readonly granularity: 3; readonly maxNewTags: 4 }
   | { readonly policyVersion: 1; readonly granularity: 4; readonly maxNewTags: 6 }
+
+export type ClassificationPolicySnapshotV2 =
+  | {
+      readonly policyVersion: 2
+      readonly granularity: 0
+      readonly reusePolicy: "STRONG_REUSE"
+      readonly allowedCreateImportance: readonly ["CORE"]
+    }
+  | {
+      readonly policyVersion: 2
+      readonly granularity: 1
+      readonly reusePolicy: "PREFER_REUSE"
+      readonly allowedCreateImportance: readonly ["CORE"]
+    }
+  | {
+      readonly policyVersion: 2
+      readonly granularity: 2
+      readonly reusePolicy: "BALANCED"
+      readonly allowedCreateImportance: readonly ["CORE", "MAJOR"]
+    }
+  | {
+      readonly policyVersion: 2
+      readonly granularity: 3
+      readonly reusePolicy: "NEAR_EXACT_REUSE"
+      readonly allowedCreateImportance: readonly ["CORE", "MAJOR", "SUPPORTING"]
+    }
+  | {
+      readonly policyVersion: 2
+      readonly granularity: 4
+      readonly reusePolicy: "EXACT_EQUIVALENT_REUSE"
+      readonly allowedCreateImportance: readonly [
+        "CORE",
+        "MAJOR",
+        "SUPPORTING",
+        "DETAIL",
+      ]
+    }
+
+export type ClassificationPolicySnapshot =
+  | ClassificationPolicySnapshotV1
+  | ClassificationPolicySnapshotV2
 
 // ---------------------------------------------------------------------------
 // UpdateTag コマンド型（Domain 層で検証する入力）

@@ -307,17 +307,17 @@ sequenceDiagram
 
 目的: AI出力を信用せず、ユーザー規則どおりカテゴリ／タグへ反映する。
 
-- [ ] USERカテゴリ、USERタグ、AIタグのID付き候補を作る。
-- [ ] [AI_GUIDE.md](docs/AI_GUIDE.md) の固定system prompt、未信頼JSON入力、Category 1件、REUSE／CREATE、importance、evidenceText、confidenceを持つ厳格schemaを実装する。Tag配列へ業務上の `maxItems` を置かない。
-- [ ] 固定promptで、選択Category内の完全一致、正規化一致、同義語、正式名／略称、翻訳、表記揺れを全細分化度でREUSEして意味が合うUSERタグを優先し、選択Category外にだけ同等Tagがある概念はREUSE／CREATE／親変更せず省くようGemini Nanoへ指示する。信頼側はID、親、revision、normalizedName一致を決定的に検証し、異なるnormalizedNameの意味同等性はversion付きoracleの実モデル評価で判定する。
-- [ ] policy version 2の全5組を実装する。0／1は`CORE`、2は`MAJOR`まで、3は`SUPPORTING`まで、4は`DETAIL`までCREATEを許し、再利用範囲も値ごとに変える。値0でも必要最小限のCOREをCREATEでき、`maxNewTags`／`maxAssignedTags`を使わない。
-- [ ] 新規AIタグproposalが `tagUniqueName` と競合したらoriginを問わず既存Tagを再評価する。選択Category内の同じnormalizedNameのactive Tagは信頼側でREUSEへ解決し、親不一致またはtombstone競合はその候補だけを棄却する。異名同義を未定義のalias推測で変換・棄却しない。
-- [ ] AIによるカテゴリ作成・改名・削除と、候補外IDを拒否する。
-- [ ] AI分類結果から既存Tagの親Categoryを変更できないようにし、親変更を管理モードの利用者commandだけへ限定する。
-- [ ] AIは候補内のactive USER Categoryを厳密に1件選び、その試行の全REUSE／CREATE候補を同じCategory配下にする。COREが同等なら同等USER Tagを持つCategory、次に他originの同等Tagを持つCategoryを優先し、それでも一意でなければquality-zeroにする。既存の手動Tag由来の別Categoryを削除せず、適用後の全active Tag親からBookmarkのCategory edgeを導出する。
-- [ ] Service Worker側で全体外形を検証後、各候補のrevision、親、importance、根拠、Normalizer、重複を独立に検証する。正常候補が1件以上なら全正常候補を1transactionで適用してSUCCEEDEDとし、先頭N件・confidence上位N件へ切り捨てない。
-- [ ] 正常候補0件の場合だけ次のモデル試行へ進み、試行間で候補を結合・多数決しない。JSON／envelope不正、`outcome=NEEDS_REVIEW`、Category不正、全candidate棄却をquality-zeroとし、timeout、応答切断、truncated、応答byte上限超過、dispatch後の結果喪失を `TECHNICAL_FAILURE` として区別する。3件の `DISPATCH_RESERVED` がすべてquality-zeroの場合だけNEEDS_REVIEW、technical failureを含んで枠を使い切った場合はFAILEDとする。既付与の正常REUSEは冪等成功として試行を終了する。
-- [ ] 棄却候補が混在してもPARTIAL_SUCCESSを作らず、accepted／rejected件数と個人データなしの理由コードを保存する。transaction失敗は全正常候補をrollbackし、モデル再試行と区別する。
+- [x] USERカテゴリ、USERタグ、AIタグのID付き候補を作る。
+- [x] [AI_GUIDE.md](docs/AI_GUIDE.md) の固定system prompt、未信頼JSON入力、Category 1件、REUSE／CREATE、importance、evidenceText、confidenceを持つ厳格schemaを実装する。Tag配列へ業務上の `maxItems` を置かない。
+- [x] 固定promptで、選択Category内の完全一致、正規化一致、同義語、正式名／略称、翻訳、表記揺れを全細分化度でREUSEして意味が合うUSERタグを優先し、選択Category外にだけ同等Tagがある概念はREUSE／CREATE／親変更せず省くようGemini Nanoへ指示する。信頼側はID、親、revision、normalizedName一致を決定的に検証し、異なるnormalizedNameの意味同等性はversion付きoracleの実モデル評価で判定する。
+- [x] policy version 2の全5組を実装する。0／1は`CORE`、2は`MAJOR`まで、3は`SUPPORTING`まで、4は`DETAIL`までCREATEを許し、再利用範囲も値ごとに変える。値0でも必要最小限のCOREをCREATEでき、`maxNewTags`／`maxAssignedTags`を使わない。
+- [x] 新規AIタグproposalが `tagUniqueName` と競合したらoriginを問わず既存Tagを再評価する。選択Category内の同じnormalizedNameのactive Tagは信頼側でREUSEへ解決し、親不一致またはtombstone競合はその候補だけを棄却する。異名同義を未定義のalias推測で変換・棄却しない。
+- [x] AIによるカテゴリ作成・改名・削除と、候補外IDを拒否する。
+- [x] AI分類結果から既存Tagの親Categoryを変更できないようにし、親変更を管理モードの利用者commandだけへ限定する。
+- [x] AIは候補内のactive USER Categoryを厳密に1件選び、その試行の全REUSE／CREATE候補を同じCategory配下にする。COREが同等なら同等USER Tagを持つCategory、次に他originの同等Tagを持つCategoryを優先し、それでも一意でなければquality-zeroにする。既存の手動Tag由来の別Categoryを削除せず、適用後の全active Tag親からBookmarkのCategory edgeを導出する。
+- [x] Service Worker側で全体外形を検証後、各候補のrevision、親、importance、根拠、Normalizer、重複を独立に検証する。正常候補が1件以上なら全正常候補を1transactionで適用してSUCCEEDEDとし、先頭N件・confidence上位N件へ切り捨てない。
+- [x] 正常候補0件の場合だけ次のモデル試行へ進み、試行間で候補を結合・多数決しない。JSON／envelope不正、`outcome=NEEDS_REVIEW`、Category不正、全candidate棄却をquality-zeroとし、timeout、応答切断、truncated、応答byte上限超過、dispatch後の結果喪失を `TECHNICAL_FAILURE` として区別する。3件の `DISPATCH_RESERVED` がすべてquality-zeroの場合だけNEEDS_REVIEW、technical failureを含んで枠を使い切った場合はFAILEDとする。既付与の正常REUSEは冪等成功として試行を終了する。
+- [x] 棄却候補が混在してもPARTIAL_SUCCESSを作らず、accepted／rejected件数と個人データなしの理由コードを保存する。transaction失敗は全正常候補をrollbackし、モデル再試行と区別する。
 - [ ] 成功した再分類では、今回の正常Tag候補集合を現在のAI割当集合とし、以前の成功Job由来で今も `assignedBy=AI` のTAG edgeのうち集合外だけを同じtransactionで論理削除する。残るAI TAG edgeは現在Jobへ更新し、USER／IMPORT／SHAREおよびUSERへ昇格済みのTAG edgeは保持して、AI REUSEでも `assignedBy`、confidence、provenanceを上書きしない。手動編集で明示選択されたAI TAG edgeはUSER、confidence／classificationJobId=nullへ昇格する。派生CATEGORY edgeはactive TAG親から再計算し、USER、IMPORT、SHARE、AIの寄与順でprovenanceを決め、confidence／classificationJobIdは常にnullにする。
 - [ ] version別decoderを先に導入し、移行開始時はraw chrome.storage.localの `schemaVersion`／`settingsSchemaVersion`／`aiEnabled`／`aiGranularity` を既存migration helperを通さず型付きsnapshotとhash付きdurable gateへ固定する。own schemaVersion=1、settingsSchemaVersion／aiEnabled欠損、own整数granularity 0〜4だけを暗黙enabledのLOCAL_SETTINGS_V1として同じslider位置のv2 policyへ移し、それ以外は再設定を求める。gate中は全設定read／writeと分類設定依存command／background処理を無変更で待機させる。versionchange transactionで試作v2の旧 `activeInputKey` を外してunique `byActiveInputKey` indexとclassificationSettings Storeを作り、version 1 recordにはkeyを付けず、upgrade完了後にだけv2 active Jobを移行する。version 1のterminal Jobは旧schemaの監査履歴として保持し、PENDING／RUNNING JobはCANCELEDにする。CONFIGUREDかつenabledの場合だけ旧Job取消と現在snapshotのversion 2 Job get-or-createを同じtransactionで行う。commit後はmigration ownerだけが正本mirrorを修復・照合してgateを閉じ、中断時は同snapshotから冪等再開する。
 - [ ] 全新規v2 JobをmodelAttempt／executionAttempt=0、modelAttempts空、activeAttemptId／pendingApply／executor／lease fields=nullで作る。transaction開始時の同じnowに対してleaseExpiresAt > nowだけを有効、<= nowを失効とする。所有者なし／期限切れJobの所有権取得claim transactionが成功するたび、executorInstanceIdが同じでも `executionAttempt` を1増やして新しい `leaseNonce` を発行する。有効なleaseNonceによるrenew、同じlease内の結果再送、DB retryでは増やさず、結果受付とfinalizerをreadwrite transactionのcommit順で直列化する。3回目leaseが有効な間のrenew／結果／pendingApplyは許し、4回目claimが必要な場合だけ新ownerなしのfinalizerでattempt／token／activeInputKeyを閉じ、Job／BookmarkをFAILEDにする。Prompt API未取得／download中／AI Host不在ならclaimせずPENDINGを保ち、恒久非対応もFAILEDにする。
@@ -328,9 +328,9 @@ sequenceDiagram
 - [x] 実モデル評価は [AI_GUIDE.md](docs/AI_GUIDE.md#必須の実モデル評価) のfixtureSchemaVersion 3／resultSchemaVersion 1／scorerVersion v2を実装する。事前固定fixture hash、runSequence順の最初の非除外N=10、初回dispatch前だけの環境除外allowlist、MODEL_DECISION／APPLICABLE／COMMITTED、commit後state、result artifact hashを保存して再採点可能にする。最初のDISPATCH_RESERVED後のHost消失／technical failureやモデル由来失敗は補充せず分母へ残す。
 - [x] 各評価runをfixture v3のinitialStateから復元した専用隔離DBで実行し、先行runのCREATE／edge／revision／Job／tombstoneを後続へ持ち越さない。hash前preflightでNormalizer v1のCREATE oracle非衝突と全入力byte／Provider quota適合を拒否可能にし、result artifactでresponse disposition、attempt outcome、terminalReasonCode、COMMITTEDの不変条件を検証する。
 
-成果物: ClassificationProvider Port、Prompt adapter、結果validator、適用use case。評価基盤は `src/evaluation/`（Plan: [docs/plans/2026-08-23-task-015-classification-eval.md](docs/plans/2026-08-23-task-015-classification-eval.md)）。production runtime 本体は別途（#16）。
+成果物: ClassificationProvider Port、Prompt adapter、結果validator、適用use case。評価基盤は `src/evaluation/`（Plan: [docs/plans/2026-08-23-task-015-classification-eval.md](docs/plans/2026-08-23-task-015-classification-eval.md)）。
 
-進捗メモ（2026-08-23）: TASK-015 評価契約（fixture v3 / result v1 / scorer v2 / fake batch / 制御系）を実装。実 Gemini Nano N=10 最終batchと Tag 適用 runtime は未完了。
+進捗メモ（2026-08-23）: TASK-008 縦スライス — Domain policy v2 正本化、固定prompt、envelope／候補検証→APPLICABLE、Tag適用TX、evaluation と policy 共有、**実 Gemini Nano Host**（`src/adapters/prompt-api` + `ClassificationHostPanel`、claim→Prompt API→validate→apply-validated）。未完了: pendingApply／DISPATCH_RESERVED 永続化、settings durable gate、再分類 AI edge 置換の完全規則、実機手動確認。Plan: [docs/plans/2026-08-23-task-008-ai-classification.md](docs/plans/2026-08-23-task-008-ai-classification.md)。
 
 完了条件: 不正JSON、Category 0件／1件／複数、カテゴリ生成、policy version 2不一致、全5値の再利用範囲とimportance、選択Category内外の同等Tag規則、USERタグ優先、AI由来名競合、正常・不正候補混在、全正常候補採用、quality-zeroとtechnical failureの区別、3件の `DISPATCH_RESERVED` 枠、PREPARED回収、3回目lease失効finalizer、late response拒否、`pendingApply` 再開、lease所有権取得claim時の `executionAttempt` 加算、設定state先行分岐、候補集合fingerprint再計算、`activeInputKey` によるstale get-or-create、再分類時のAI TAG edge置換、手動USER昇格、派生CATEGORY provenance、非AI保持、LOCAL_SETTINGS_V1 allowlist、durable gate全command排他、v1履歴／移行とunique index作成順、PENDING／NEEDS_REVIEW／FAILED状態、候補外ID、再送、手動編集競合、transaction全rollbackの自動テストが通る。
 

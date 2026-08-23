@@ -25,6 +25,7 @@ import { joinClassNames } from "~/ui/primitives/class-names"
 import { useAppRuntime, useHashRouteStore } from "./AppProviders"
 import { BookmarkAddForm } from "./BookmarkAddForm"
 import { PromptApiTester } from "./PromptApiTester"
+import { ClassificationHostPanel } from "./ClassificationHostPanel"
 import {
   getHashRouteKey,
   serializeHashRoute,
@@ -392,6 +393,10 @@ function RouteBody({
               {/* TASK-007: Prompt API スパイク実装 */}
               <div className="border-t border-bm-border pt-6">
                 <PromptApiTester />
+              </div>
+              {/* TASK-008: Gemini Nano 分類 Host */}
+              <div className="border-t border-bm-border pt-6">
+                <ClassificationHostPanel />
               </div>
             </>
           )}

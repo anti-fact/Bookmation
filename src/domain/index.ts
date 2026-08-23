@@ -16,7 +16,11 @@ export type {
   FrequentVisitWindow,
   JsonValue,
   JsonDocumentEnvelope,
+  TagImportance,
+  AiGranularity,
   ClassificationPolicySnapshot,
+  ClassificationPolicySnapshotV1,
+  ClassificationPolicySnapshotV2,
   UpdateTagCommand,
 } from "./types"
 
@@ -47,6 +51,13 @@ export {
   isValidCursorValue,
 } from "./value-objects"
 export type { NormalizedUrl, CursorValue, CursorScalar } from "./value-objects"
+
+export {
+  canonicalizeJsonValue,
+  canonicalizeUnknown,
+  utf8ByteLength,
+  assertJsonValue,
+} from "./canonical-json"
 
 // --- LabelNormalizer ---
 export {
@@ -87,10 +98,13 @@ export {
 // --- ClassificationJob ---
 export type { ClassificationJobRecord } from "./classification-job"
 export {
-  assertClassificationPolicyValid,
   assertClassificationJobInvariants,
   assertValidStateTransition,
+  assertClassificationPolicyValid,
   policyFromGranularity,
+  policyV1FromGranularity,
+  isPolicyV2,
+  isCreateImportanceAllowed,
 } from "./classification-job"
 export {
   CLASSIFICATION_JOB_LEASE_MS,
@@ -98,6 +112,41 @@ export {
   proposalCreationRequestId,
   type ClassificationApplyOutcome,
 } from "./classification-job-contract"
+
+// --- Classification prompt / result (policy v2) ---
+export {
+  PROMPT_VERSION,
+  RESPONSE_SCHEMA_VERSION,
+  CANDIDATE_QUERY_VERSION,
+  MAX_PROMPT_INPUT_BYTES,
+  MAX_MODEL_RESPONSE_BYTES,
+} from "./classification-constants"
+export {
+  GEMINI_NANO_TAG_CLASSIFIER_V2_SYSTEM_PROMPT,
+  buildClassificationPromptInput,
+  orderAllActiveLabelsV1,
+} from "./classification-prompt"
+export type {
+  ClassificationPromptInput,
+  ClassificationPromptCategory,
+  ClassificationPromptTag,
+  ClassificationRetryReasonCode,
+} from "./classification-prompt"
+export {
+  validateClassificationModelResult,
+  isQualityZeroOutcome,
+  resolveDispatchBudgetTerminal,
+} from "./classification-result"
+export type {
+  TagDecision,
+  ModelDecisionCandidate,
+  ApplicableCandidate,
+  AttemptOutcome,
+  ResponseDisposition,
+  SnapshotTag,
+  ValidateClassificationResultInput,
+  ValidateClassificationResultOutput,
+} from "./classification-result"
 
 // --- LocalSettings ---
 export type { LocalSettings } from "./local-settings"

@@ -1,5 +1,11 @@
 import type { LocalDataLayer } from "~/adapters"
-import type { JsonValue, ClassificationApplyOutcome } from "~/domain"
+import type {
+  ApplicableCandidate,
+  ClassificationApplyOutcome,
+  JsonValue,
+  TagImportance,
+} from "~/domain"
+import { isPolicyV2, policyFromGranularity } from "~/domain"
 import {
   serializeBookmarkForClaim,
   serializeClassificationJob,
@@ -25,7 +31,52 @@ function isApplyOutcome(value: unknown): value is ClassificationApplyOutcome {
   )
 }
 
-/** BE-06 classification job message handlers。 */
+const IMPORTANCES = new Set(["CORE", "MAJOR", "SUPPORTING", "DETAIL"])
+
+function parseApplicableCandidates(raw: unknown): ApplicableCandidate[] | null {
+  if (!Array.isArray(raw)) return null
+  const out: ApplicableCandidate[] = []
+  for (const item of raw) {
+    const r = record(item)
+    if (!r || typeof r.sourceIndex !== "number") return null
+    if (!IMPORTANCES.has(String(r.importance))) return null
+    if (r.action === "REUSE") {
+      if (typeof r.tagId !== "string" || typeof r.confidence !== "number") return null
+      out.push({
+        sourceIndex: r.sourceIndex,
+        action: "REUSE",
+        tagId: r.tagId,
+        importance: r.importance as TagImportance,
+        confidence: r.confidence,
+      })
+      continue
+    }
+    if (r.action === "CREATE") {
+      if (
+        typeof r.name !== "string" ||
+        typeof r.normalizedName !== "string" ||
+        typeof r.confidence !== "number" ||
+        typeof r.proposalKey !== "string"
+      ) {
+        return null
+      }
+      out.push({
+        sourceIndex: r.sourceIndex,
+        action: "CREATE",
+        name: r.name,
+        normalizedName: r.normalizedName,
+        importance: r.importance as TagImportance,
+        confidence: r.confidence,
+        proposalKey: r.proposalKey,
+      })
+      continue
+    }
+    return null
+  }
+  return out
+}
+
+/** BE-06/08 classification job message handlers。 */
 export async function handleClassificationJobMessage(
   layer: LocalDataLayer,
   request: ExtensionMessageRequest,
@@ -47,16 +98,65 @@ export async function handleClassificationJobMessage(
       return {
         requestId: request.requestId,
         ok: true,
-        data: { job: null, bookmark: null, labels: [] },
+        data: { job: null, bookmark: null, labels: { categories: [], existingTags: [] } },
       }
     }
+    const labels = await layer.listActiveLabelsForClassification()
+    const policy = isPolicyV2(claimed.job.policy)
+      ? claimed.job.policy
+      : policyFromGranularity(2)
     return {
       requestId: request.requestId,
       ok: true,
       data: {
-        job: serializeClassificationJob(claimed.job),
+        job: serializeClassificationJob({ ...claimed.job, policy }),
         bookmark: serializeBookmarkForClaim(claimed.bookmark),
-        labels: [],
+        labels: {
+          categories: labels.categories,
+          existingTags: labels.existingTags.map((t) => ({
+            id: t.id,
+            name: t.name,
+            normalizedName: t.normalizedName,
+            origin: t.origin,
+            revision: t.revision,
+            parentCategoryId: t.parentCategoryId,
+            parentCategoryRevision: t.parentCategoryRevision,
+            deletedAt: null,
+          })),
+        },
+      },
+    }
+  }
+
+  if (request.action === "apply-validated-classification") {
+    if (
+      typeof payload.jobId !== "string" ||
+      typeof payload.executorInstanceId !== "string" ||
+      typeof payload.bookmarkRevision !== "number" ||
+      typeof payload.categoryId !== "string"
+    ) {
+      return invalid(request.requestId)
+    }
+    const candidates = parseApplicableCandidates(payload.candidates)
+    if (!candidates || candidates.length === 0) {
+      return invalid(request.requestId)
+    }
+    const result = await layer.applyValidatedClassificationResult({
+      jobId: payload.jobId,
+      executorInstanceId: payload.executorInstanceId,
+      bookmarkRevision: payload.bookmarkRevision,
+      categoryId: payload.categoryId,
+      candidates,
+    })
+    return {
+      requestId: request.requestId,
+      ok: true,
+      data: {
+        job: serializeClassificationJob(result.job),
+        bookmark: serializeBookmarkForClaim(result.bookmark),
+        appliedTagIds: result.appliedTagIds,
+        createdTagIds: result.createdTagIds,
+        deduplicated: result.deduplicated,
       },
     }
   }
@@ -139,3 +239,5 @@ export async function handleClassificationJobMessage(
 
   return null
 }
+
+export type { JsonValue }

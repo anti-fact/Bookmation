@@ -37,6 +37,11 @@ import {
   type ClaimClassificationJobInput,
   type ClaimClassificationJobResult,
 } from "./classification-job-ops"
+import {
+  applyValidatedClassificationResult,
+  type ApplyValidatedClassificationInput,
+  type ApplyValidatedClassificationResult,
+} from "./apply-classification"
 import { stripUndefinedFields } from "./document-validation"
 import {
   assertRequestIdNamespace,
@@ -291,7 +296,8 @@ export class LocalDataLayer {
       settingsVersion: 1,
       policy,
       maxCandidateCategories: 8,
-      maxAssignedTags: 8,
+      // v2: 業務上の Tag 件数上限は置かない。永続フィールド互換のため 0=無制限
+      maxAssignedTags: 0,
       provider: "CHROME_PROMPT",
       providerModel: null,
       executionContext: null,
@@ -1020,7 +1026,7 @@ export class LocalDataLayer {
           settingsVersion: 1,
           policy: policyFromGranularity(2),
           maxCandidateCategories: 8,
-          maxAssignedTags: 8,
+          maxAssignedTags: 0,
           provider: "CHROME_PROMPT",
           providerModel: null,
           executionContext: null,
@@ -1258,6 +1264,68 @@ export class LocalDataLayer {
     await tx.done
   }
 
+  async listActiveLabelsForClassification(): Promise<{
+    categories: Array<{ id: Id; name: string; revision: number }>
+    existingTags: Array<{
+      id: Id
+      name: string
+      normalizedName: string
+      origin: PersistedLabelRecord["origin"]
+      revision: number
+      parentCategoryId: Id
+      parentCategoryRevision: number
+      deletedAt: null
+    }>
+  }> {
+    const all = await this.db.getAll(STORES.labels)
+    const activeCategories = all
+      .filter(
+        (l) =>
+          l.kind === "CATEGORY" &&
+          l.deletedAt === null &&
+          l.origin === "USER",
+      )
+      .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
+
+    const categoryById = new Map(activeCategories.map((c) => [c.id, c]))
+    const originOrder = { USER: 0, AI: 1, IMPORT: 2, SHARE: 3 } as const
+    const activeTags = all
+      .filter(
+        (l) =>
+          l.kind === "TAG" &&
+          l.deletedAt === null &&
+          l.parentCategoryId !== null &&
+          categoryById.has(l.parentCategoryId),
+      )
+      .sort((a, b) => {
+        const oa = originOrder[a.origin]
+        const ob = originOrder[b.origin]
+        if (oa !== ob) return oa - ob
+        return a.id < b.id ? -1 : a.id > b.id ? 1 : 0
+      })
+
+    return {
+      categories: activeCategories.map((c) => ({
+        id: c.id,
+        name: c.name,
+        revision: c.revision,
+      })),
+      existingTags: activeTags.map((t) => {
+        const parent = categoryById.get(t.parentCategoryId!)!
+        return {
+          id: t.id,
+          name: t.name,
+          normalizedName: t.normalizedName,
+          origin: t.origin,
+          revision: t.revision,
+          parentCategoryId: t.parentCategoryId!,
+          parentCategoryRevision: parent.revision,
+          deletedAt: null as null,
+        }
+      }),
+    }
+  }
+
   async recoverStaleClassificationJobs(now: EpochMs = Date.now()): Promise<number> {
     return recoverStaleClassificationJobs(this.db, now)
   }
@@ -1290,6 +1358,15 @@ export class LocalDataLayer {
     input: Omit<ApplyClassificationResultShellInput, "now"> & { now?: EpochMs },
   ): Promise<ApplyClassificationResultShellResult> {
     return applyClassificationResultShell(this.db, { ...input, now: input.now ?? Date.now() })
+  }
+
+  async applyValidatedClassificationResult(
+    input: Omit<ApplyValidatedClassificationInput, "now"> & { now?: EpochMs },
+  ): Promise<ApplyValidatedClassificationResult> {
+    return applyValidatedClassificationResult(this.db, {
+      ...input,
+      now: input.now ?? Date.now(),
+    })
   }
 
   private async collectCascadeSnapshot(
