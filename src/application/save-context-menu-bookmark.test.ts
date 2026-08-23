@@ -2,11 +2,10 @@ import "fake-indexeddb/auto"
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
-import { LocalDataLayer } from "~/adapters/indexeddb/local-data-layer"
-import { DB_NAME } from "~/adapters/indexeddb/stores"
 import { CONTEXT_MENU_BOOKMARK_LINK_ID, CONTEXT_MENU_BOOKMARK_PAGE_ID } from "~/domain/context-menu"
 import { DEFAULT_LOCAL_SETTINGS } from "~/domain/local-settings"
 import type { LocalSettingsStore } from "~/ports/local-settings-store-port"
+import { POPUP_SAVE_FEEDBACK_STORAGE_KEY } from "~/extension/popup-save-feedback"
 import {
   resetSaveContextMenuDataLayerCache,
   saveFromContextMenuClick,
@@ -24,48 +23,61 @@ function contextMenuClick(
 }
 
 describe("saveFromContextMenuClick", () => {
-  let layer: LocalDataLayer
+  let layer: Awaited<ReturnType<typeof import("~/adapters/indexeddb/local-data-layer").LocalDataLayer.open>>
   let settingsStore: LocalSettingsStore
+  let sessionStorage: {
+    get: ReturnType<typeof vi.fn>
+    set: ReturnType<typeof vi.fn>
+    remove: ReturnType<typeof vi.fn>
+  }
 
   beforeEach(async () => {
+    const { LocalDataLayer } = await import("~/adapters/indexeddb/local-data-layer")
     await resetSaveContextMenuDataLayerCache()
     layer = await LocalDataLayer.open()
     settingsStore = createSettingsStore(true)
+    sessionStorage = {
+      get: vi.fn().mockResolvedValue({}),
+      set: vi.fn().mockResolvedValue(undefined),
+      remove: vi.fn().mockResolvedValue(undefined),
+    }
   })
 
   afterEach(async () => {
+    const { DB_NAME } = await import("~/adapters/indexeddb/stores")
     await layer.close()
     await resetSaveContextMenuDataLayerCache()
     indexedDB.deleteDatabase(DB_NAME)
   })
 
   it("saves page context bookmark when enabled", async () => {
-    const action = createActionMock()
-
     await saveFromContextMenuClick(
       contextMenuClick({
         menuItemId: CONTEXT_MENU_BOOKMARK_PAGE_ID,
         pageUrl: "https://example.com/page",
       }),
-      { settingsStore, action },
+      { settingsStore, sessionStorage },
     )
 
     const bookmarks = await layer.listRecentBookmarks(null, 10)
     expect(bookmarks.items).toHaveLength(1)
     expect(bookmarks.items[0]?.source).toBe("CONTEXT_PAGE")
     expect(bookmarks.items[0]?.normalizedUrl).toBe("https://example.com/page")
+    expect(sessionStorage.set).toHaveBeenCalledWith(
+      expect.objectContaining({
+        [POPUP_SAVE_FEEDBACK_STORAGE_KEY]: expect.objectContaining({ status: "saved" }),
+      }),
+    )
   })
 
   it("saves link context bookmark with link text title", async () => {
-    const action = createActionMock()
-
     await saveFromContextMenuClick(
       contextMenuClick({
         menuItemId: CONTEXT_MENU_BOOKMARK_LINK_ID,
         linkUrl: "https://example.com/target",
         selectionText: "Target Page",
       }),
-      { settingsStore, action },
+      { settingsStore, sessionStorage },
     )
 
     const bookmarks = await layer.listRecentBookmarks(null, 10)
@@ -76,57 +88,52 @@ describe("saveFromContextMenuClick", () => {
 
   it("does not save when setting is OFF", async () => {
     settingsStore = createSettingsStore(false)
-    const action = createActionMock()
 
     await saveFromContextMenuClick(
       contextMenuClick({
         menuItemId: CONTEXT_MENU_BOOKMARK_PAGE_ID,
         pageUrl: "https://example.com/page",
       }),
-      { settingsStore, action },
+      { settingsStore, sessionStorage },
     )
 
     expect((await layer.listRecentBookmarks(null, 10)).items).toHaveLength(0)
-    expect(action.setBadgeText).not.toHaveBeenCalled()
+    expect(sessionStorage.set).not.toHaveBeenCalled()
   })
 
   it("rejects dangerous URLs", async () => {
-    const action = createActionMock()
-
     await saveFromContextMenuClick(
       contextMenuClick({
         menuItemId: CONTEXT_MENU_BOOKMARK_PAGE_ID,
         pageUrl: "javascript:alert(1)",
       }),
-      { settingsStore, action },
+      { settingsStore, sessionStorage },
     )
 
     expect((await layer.listRecentBookmarks(null, 10)).items).toHaveLength(0)
+    expect(sessionStorage.set).not.toHaveBeenCalled()
   })
 
   it("ignores unknown menu IDs", async () => {
-    const action = createActionMock()
-
     await saveFromContextMenuClick(
       contextMenuClick({
         menuItemId: "other-menu",
         pageUrl: "https://example.com/page",
       }),
-      { settingsStore, action },
+      { settingsStore, sessionStorage },
     )
 
     expect((await layer.listRecentBookmarks(null, 10)).items).toHaveLength(0)
+    expect(sessionStorage.set).not.toHaveBeenCalled()
   })
 
-  it("shows duplicate badge for repeated URL", async () => {
-    const action = createActionMock()
-
+  it("records duplicate feedback for repeated URL", async () => {
     await saveFromContextMenuClick(
       contextMenuClick({
         menuItemId: CONTEXT_MENU_BOOKMARK_PAGE_ID,
         pageUrl: "https://example.com/dup",
       }),
-      { settingsStore, action },
+      { settingsStore, sessionStorage },
     )
 
     await saveFromContextMenuClick(
@@ -134,10 +141,14 @@ describe("saveFromContextMenuClick", () => {
         menuItemId: CONTEXT_MENU_BOOKMARK_PAGE_ID,
         pageUrl: "https://example.com/dup",
       }),
-      { settingsStore, action },
+      { settingsStore, sessionStorage },
     )
 
-    expect(action.setBadgeText).toHaveBeenCalledWith({ text: "済" })
+    expect(sessionStorage.set).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        [POPUP_SAVE_FEEDBACK_STORAGE_KEY]: expect.objectContaining({ status: "duplicate" }),
+      }),
+    )
   })
 })
 
@@ -150,12 +161,5 @@ function createSettingsStore(enabled: boolean): LocalSettingsStore {
     async set(settings) {
       current = { ...settings }
     },
-  }
-}
-
-function createActionMock() {
-  return {
-    setBadgeBackgroundColor: vi.fn().mockResolvedValue(undefined),
-    setBadgeText: vi.fn().mockResolvedValue(undefined),
   }
 }

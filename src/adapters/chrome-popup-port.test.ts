@@ -5,6 +5,11 @@ import { EXTENSION_COMMANDS } from "~/extension/commands"
 import { createChromePopupPort, type PopupChromeApi } from "./chrome-popup-port"
 
 function createChromeApi(): PopupChromeApi {
+  const sessionValues = new Map<string, unknown>()
+  const sessionListeners: Array<
+    (changes: Record<string, chrome.storage.StorageChange>, areaName: string) => void
+  > = []
+
   return {
     commands: {
       getAll: vi.fn().mockResolvedValue([])
@@ -12,6 +17,39 @@ function createChromeApi(): PopupChromeApi {
     runtime: {
       getURL: vi.fn((path: string) => `chrome-extension://test/${path}`),
       sendMessage: vi.fn()
+    },
+    storage: {
+      session: {
+        get: vi.fn(async (key: string) => {
+          const value = sessionValues.get(key)
+          return value === undefined ? {} : { [key]: value }
+        }),
+        set: vi.fn(async (items: Record<string, unknown>) => {
+          for (const [key, value] of Object.entries(items)) {
+            sessionValues.set(key, value)
+            const changes = {
+              [key]: { newValue: value },
+            }
+            for (const listener of sessionListeners) {
+              listener(changes, "session")
+            }
+          }
+        }),
+        remove: vi.fn(async (key: string) => {
+          sessionValues.delete(key)
+        }),
+        onChanged: {
+          addListener: vi.fn((listener) => {
+            sessionListeners.push(listener)
+          }),
+          removeListener: vi.fn((listener) => {
+            const index = sessionListeners.indexOf(listener)
+            if (index >= 0) {
+              sessionListeners.splice(index, 1)
+            }
+          }),
+        },
+      },
     },
     tabs: {
       create: vi.fn().mockResolvedValue(undefined),
@@ -21,7 +59,7 @@ function createChromeApi(): PopupChromeApi {
     windows: {
       update: vi.fn().mockResolvedValue(undefined)
     }
-  }
+  } as unknown as PopupChromeApi
 }
 
 describe("createChromePopupPort", () => {
@@ -101,6 +139,22 @@ describe("createChromePopupPort", () => {
     await expect(port.saveCurrentPage()).rejects.toMatchObject({
       code: "INVALID_RESPONSE"
     })
+  })
+
+  it("reads and clears pending save feedback from session storage", async () => {
+    const chromeApi = createChromeApi()
+    const port = createChromePopupPort(chromeApi)
+
+    await chromeApi.storage.session.set({
+      "bookmation.popup-save-feedback-v1": {
+        status: "saved",
+        recordedAt: Date.now(),
+      },
+    })
+
+    await expect(port.getPendingSaveFeedback()).resolves.toBe("saved")
+    await port.clearSaveFeedback()
+    await expect(port.getPendingSaveFeedback()).resolves.toBeNull()
   })
 
   it("opens the dashboard home and Chrome shortcut settings in tabs", async () => {
