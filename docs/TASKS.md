@@ -90,13 +90,13 @@
 - [x] `savedAt desc` の最近追加とlabel条件一覧を実装する。
 - [x] App Headerに検索画面を開く入口とカテゴリ・タグ一覧へ移動する望遠鏡、通常flowのtoolbarに件数とLIST / GRID segmentを置く。一覧への重複buttonを置かず、toolbarをscrollへ追従させない。検索候補／結果はUI-07、AI応答はUI-08で接続する。
 - [x] カテゴリを常時表示し、タグをclick / keyboard disclosure、pointer hover previewで表示する。
-- [ ] 全項目にedit buttonを置き、Bookmark追加と同じTag field componentでname、URL、Tagだけを変更できるmodalを実装する。Categoryは選択Tagの親から自動導出して読取表示する。
-- [ ] Bookmark追加／編集のTag入力は空欄から開始し、入力中に既存active候補をリアルタイムで最大8件表示する。候補または同じmodal内のside viewで新規作成したTagを `追加`／IME変換中ではないEnterで1件ずつ追加し、成功後は入力をclearしてfocusを戻す。未知Tagの自由入力はfield errorにし、暗黙作成しない。
-- [ ] 入力直下は `タグ n件` を左、`追加` を右に配置し、現在Tagを初期展開する。Tagは全画面カテゴリ・タグ一覧のTag chip形状を使い、Bookmark一覧のカテゴリ・タグシェブロン相当のhover／focus減光と中央解除buttonで個別に外せるようにする。
-- [ ] Bookmark削除は確認画面を挟まずsoft-deleteする。削除後にUndo toast、復元ボタン、Undo用errorを表示しない。
+- [x] 全項目にedit buttonを置き、Bookmark追加と同じTag field componentでname、URL、Tagだけを変更できるmodalを実装する。Categoryは選択Tagの親から自動導出して読取表示する。
+- [x] Bookmark追加／編集のTag入力は空欄から開始し、入力中に既存active候補をリアルタイムで最大8件表示する。候補または同じmodal内のside viewで新規作成したTagを `追加`／IME変換中ではないEnterで1件ずつ追加し、成功後は入力をclearしてfocusを戻す。未知Tagの自由入力はfield errorにし、暗黙作成しない。
+- [x] 入力直下は `タグ n件` を左、`追加` を右に配置し、現在Tagを初期展開する。Tagは全画面カテゴリ・タグ一覧のTag chip形状を使い、Bookmark一覧のカテゴリ・タグシェブロン相当のhover／focus減光と中央解除buttonで個別に外せるようにする。
+- [x] Bookmark削除は確認画面を挟まずsoft-deleteする。削除後にUndo toast、復元ボタン、Undo用errorを表示しない。
 - [x] cursor infinite scroll、追加失敗 retry、終端、back-to-top を実装する。
 - [x] 弁当表示、列数設定、表示数変更プルダウン、右 sidebar がないことを確認する。
-- 現在地: UI-04で一覧表示と閲覧操作を実装済み。編集buttonは配置済みだが、UI-05の編集modal、Tag入力、新規作成side view、削除は未実装である。
+- 現在地: UI-04の一覧表示に続き、UI-05で追加／編集共通modal、Tag入力、同一Dialog内のTag／Category作成side view、Bookmark即時論理削除を実装済み。検索画面はUI-07、AI応答はUI-08で接続する。
 - 完了条件: 仕様書に沿う LIST / GRID をkeyboardで検索・閲覧・編集でき、Bookmark追加／編集のTagを同じ操作で連続追加／解除できる。
 
 ### TASK-006: Full-screen Category / Tag UI

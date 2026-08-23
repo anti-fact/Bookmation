@@ -83,7 +83,7 @@ export const Select = React.forwardRef<
           <SelectPrimitive.Trigger
             aria-describedby={descriptionId}
             aria-labelledby={labelId}
-            className="inline-flex h-12 min-w-[9.0625rem] items-center justify-between gap-3 rounded-bm-field border-2 border-bm-border bg-bm-paper px-4 text-left text-sm text-bm-ink outline-none hover:bg-bm-accent focus-visible:ring-2 focus-visible:ring-bm-focus focus-visible:ring-offset-2 focus-visible:ring-offset-bm-paper disabled:cursor-not-allowed disabled:opacity-45 data-[placeholder]:text-bm-muted-text"
+            className="inline-flex h-12 min-w-[9.0625rem] items-center justify-between gap-3 rounded-bm-field border-2 border-bm-border bg-bm-paper px-4 text-left text-sm text-bm-ink outline-none hover:bg-bm-ink hover:text-bm-paper focus-visible:ring-2 focus-visible:ring-bm-focus focus-visible:ring-offset-2 focus-visible:ring-offset-bm-paper disabled:cursor-not-allowed disabled:opacity-45 data-[placeholder]:text-bm-muted-text hover:data-[placeholder]:text-bm-paper data-[state=open]:bg-bm-ink data-[state=open]:text-bm-paper data-[state=open]:data-[placeholder]:text-bm-paper"
             id={triggerId}
             ref={ref}
           >

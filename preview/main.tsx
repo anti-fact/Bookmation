@@ -25,7 +25,7 @@ if (
 
 document.title =
   previewView === "bookmarks"
-    ? "Bookmation UI-04 Bookmark list preview"
+    ? "Bookmation UI-05 Bookmark form preview"
     : previewView === "app-shell"
       ? "Bookmation UI-02 App Shell preview"
       : previewView === "popup"

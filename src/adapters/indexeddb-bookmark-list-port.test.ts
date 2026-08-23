@@ -90,7 +90,16 @@ describe("IndexedDbBookmarkListPort", () => {
     expect(first.items[0]?.categories).toEqual([
       { id: category.id, name: "開発" }
     ])
-    expect(first.items[0]?.tags).toEqual([{ id: tag.id, name: "typescript" }])
+    expect(first.items[0]?.tags).toEqual([
+      {
+        id: tag.id,
+        name: "typescript",
+        parentCategoryId: category.id,
+        parentCategoryName: "開発",
+        revision: tag.revision
+      }
+    ])
+    expect(first.items[0]?.revision).toBe(2)
     expect(first.nextCursor).not.toBeNull()
 
     const second = await port.loadPage({

@@ -62,6 +62,11 @@ describe("AppHeader", () => {
     expect(addButton.querySelector("svg")?.classList.contains("size-6")).toBe(
       true
     )
+    expect(addButton.className).toContain("hover:bg-bm-ink")
+    expect(addButton.className).toContain("hover:text-bm-paper")
+    expect(
+      screen.getByRole("group", { name: "ヘッダー操作" }).className
+    ).toContain("ml-auto")
     await user.click(addButton)
     await user.click(screen.getByRole("button", { name: "AI検索を開く" }))
     await user.click(screen.getByRole("button", { name: "設定を開く" }))
@@ -95,7 +100,11 @@ describe("AppHeader", () => {
     expect(headerRow?.className).toContain("lg:flex-nowrap")
     expect(headerRow?.className).toContain("lg:justify-start")
     expect(headerRow?.className).toContain("lg:gap-[3rem]")
+    expect(headerRow?.className).toContain("md:px-[clamp(1.5rem,5vw,4.5rem)]")
     expect(headerRow?.className).not.toContain("md:flex-nowrap")
+    expect(
+      screen.getByRole("group", { name: "カテゴリ・タグ操作" }).className
+    ).toContain("ml-auto")
     const searchButton = screen.getByRole("button", { name: "検索を開く" })
     expect(searchButton.className).toContain("h-[3.125rem]")
     expect(searchButton.className).toContain("rounded-bm-pill")
@@ -106,7 +115,15 @@ describe("AppHeader", () => {
     expect(screen.getByText("ブックマーク、カテゴリ、タグを検索")).toBeTruthy()
     expect(screen.queryByRole("button", { name: "AI検索を開く" })).toBeNull()
 
-    await user.click(screen.getByRole("button", { name: "新規作成メニュー" }))
+    const createMenu = screen.getByRole("button", {
+      name: "新規作成メニュー"
+    })
+    expect(createMenu.className).toContain("hover:bg-bm-ink")
+    expect(createMenu.className).toContain("hover:text-bm-paper")
+    expect(createMenu.className).toContain("data-[state=open]:bg-bm-ink")
+    expect(createMenu.className).toContain("data-[state=open]:text-bm-paper")
+
+    await user.click(createMenu)
     await user.click(screen.getByRole("menuitem", { name: "Category" }))
     expect(callbacks.category).toHaveBeenCalledTimes(1)
 
@@ -120,6 +137,12 @@ describe("AppHeader", () => {
     expect(manageButton.getAttribute("aria-pressed")).toBe("false")
     expect(manageButton.getAttribute("data-state")).toBe("off")
     expect(manageButton.className).toContain("data-[state=on]:bg-bm-ink")
+    expect(manageButton.className).toContain(
+      "data-[state=off]:hover:bg-bm-paper"
+    )
+    expect(manageButton.className).toContain(
+      "data-[state=off]:hover:text-bm-ink"
+    )
     expect(manageButton.className).toContain("[&[data-state=on]_img]:invert")
     expect(manageButton.className).toContain(
       "data-[state=on]:hover:bg-bm-paper"
@@ -128,8 +151,14 @@ describe("AppHeader", () => {
       "data-[state=on]:hover:text-bm-ink"
     )
     expect(manageButton.className).toContain(
-      "[&[data-state=on]:hover_img]:invert-0"
+      "[&[data-state]:hover_img]:invert-0"
     )
+
+    const closeButton = screen.getByRole("button", {
+      name: "カテゴリ・タグ一覧を閉じる"
+    })
+    expect(closeButton.className).toContain("hover:bg-bm-ink")
+    expect(closeButton.className).toContain("hover:text-bm-paper")
 
     await user.click(manageButton)
     expect(callbacks.manage).toHaveBeenCalledTimes(1)
@@ -141,9 +170,7 @@ describe("AppHeader", () => {
     expect(manageButton.getAttribute("aria-pressed")).toBe("false")
     expect(manageButton.getAttribute("data-state")).toBe("off")
 
-    await user.click(
-      screen.getByRole("button", { name: "カテゴリ・タグ一覧を閉じる" })
-    )
+    await user.click(closeButton)
     expect(callbacks.close).toHaveBeenCalledTimes(1)
   })
 

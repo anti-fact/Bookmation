@@ -9,6 +9,14 @@ import { AppHeader } from "~/ui/components/AppHeader"
 import { AppShell } from "~/ui/components/AppShell"
 import { BookmarkListPage } from "~/ui/features/bookmarks/BookmarkListPage"
 import {
+  BookmarkDialog,
+  type BookmarkDialogMode
+} from "~/ui/features/bookmarks/BookmarkDialog"
+import {
+  emptyBookmarkFormPort,
+  type BookmarkFormPort
+} from "~/ui/features/bookmarks/bookmark-form-port"
+import {
   emptyBookmarkListPort,
   type BookmarkListPort
 } from "~/ui/features/bookmarks/bookmark-list-port"
@@ -18,17 +26,11 @@ import {
   type GeneralSettingsPort
 } from "~/ui/features/settings/general-settings-port"
 import {
-  Button,
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle
+  Button
 } from "~/ui/primitives"
 import { joinClassNames } from "~/ui/primitives/class-names"
 
 import { useAppRuntime, useHashRouteStore } from "./AppProviders"
-import { BookmarkAddForm } from "./BookmarkAddForm"
 import { PromptApiTester } from "./PromptApiTester"
 import {
   getHashRouteKey,
@@ -233,7 +235,9 @@ type RouteBodyProps = {
   generalSettingsPort: GeneralSettingsPort
   headingRef: React.RefObject<HTMLHeadingElement>
   navigate: NavigateRoute
-  onUnavailable: (message: string) => void
+  onEditBookmark: (bookmark: Parameters<
+    React.ComponentProps<typeof BookmarkListPage>["onEdit"]
+  >[0]) => void
   route: HashRoute
   runtime: ReturnType<typeof useAppRuntime>
 }
@@ -302,7 +306,7 @@ function RouteBody({
   bookmarkListPort,
   headingRef,
   navigate,
-  onUnavailable,
+  onEditBookmark,
   generalSettingsPort,
   route,
   runtime
@@ -431,11 +435,7 @@ function RouteBody({
         headingRef={headingRef}
         key={bookmarkListRevision}
         onClearFilter={() => navigate({ kind: "home" })}
-        onEdit={(bookmarkId) =>
-          onUnavailable(
-            `ブックマーク「${bookmarkId}」の編集はUI-05で実装します。`
-          )
-        }
+        onEdit={onEditBookmark}
         onNavigateToFilter={(nextFilter) =>
           navigate({ filter: nextFilter, kind: "bookmarks" })
         }
@@ -460,9 +460,11 @@ function RouteBody({
 }
 
 export function ExtensionApp({
+  bookmarkFormPort = emptyBookmarkFormPort,
   bookmarkListPort = emptyBookmarkListPort,
   generalSettingsPort = emptyGeneralSettingsPort
 }: {
+  bookmarkFormPort?: BookmarkFormPort
   bookmarkListPort?: BookmarkListPort
   generalSettingsPort?: GeneralSettingsPort
 }) {
@@ -482,7 +484,8 @@ export function ExtensionApp({
     { surface: "labels" | "settings" } | undefined
   >(undefined)
   const previousRouteKey = React.useRef(routeKey)
-  const [bookmarkAddOpen, setBookmarkAddOpen] = React.useState(false)
+  const [bookmarkDialogMode, setBookmarkDialogMode] =
+    React.useState<BookmarkDialogMode | null>(null)
   const [bookmarkListRevision, setBookmarkListRevision] = React.useState(0)
   const [notice, setNotice] = React.useState<string | null>(null)
 
@@ -591,7 +594,7 @@ export function ExtensionApp({
           <RouteHeader
             closeSurface={closeSurface}
             navigate={navigate}
-            onBookmarkAddClick={() => setBookmarkAddOpen(true)}
+            onBookmarkAddClick={() => setBookmarkDialogMode({ kind: "add" })}
             onUnavailable={setNotice}
             route={route}
           />
@@ -622,28 +625,26 @@ export function ExtensionApp({
           generalSettingsPort={generalSettingsPort}
           headingRef={headingRef}
           navigate={navigate}
-          onUnavailable={setNotice}
+          onEditBookmark={(bookmark) =>
+            setBookmarkDialogMode({ bookmark, kind: "edit" })
+          }
           route={route}
           runtime={runtime}
         />
       </AppShell>
-      <Dialog onOpenChange={setBookmarkAddOpen} open={bookmarkAddOpen}>
-        <DialogContent closeLabel="ブックマーク追加を閉じる">
-          <DialogHeader>
-            <DialogTitle>ブックマークを追加</DialogTitle>
-            <DialogDescription>
-              http または https のURLを入力して保存します。
-            </DialogDescription>
-          </DialogHeader>
-          <BookmarkAddForm
-            onSaved={({ duplicate }) => {
-              if (duplicate) return
-              setBookmarkListRevision((revision) => revision + 1)
-              setBookmarkAddOpen(false)
-            }}
-          />
-        </DialogContent>
-      </Dialog>
+      <BookmarkDialog
+        mode={bookmarkDialogMode ?? { kind: "add" }}
+        onComplete={(message) => {
+          setBookmarkListRevision((revision) => revision + 1)
+          setBookmarkDialogMode(null)
+          setNotice(message)
+        }}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) setBookmarkDialogMode(null)
+        }}
+        open={bookmarkDialogMode !== null}
+        port={bookmarkFormPort}
+      />
     </>
   )
 }

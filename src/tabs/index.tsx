@@ -2,6 +2,7 @@ import * as React from "react"
 
 import "~/style.css"
 
+import { createChromeBookmarkFormPort } from "~/adapters/chrome-bookmark-form-port"
 import { createChromeGeneralSettingsPort } from "~/adapters/chrome-general-settings-port"
 import { createIndexedDbBookmarkListPort } from "~/adapters/indexeddb-bookmark-list-port"
 import { AppProviders } from "~/ui/app/AppProviders"
@@ -9,6 +10,10 @@ import { AppErrorBoundary } from "~/ui/app/ErrorBoundary"
 import { ExtensionApp } from "~/ui/app/ExtensionApp"
 
 export default function DashboardTab() {
+  const bookmarkFormPort = React.useMemo(
+    () => createChromeBookmarkFormPort(),
+    []
+  )
   const bookmarkListPort = React.useMemo(
     () =>
       createIndexedDbBookmarkListPort({
@@ -25,6 +30,7 @@ export default function DashboardTab() {
     <AppProviders>
       <AppErrorBoundary>
         <ExtensionApp
+          bookmarkFormPort={bookmarkFormPort}
           bookmarkListPort={bookmarkListPort}
           generalSettingsPort={generalSettingsPort}
         />

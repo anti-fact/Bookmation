@@ -22,6 +22,7 @@ export interface SaveBookmarkWithJobInput {
   faviconUrl?: string | null
   faviconBlobId?: string | null
   thumbnailBlobId?: string | null
+  tagIds?: readonly string[]
   source?: PersistedActiveBookmarkRecord["source"]
   creationRequestId: string
   jobId: string
@@ -68,7 +69,7 @@ export interface SuggestAllByKeywordCandidate {
   displayText: string
   matchedFields: string[]
 }
-export interface LabelCandidate { id: string; name: string; kind: "CATEGORY" | "TAG"; parentCategoryId: string | null; revision: number; origin: string; usageCount: number }
+export interface LabelCandidate { id: string; name: string; kind: "CATEGORY" | "TAG"; parentCategoryId: string | null; parentCategoryName: string | null; revision: number; origin: string; usageCount: number }
 
 export interface DeleteCategoryCascadeResult {
   alreadyCompleted: boolean
