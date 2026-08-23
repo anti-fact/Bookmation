@@ -32,6 +32,8 @@ export const EXTENSION_MESSAGE_ACTIONS = {
   UPDATE_REMINDER_SETTINGS: "update-reminder-settings",
   HANDLE_VISIT_REMINDER: "handle-visit-reminder",
   GET_PENDING_VISIT_REMINDER: "get-pending-visit-reminder",
+  PREVIEW_CHROME_BOOKMARKS_IMPORT: "preview-chrome-bookmarks-import",
+  COMMIT_CHROME_BOOKMARKS_IMPORT: "commit-chrome-bookmarks-import",
 } as const
 
 export type ExtensionMessageAction =
@@ -166,6 +168,8 @@ export type ExtensionMessageRequest =
   | MessageRequest<"update-reminder-settings", "dashboard", UpdateReminderSettingsPayload>
   | MessageRequest<"handle-visit-reminder", "dashboard", HandleVisitReminderPayload>
   | MessageRequest<"get-pending-visit-reminder", "dashboard", Record<never, never>>
+  | MessageRequest<"preview-chrome-bookmarks-import", "dashboard", JsonValue>
+  | MessageRequest<"commit-chrome-bookmarks-import", "dashboard", JsonValue>
 
 export type ExtensionMessageErrorCode =
   | "INVALID_MESSAGE"

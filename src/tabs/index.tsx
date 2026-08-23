@@ -4,6 +4,7 @@ import "~/style.css"
 
 import { createBrowserAiAssistantPort } from "~/adapters/browser-ai-assistant-port"
 import { createChromeBookmarkFormPort } from "~/adapters/chrome-bookmark-form-port"
+import { createIndexedDbChromeBookmarkImportPort } from "~/adapters/indexeddb-chrome-bookmark-import-port"
 import { createChromeGeneralSettingsPort } from "~/adapters/chrome-general-settings-port"
 import { createChromeLabelManagementPort } from "~/adapters/chrome-label-management-port"
 import { createChromeOnboardingPort } from "~/adapters/chrome-onboarding-port"
@@ -30,6 +31,10 @@ export default function DashboardTab() {
       }),
     []
   )
+  const chromeBookmarkImportPort = React.useMemo(
+    () => createIndexedDbChromeBookmarkImportPort(),
+    [],
+  )
   const generalSettingsPort = React.useMemo(
     () => createChromeGeneralSettingsPort(chrome),
     []
@@ -55,6 +60,7 @@ export default function DashboardTab() {
           aiAssistantPort={aiAssistantPort}
           bookmarkFormPort={bookmarkFormPort}
           bookmarkListPort={bookmarkListPort}
+          chromeBookmarkImportPort={chromeBookmarkImportPort}
           generalSettingsPort={generalSettingsPort}
           labelManagementPort={labelManagementPort}
           onboardingPort={onboardingPort}

@@ -49,6 +49,10 @@ import {
   emptyGeneralSettingsPort,
   type GeneralSettingsPort
 } from "~/ui/features/settings/general-settings-port"
+import {
+  emptyChromeBookmarkImportPort,
+  type ChromeBookmarkImportPort
+} from "~/ui/features/settings/chrome-bookmark-import-port"
 import { ShareSettingsSection } from "~/ui/features/settings/ShareSettingsSection"
 import {
   emptyShareSettingsPort,
@@ -299,8 +303,10 @@ function RouteHeader({
 
 type RouteBodyProps = {
   archiveSettingsPort: ArchiveSettingsPort
+  bookmarkFormPort: BookmarkFormPort
   bookmarkListRevision: number
   bookmarkListPort: BookmarkListPort
+  chromeBookmarkImportPort: ChromeBookmarkImportPort
   generalSettingsPort: GeneralSettingsPort
   headingRef: React.RefObject<HTMLHeadingElement>
   labelCreateRequest: LabelsCreateRequest
@@ -399,8 +405,10 @@ function WelcomeScreen({
 // UI-02では画面遷移の骨組みを実装し、後続機能の領域はプレースホルダーにします。
 function RouteBody({
   archiveSettingsPort,
+  bookmarkFormPort,
   bookmarkListRevision,
   bookmarkListPort,
+  chromeBookmarkImportPort,
   headingRef,
   labelCreateRequest,
   labelManagementPort,
@@ -517,7 +525,10 @@ function RouteBody({
           className="min-w-0 space-y-6 overflow-x-auto rounded-bm-dialog border-2 border-bm-border bg-bm-paper p-3 sm:p-5 lg:p-8"
         >
           {route.section === "general" && (
-            <GeneralSettingsSection port={generalSettingsPort} />
+            <GeneralSettingsSection
+              chromeBookmarkImportPort={chromeBookmarkImportPort}
+              port={generalSettingsPort}
+            />
           )}
           {route.section === "archive" && (
             <ArchiveSettingsSection port={archiveSettingsPort} />
@@ -583,6 +594,7 @@ export function ExtensionApp({
   archiveSettingsPort = emptyArchiveSettingsPort,
   bookmarkFormPort = emptyBookmarkFormPort,
   bookmarkListPort = emptyBookmarkListPort,
+  chromeBookmarkImportPort = emptyChromeBookmarkImportPort,
   generalSettingsPort = emptyGeneralSettingsPort,
   labelManagementPort = emptyLabelManagementPort,
   onboardingPort = emptyOnboardingPort,
@@ -594,6 +606,7 @@ export function ExtensionApp({
   archiveSettingsPort?: ArchiveSettingsPort
   bookmarkFormPort?: BookmarkFormPort
   bookmarkListPort?: BookmarkListPort
+  chromeBookmarkImportPort?: ChromeBookmarkImportPort
   generalSettingsPort?: GeneralSettingsPort
   labelManagementPort?: LabelManagementPort
   onboardingPort?: OnboardingPort
@@ -892,8 +905,10 @@ export function ExtensionApp({
         ) : null}
         <RouteBody
           archiveSettingsPort={archiveSettingsPort}
+          bookmarkFormPort={bookmarkFormPort}
           bookmarkListPort={bookmarkListPort}
           bookmarkListRevision={bookmarkListRevision}
+          chromeBookmarkImportPort={chromeBookmarkImportPort}
           generalSettingsPort={generalSettingsPort}
           headingRef={headingRef}
           labelCreateRequest={labelCreateRequest}

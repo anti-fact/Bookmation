@@ -76,7 +76,13 @@ import {
   buildUpdateTagRequestFingerprint,
   searchDocumentId,
 } from "./search-document-builder"
-import { INTERNAL_PAGE_SIZE, STORES, BOOKMARK_INDEXES, CLASSIFICATION_JOB_INDEXES } from "./stores"
+import {
+  INTERNAL_PAGE_SIZE,
+  STORES,
+  BOOKMARK_INDEXES,
+  CLASSIFICATION_JOB_INDEXES,
+  LABEL_INDEXES,
+} from "./stores"
 
 const SAVE_TX_STORES = [
   STORES.labels,
@@ -155,7 +161,25 @@ export interface CreateTagInput {
   parentCategoryId: Id
   expectedParentRevision: number
   creationRequestId: string
+  origin?: PersistedLabelRecord["origin"]
   sortOrder?: number
+  now?: EpochMs
+}
+
+export interface ImportChromeBookmarkUnclassifiedInput {
+  id: Id
+  rawUrl: string
+  title: string
+  creationRequestId: string
+  now?: EpochMs
+}
+
+export interface ImportChromeBookmarkWithTagInput {
+  id: Id
+  rawUrl: string
+  title: string
+  tagId: Id
+  creationRequestId: string
   now?: EpochMs
 }
 
@@ -227,6 +251,158 @@ export class LocalDataLayer {
 
   async getLabel(id: Id): Promise<PersistedLabelRecord | undefined> {
     return this.db.get(STORES.labels, id)
+  }
+
+  async findTagByUniqueName(
+    normalizedName: string,
+  ): Promise<PersistedLabelRecord | undefined> {
+    const tx = this.db.transaction(STORES.labels, "readonly")
+    const record = await tx.store.index(LABEL_INDEXES.byTagUniqueName).get(normalizedName)
+    await tx.done
+    return record?.kind === "TAG" ? record : undefined
+  }
+
+  async importChromeBookmarkWithTag(
+    input: ImportChromeBookmarkWithTagInput,
+  ): Promise<PersistedActiveBookmarkRecord> {
+    const now = input.now ?? Date.now()
+    const url = validateAndNormalizeUrl(input.rawUrl)
+    const urlHash = await computeUrlHash(url.normalized)
+    const duplicate = await this.findActiveBookmarkByUrlHash(url.normalized, urlHash)
+    if (duplicate) {
+      return duplicate
+    }
+
+    const tx = this.db.transaction([...SAVE_TX_STORES], "readwrite")
+    const tag = await getLabelOrThrow(tx, input.tagId)
+    if (tag.kind !== "TAG" || tag.deletedAt !== null || tag.parentCategoryId === null) {
+      throw new DomainError(DomainErrorCode.TAG_REQUIRES_ACTIVE_CATEGORY_PARENT)
+    }
+    const parent = await getLabelOrThrow(tx, tag.parentCategoryId)
+    if (parent.kind !== "CATEGORY" || parent.deletedAt !== null) {
+      throw new DomainError(DomainErrorCode.TAG_REQUIRES_ACTIVE_CATEGORY_PARENT)
+    }
+
+    const bookmark: PersistedActiveBookmarkRecord = {
+      schemaVersion: 1,
+      id: input.id,
+      archiveState: "ACTIVE",
+      rawUrl: url.raw,
+      normalizedUrl: url.normalized,
+      urlHash,
+      urlNormalizationVersion: 1,
+      title: input.title,
+      siteName: null,
+      faviconUrl: null,
+      faviconBlobId: null,
+      thumbnailBlobId: null,
+      classificationState: "CLASSIFIED",
+      source: "CHROME_IMPORT",
+      savedAt: now,
+      updatedAt: now,
+      lastVisitedAt: null,
+      revision: 1,
+      deletedAt: null,
+    }
+
+    const revision: PersistedBookmarkRevisionRecord = {
+      schemaVersion: 1,
+      id: crypto.randomUUID(),
+      bookmarkId: bookmark.id,
+      bookmarkRevision: bookmark.revision,
+      reason: "USER_EDIT",
+      before: { categoryIds: [], tagIds: [], archiveState: "ACTIVE" },
+      after: {
+        categoryIds: [parent.id],
+        tagIds: [tag.id],
+        archiveState: "ACTIVE",
+      },
+      actor: "USER",
+      createdAt: now,
+      updatedAt: now,
+    }
+
+    await putBookmark(tx, bookmark)
+    await putEdge(tx, {
+      schemaVersion: 1,
+      id: crypto.randomUUID(),
+      bookmarkId: bookmark.id,
+      labelId: tag.id,
+      assignedBy: "IMPORT",
+      confidence: null,
+      classificationJobId: null,
+      createdAt: now,
+      updatedAt: now,
+      revision: 1,
+      deletedAt: null,
+    })
+    await syncCategoryEdgesFromTags(tx, bookmark, now, "IMPORT")
+    await tx
+      .objectStore(STORES.bookmarkRevisions)
+      .put(stripUndefinedFields(revision as unknown as Record<string, unknown>) as unknown as PersistedBookmarkRevisionRecord)
+    await tx
+      .objectStore(STORES.searchDocuments)
+      .put(stripUndefinedFields(buildBookmarkSearchDocument(bookmark, now) as unknown as Record<string, unknown>) as unknown as PersistedSearchDocumentRecord)
+    await tx.done
+    return bookmark
+  }
+
+  async importChromeBookmarkUnclassified(
+    input: ImportChromeBookmarkUnclassifiedInput,
+  ): Promise<PersistedActiveBookmarkRecord> {
+    const now = input.now ?? Date.now()
+    const url = validateAndNormalizeUrl(input.rawUrl)
+    const urlHash = await computeUrlHash(url.normalized)
+    const duplicate = await this.findActiveBookmarkByUrlHash(url.normalized, urlHash)
+    if (duplicate) {
+      return duplicate
+    }
+
+    const tx = this.db.transaction([...SAVE_TX_STORES], "readwrite")
+    const bookmark: PersistedActiveBookmarkRecord = {
+      schemaVersion: 1,
+      id: input.id,
+      archiveState: "ACTIVE",
+      rawUrl: url.raw,
+      normalizedUrl: url.normalized,
+      urlHash,
+      urlNormalizationVersion: 1,
+      title: input.title,
+      siteName: null,
+      faviconUrl: null,
+      faviconBlobId: null,
+      thumbnailBlobId: null,
+      classificationState: "UNCLASSIFIED",
+      source: "CHROME_IMPORT",
+      savedAt: now,
+      updatedAt: now,
+      lastVisitedAt: null,
+      revision: 1,
+      deletedAt: null,
+    }
+
+    const revision: PersistedBookmarkRevisionRecord = {
+      schemaVersion: 1,
+      id: crypto.randomUUID(),
+      bookmarkId: bookmark.id,
+      bookmarkRevision: bookmark.revision,
+      reason: "USER_EDIT",
+      before: { categoryIds: [], tagIds: [], archiveState: "ACTIVE" },
+      after: { categoryIds: [], tagIds: [], archiveState: "ACTIVE" },
+      actor: "USER",
+      createdAt: now,
+      updatedAt: now,
+    }
+
+    await putBookmark(tx, bookmark)
+    await tx
+      .objectStore(STORES.bookmarkRevisions)
+      .put(stripUndefinedFields(revision as unknown as Record<string, unknown>) as unknown as PersistedBookmarkRevisionRecord)
+    await tx
+      .objectStore(STORES.searchDocuments)
+      .put(stripUndefinedFields(buildBookmarkSearchDocument(bookmark, now) as unknown as Record<string, unknown>) as unknown as PersistedSearchDocumentRecord)
+    await tx.done
+    return bookmark
   }
 
   async saveBookmarkWithJob(
@@ -613,7 +789,7 @@ export class LocalDataLayer {
       tagUniqueName: normalized.normalized,
       kind: "TAG",
       parentCategoryId: input.parentCategoryId,
-      origin: "USER",
+      origin: input.origin ?? "USER",
       creationRequestId: input.creationRequestId,
       sortOrder: input.sortOrder ?? 0,
       createdAt: now,
