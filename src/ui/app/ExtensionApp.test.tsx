@@ -381,11 +381,12 @@ describe("ExtensionApp", () => {
       screen.queryByRole("banner", { name: "アプリケーションヘッダー" })
     ).toBeNull()
     expect(
-      screen.getByRole("heading", { level: 1, name: "あなたにあったカテゴリを選ぶ" })
+      screen.getByRole("heading", {
+        level: 1,
+        name: "あなたにあったカテゴリを選ぶ"
+      })
     ).not.toBeNull()
-    expect(
-      screen.getByRole("button", { name: /授業・講義/ })
-    ).not.toBeNull()
+    expect(screen.getByRole("button", { name: /授業・講義/ })).not.toBeNull()
 
     fireEvent.click(screen.getByRole("button", { name: "設定を保存" }))
     expect(store.navigate).toHaveBeenCalledWith({ kind: "home" })
@@ -487,13 +488,20 @@ describe("ExtensionApp", () => {
     ).not.toBeNull()
   })
 
-  it("announces unavailable search without changing route", () => {
+  it("opens keyword search results from the shared search box", () => {
     const { store } = renderApp({ kind: "home" })
 
-    fireEvent.click(screen.getByRole("button", { name: "検索を開く" }))
-    expect(screen.getByRole("status").textContent).toContain(
-      "検索入力と候補は現在準備中です"
+    fireEvent.change(
+      screen.getByRole("combobox", {
+        name: "ブックマーク、カテゴリ、タグを検索"
+      }),
+      { target: { value: "TypeScript" } }
     )
-    expect(store.navigate).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole("button", { name: "検索する" }))
+
+    expect(store.navigate).toHaveBeenCalledWith({
+      kind: "search",
+      query: "TypeScript"
+    })
   })
 })

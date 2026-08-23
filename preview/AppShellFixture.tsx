@@ -5,6 +5,7 @@ import { AppErrorBoundary } from "~/ui/app/ErrorBoundary"
 import { ExtensionApp } from "~/ui/app/ExtensionApp"
 import { createBrowserHashRouteStore } from "~/ui/app/hash-route"
 import type { LabelManagementPort } from "~/ui/features/labels/label-management-port"
+import type { SearchPort } from "~/ui/features/search/search-port"
 
 const fixtureRoutes = [
   ["ホーム", "#/home"],
@@ -17,6 +18,54 @@ const fixtureRoutes = [
   ["カテゴリ選択", "#/onboarding/categories"],
   ["不正URL", "#/unknown"]
 ] as const
+
+const fixtureSearchPort: SearchPort = {
+  search: async (keyword) => ({
+    bookmarks: [
+      {
+        id: "bookmark-typescript-handbook",
+        normalizedUrl: "https://www.typescriptlang.org/docs/handbook/",
+        revision: 1,
+        title: `${keyword} Handbook`
+      }
+    ],
+    labels: [
+      {
+        id: "category-development",
+        kind: "CATEGORY",
+        name: "開発",
+        parentCategoryId: null,
+        revision: 1
+      },
+      {
+        id: "tag-typescript",
+        kind: "TAG",
+        name: "TypeScript",
+        parentCategoryId: "category-development",
+        revision: 1
+      }
+    ],
+    source: "LEXICAL_FALLBACK"
+  }),
+  suggest: async (keyword) => [
+    {
+      displayText: "TypeScript",
+      entityId: "tag-typescript",
+      entityRevision: 1,
+      entityType: "LABEL",
+      labelKind: "TAG",
+      parentCategoryId: "category-development"
+    },
+    {
+      displayText: `${keyword} Handbook`,
+      entityId: "bookmark-typescript-handbook",
+      entityRevision: 1,
+      entityType: "BOOKMARK",
+      labelKind: null,
+      parentCategoryId: null
+    }
+  ]
+}
 
 export function AppShellFixture() {
   const routeStore = React.useMemo(
@@ -94,7 +143,10 @@ export function AppShellFixture() {
   return (
     <AppProviders routeStore={routeStore} runtime={runtime}>
       <AppErrorBoundary>
-        <ExtensionApp labelManagementPort={labelManagementPort} />
+        <ExtensionApp
+          labelManagementPort={labelManagementPort}
+          searchPort={fixtureSearchPort}
+        />
       </AppErrorBoundary>
 
       <aside className="fixed bottom-3 right-3 z-bm-toast max-w-[calc(100vw-1.5rem)] rounded-bm-dialog border-2 border-bm-border bg-bm-paper p-3 text-xs shadow-bm-floating">

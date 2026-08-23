@@ -20,12 +20,27 @@ import {
   emptyBookmarkListPort,
   type BookmarkListPort
 } from "~/ui/features/bookmarks/bookmark-list-port"
+import {
+  LabelsPage,
+  type LabelsCreateRequest
+} from "~/ui/features/labels/LabelsPage"
+import {
+  emptyLabelManagementPort,
+  type LabelManagementPort
+} from "~/ui/features/labels/label-management-port"
 import { OnboardingCategoriesPage } from "~/ui/features/onboarding/OnboardingCategoriesPage"
 import { GeneralSettingsSection } from "~/ui/features/settings/GeneralSettingsSection"
 import {
   emptyGeneralSettingsPort,
   type GeneralSettingsPort
 } from "~/ui/features/settings/general-settings-port"
+import { SearchBox } from "~/ui/features/search/SearchBox"
+import { SearchResultsPage } from "~/ui/features/search/SearchResultsPage"
+import {
+  emptySearchPort,
+  type SearchPort,
+  type SearchSuggestion
+} from "~/ui/features/search/search-port"
 import { Button } from "~/ui/primitives"
 import { joinClassNames } from "~/ui/primitives/class-names"
 
@@ -156,6 +171,7 @@ type RouteHeaderProps = {
   onLabelsManageToggle: () => void
   onUnavailable: (message: string) => void
   route: HashRoute
+  searchPort: SearchPort
 }
 
 // URLの種類から3種類の共通ヘッダーを選び、未実装操作は状態通知へつなぎます。
@@ -166,12 +182,34 @@ function RouteHeader({
   onLabelsCreate,
   onLabelsManageToggle,
   onUnavailable,
-  route
+  route,
+  searchPort
 }: RouteHeaderProps) {
   const commonProps = {
     logoSrc: bookmationLogo,
     onLogoClick: () => navigate({ kind: "home" })
   }
+  const onSuggestionSelect = (item: SearchSuggestion) => {
+    if (item.entityType === "LABEL" && item.labelKind) {
+      navigate({
+        filter: {
+          id: item.entityId,
+          kind: item.labelKind === "CATEGORY" ? "category" : "tag"
+        },
+        kind: "bookmarks"
+      })
+      return
+    }
+    navigate({ kind: "search", query: item.displayText })
+  }
+  const searchSlot = (
+    <SearchBox
+      initialQuery={route.kind === "search" ? route.query : ""}
+      onSelect={onSuggestionSelect}
+      onSubmit={(query) => navigate({ kind: "search", query })}
+      port={searchPort}
+    />
+  )
 
   switch (route.kind) {
     case "home":
@@ -187,9 +225,7 @@ function RouteHeader({
           }
           onAiSearchClick={() => navigate({ kind: "labels" })}
           onBookmarkAddClick={onBookmarkAddClick}
-          onSearchClick={() =>
-            onUnavailable("検索入力と候補は現在準備中です。")
-          }
+          searchSlot={searchSlot}
           onSettingsClick={() =>
             navigate({ kind: "settings", section: "general" })
           }
@@ -206,9 +242,7 @@ function RouteHeader({
             </span>
           }
           onAiSearchClick={() => onUnavailable("AI検索は現在準備中です。")}
-          onSearchClick={() =>
-            onUnavailable("検索入力と候補は現在準備中です。")
-          }
+          searchSlot={searchSlot}
           onSettingsClick={() =>
             navigate({ kind: "settings", section: "general" })
           }
@@ -224,9 +258,7 @@ function RouteHeader({
           onCreateCategoryClick={() => onLabelsCreate("category")}
           onCreateTagClick={() => onLabelsCreate("tag")}
           onManageClick={onLabelsManageToggle}
-          onSearchClick={() =>
-            onUnavailable("検索入力と候補は現在準備中です。")
-          }
+          searchSlot={searchSlot}
           variant="labels"
         />
       )
@@ -258,6 +290,7 @@ type RouteBodyProps = {
   ) => void
   route: HashRoute
   runtime: ReturnType<typeof useAppRuntime>
+  searchPort: SearchPort
 }
 
 type WelcomeScreenProps = {
@@ -331,7 +364,8 @@ function RouteBody({
   onEditBookmark,
   generalSettingsPort,
   route,
-  runtime
+  runtime,
+  searchPort
 }: RouteBodyProps) {
   if (route.kind === "labels") {
     return (
@@ -345,6 +379,15 @@ function RouteBody({
     )
   }
 
+  if (route.kind === "search") {
+    return (
+      <SearchResultsPage
+        onLabelSelect={(filter) => navigate({ filter, kind: "bookmarks" })}
+        port={searchPort}
+        query={route.query}
+      />
+    )
+  }
   if (route.kind === "settings") {
     return (
       <div className="grid grid-cols-[clamp(7rem,28vw,13rem)_0.125rem_minmax(0,1fr)] gap-2 sm:gap-4 lg:gap-6">
@@ -497,12 +540,14 @@ export function ExtensionApp({
   bookmarkFormPort = emptyBookmarkFormPort,
   bookmarkListPort = emptyBookmarkListPort,
   generalSettingsPort = emptyGeneralSettingsPort,
-  labelManagementPort = emptyLabelManagementPort
+  labelManagementPort = emptyLabelManagementPort,
+  searchPort = emptySearchPort
 }: {
   bookmarkFormPort?: BookmarkFormPort
   bookmarkListPort?: BookmarkListPort
   generalSettingsPort?: GeneralSettingsPort
   labelManagementPort?: LabelManagementPort
+  searchPort?: SearchPort
 }) {
   const routeStore = useHashRouteStore()
   const runtime = useAppRuntime()
@@ -652,6 +697,7 @@ export function ExtensionApp({
             onLabelsManageToggle={() => setLabelsManageMode((value) => !value)}
             onUnavailable={setNotice}
             route={route}
+            searchPort={searchPort}
           />
         }
         heading={copy.heading}
@@ -689,6 +735,7 @@ export function ExtensionApp({
           }
           route={route}
           runtime={runtime}
+          searchPort={searchPort}
         />
       </AppShell>
       <BookmarkDialog

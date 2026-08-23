@@ -1067,6 +1067,34 @@ UI-04の全Bookmark編集buttonとApp Headerの追加buttonを、追加／編集
 - labelsのcursor追加読込／back-to-topはデータ量計測後のfollow-upとし、現時点はactive Label全件を1回で取得する。
 - build済み拡張のPlaywright E2Eと人間による実Chrome受入は未実施である。
 
+## 2026-08-23 — UI-07 共通keyword候補と全画面検索
+
+### 目的
+
+Bookmark一覧とカテゴリ・タグ一覧の検索入口を、同じ候補操作と全画面結果へ接続する。
+
+### 変更
+
+- 共通`SearchBox`へ200 ms debounce、IME composition guard、古い応答の破棄、全種類合計最大8件、Label優先group、Arrow／Enter／Escape／pointer操作と`aria-activedescendant`を実装した。
+- Enterまたは検索buttonから型付き`search` routeへ移り、カテゴリ／タグを上、Bookmarkを下に表示する`SearchResultsPage`を追加した。Label候補／結果は既存のBookmark filterへ遷移する。
+- `SearchPort`とChrome adapterを追加し、既存`search-library` messageの`SUGGEST`／`SEARCH`へ接続した。応答request IDと構造をadapter境界で検証する。
+- App Shell Web previewへfake検索候補と検索結果を追加した。
+
+### 検証
+
+- `pnpm typecheck`: 成功。
+- 検索component／adapter／App Shell対象test: 成功。
+- `pnpm test`: 65 files／366 tests成功。
+- UI-07変更対象のESLint: 成功。
+- `pnpm ui:build`、`pnpm build`: 成功。
+- `git diff --check`: 成功。
+
+### 残課題
+
+- 現行backendの字句検索は1応答最大8件でcursorを返さない。全画面結果の追加読込はbackend pagination契約と合わせて実装する。
+- AI popup、自然言語検索、機能案内、AI unavailable時の応答はUI-08で実装する。
+- repository管理された実拡張E2Eと人間による実Chrome受入は未実施である。
+
 ## 追記テンプレート
 
 ```markdown

@@ -565,6 +565,8 @@ Bookmark一覧とカテゴリ・タグ一覧の検索入口は同じ`SearchBox`�
 
 Radix `Popover`を候補の外枠に使う場合も、open時にinputからfocusを奪わないことを試験する。安定しない場合は、inputと同じrelative container内へabsolute listboxを描画する。完成済みComboboxがRadixにあると仮定しない。
 
+UI-07では、共通`SearchBox`、200 ms debounce、IME composition guard、stale response破棄、最大8候補、`aria-activedescendant`を使うkeyboard操作を実装済みである。Bookmark一覧・カテゴリ／タグ一覧・検索結果の各headerから同じ`#/search?q=`へ移り、全画面結果はカテゴリ／タグを上、Bookmarkを下に表示する。production adapterは既存`search-library` messageへ接続し、Web previewはfake `SearchPort`で候補と結果を再現する。現行backend契約は1回最大8件でcursorを返さないため、検索結果の追加読込は後続のbackend pagination契約と合わせて実装する。
+
 ### Phase 8: AI agent popupを作る
 
 AI入口はBookmark一覧とカテゴリ・タグ一覧の両方に置き、同じfeature componentを開く。
