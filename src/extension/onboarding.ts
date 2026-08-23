@@ -6,6 +6,7 @@ export interface OnboardingState {
   currentStepId: string | null
   initializedBy: "INSTALL"
   updatedAt: number
+  catalogVersion?: string
   categorySelection?: Record<string, string[]>
   applyRequestId?: string
 }
