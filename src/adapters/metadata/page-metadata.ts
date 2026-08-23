@@ -65,6 +65,20 @@ async function fetchText(url: string): Promise<string | null> {
 }
 
 async function fetchValidatedImage(url: string, maxBytes: number) {
+  if (url.startsWith("data:")) {
+    try {
+      const response = await fetch(url)
+      if (!response.ok) {
+        return null
+      }
+      const mimeType = response.headers.get("content-type")?.split(";")[0]?.trim() ?? ""
+      const buffer = await response.arrayBuffer()
+      return validateImageBytes(buffer, mimeType, maxBytes)
+    } catch {
+      return null
+    }
+  }
+
   const response = await fetch(url, { redirect: "follow" })
   if (!response.ok) {
     return null

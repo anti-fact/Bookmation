@@ -31,6 +31,11 @@ import type { ExtensionMessageApplication } from "./extension-message-applicatio
 import { evaluateVisitReminders } from "./evaluate-visit-reminders"
 import { toGeneralSettingsSnapshotData } from "./general-settings-snapshot"
 import { getPendingVisitReminder } from "./get-pending-visit-reminder"
+import {
+  commitChromeBookmarkImport,
+  previewChromeBookmarkImport,
+} from "./chrome-bookmark-import"
+import type { ParsedChromeBookmarkEntry } from "~/domain"
 
 function record(value: unknown): Record<string, unknown> | null {
   return value !== null && typeof value === "object" && !Array.isArray(value)
@@ -45,6 +50,76 @@ function isCursor(value: unknown): value is { savedAt: number; id: string } {
 
 function invalid(requestId: string): ExtensionMessageResponse {
   return { requestId, ok: false, error: { code: "INVALID_MESSAGE" } }
+}
+
+function parseImportEntries(value: unknown): ParsedChromeBookmarkEntry[] | null {
+  if (!Array.isArray(value)) return null
+  const entries: ParsedChromeBookmarkEntry[] = []
+  for (const item of value) {
+    const record = item as Record<string, unknown>
+    if (
+      typeof record.entryId !== "string" ||
+      typeof record.url !== "string" ||
+      typeof record.title !== "string" ||
+      !(record.sourceFolderName === null || typeof record.sourceFolderName === "string") ||
+      !(record.faviconUrl === null || record.faviconUrl === undefined || typeof record.faviconUrl === "string")
+    ) {
+      return null
+    }
+    entries.push({
+      entryId: record.entryId,
+      url: record.url,
+      title: record.title,
+      faviconUrl:
+        typeof record.faviconUrl === "string" ? record.faviconUrl : null,
+      sourceFolderName: record.sourceFolderName,
+    })
+  }
+  return entries
+}
+
+function parseFolderResolutions(value: unknown) {
+  if (!Array.isArray(value)) return null
+  const resolutions = []
+  for (const item of value) {
+    const record = item as Record<string, unknown>
+    if (record.mode === "REUSE") {
+      if (
+        typeof record.sourceFolderKey !== "string" ||
+        typeof record.tagId !== "string" ||
+        typeof record.expectedTagRevision !== "number"
+      ) {
+        return null
+      }
+      resolutions.push({
+        mode: "REUSE" as const,
+        sourceFolderKey: record.sourceFolderKey,
+        tagId: record.tagId,
+        expectedTagRevision: record.expectedTagRevision,
+      })
+      continue
+    }
+    if (record.mode === "UNCLASSIFIED") {
+      if (typeof record.sourceFolderKey !== "string") {
+        return null
+      }
+      resolutions.push({
+        mode: "UNCLASSIFIED" as const,
+        sourceFolderKey: record.sourceFolderKey,
+      })
+      continue
+    }
+    if (record.mode === "SKIP") {
+      if (typeof record.sourceFolderKey !== "string") return null
+      resolutions.push({
+        mode: "SKIP" as const,
+        sourceFolderKey: record.sourceFolderKey,
+      })
+      continue
+    }
+    return null
+  }
+  return resolutions
 }
 
 /** BE-04/05 actionをChrome境界からApplicationへ集約する。 */
@@ -423,6 +498,33 @@ export function createLibraryApplication(
           labels: result.labels.map((label) => ({ id: label.id, name: label.name, kind: label.kind, parentCategoryId: label.parentCategoryId, revision: label.revision })),
           bookmarks: result.bookmarks.map((bookmark) => ({ id: bookmark.id, title: bookmark.title, normalizedUrl: bookmark.normalizedUrl, revision: bookmark.revision })),
         } }
+      }
+
+      if (request.action === "preview-chrome-bookmarks-import") {
+        const entries = parseImportEntries(payload.entries)
+        if (!entries) return invalid(request.requestId)
+        const preview = await previewChromeBookmarkImport(layer, { entries })
+        return { requestId: request.requestId, ok: true, data: preview as unknown as import("~/domain").JsonValue }
+      }
+
+      if (request.action === "commit-chrome-bookmarks-import") {
+        const entries = parseImportEntries(payload.entries)
+        const folderResolutions = parseFolderResolutions(payload.folderResolutions)
+        if (
+          !entries ||
+          !folderResolutions ||
+          typeof payload.commitRequestId !== "string" ||
+          typeof payload.selectionFingerprint !== "string"
+        ) {
+          return invalid(request.requestId)
+        }
+        const result = await commitChromeBookmarkImport(layer, {
+          commitRequestId: payload.commitRequestId,
+          selectionFingerprint: payload.selectionFingerprint,
+          entries,
+          folderResolutions,
+        })
+        return { requestId: request.requestId, ok: true, data: result as unknown as import("~/domain").JsonValue }
       }
 
       const classificationResponse = await handleClassificationJobMessage(layer, request)

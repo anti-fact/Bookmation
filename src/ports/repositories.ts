@@ -46,6 +46,7 @@ export interface CreateTagInput {
   parentCategoryId: string
   expectedParentRevision: number
   creationRequestId: string
+  origin?: PersistedLabelRecord["origin"]
 }
 
 export interface AssignTagEdgeInput {

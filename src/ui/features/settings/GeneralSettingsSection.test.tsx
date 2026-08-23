@@ -8,7 +8,17 @@ import {
   emptyGeneralSettingsPort,
   type GeneralSettingsPort
 } from "./general-settings-port"
+import { emptyChromeBookmarkImportPort } from "./chrome-bookmark-import-port"
 import { GeneralSettingsSection } from "./GeneralSettingsSection"
+
+function renderGeneralSettings(port: GeneralSettingsPort = createPort()) {
+  return (
+    <GeneralSettingsSection
+      chromeBookmarkImportPort={emptyChromeBookmarkImportPort}
+      port={port}
+    />
+  )
+}
 
 function createPort(
   overrides: Partial<GeneralSettingsPort> = {}
@@ -22,7 +32,7 @@ function createPort(
 
 describe("GeneralSettingsSection", () => {
   it("shows the specified initial values and keeps visit days disabled without a window", async () => {
-    render(<GeneralSettingsSection port={createPort()} />)
+    render(renderGeneralSettings())
 
     expect(
       await screen.findByRole("combobox", { name: "訪問の集計期間" })
@@ -50,7 +60,7 @@ describe("GeneralSettingsSection", () => {
       ...DEFAULT_GENERAL_SETTINGS_SNAPSHOT,
       frequentVisitWindow: "LAST_7_DAYS"
     })
-    render(<GeneralSettingsSection port={createPort({ updateSettings })} />)
+    render(renderGeneralSettings(createPort({ updateSettings })))
 
     await user.click(
       await screen.findByRole("combobox", { name: "訪問の集計期間" })
@@ -83,7 +93,7 @@ describe("GeneralSettingsSection", () => {
           )
         )
     })
-    render(<GeneralSettingsSection port={port} />)
+    render(renderGeneralSettings(port))
 
     const toggle = await screen.findByRole("switch", { name: "自動アーカイブ" })
     await user.click(toggle)
@@ -96,7 +106,7 @@ describe("GeneralSettingsSection", () => {
 
   it("validates the archive day input before sending", async () => {
     const updateSettings = vi.fn()
-    render(<GeneralSettingsSection port={createPort({ updateSettings })} />)
+    render(renderGeneralSettings(createPort({ updateSettings })))
 
     const input = await screen.findByRole("spinbutton", {
       name: /アーカイブ化の閾値/

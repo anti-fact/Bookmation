@@ -56,6 +56,21 @@ export {
 } from "./normalizer"
 export type { NormalizedLabelName } from "./normalizer"
 
+// --- Chrome bookmark import ---
+export { parseNetscapeBookmarkHtml } from "./chrome-bookmark-html"
+export type { ParsedChromeBookmarkEntry } from "./chrome-bookmark-html"
+export {
+  folderKeyFromName,
+  buildSelectionFingerprint,
+  autoReuseFolderResolutions,
+} from "./chrome-bookmark-import"
+export type {
+  ChromeImportFolderPreview,
+  ChromeImportEntryPreview,
+  ChromeImportFolderSkipReason,
+  ChromeImportFolderResolutionInput,
+} from "./chrome-bookmark-import"
+
 // --- Label ---
 export type { LabelRecord } from "./label"
 export {

@@ -7,6 +7,8 @@ import type {
   GeneralSettingsPort,
   GeneralSettingsSnapshot
 } from "./general-settings-port"
+import { ChromeBookmarkImportPanel } from "./ChromeBookmarkImportPanel"
+import type { ChromeBookmarkImportPort } from "./chrome-bookmark-import-port"
 
 const WINDOW_OPTIONS = [
   { label: "1週間", value: "LAST_7_DAYS" },
@@ -71,8 +73,12 @@ function SettingSwitchRow({
 }
 
 export function GeneralSettingsSection({
+  chromeBookmarkImportPort,
+  onBookmarksImported,
   port
 }: {
+  chromeBookmarkImportPort: ChromeBookmarkImportPort
+  onBookmarksImported?: () => void
   port: GeneralSettingsPort
 }) {
   const [snapshot, setSnapshot] =
@@ -337,6 +343,11 @@ export function GeneralSettingsSection({
           }}
         />
       </div>
+
+      <ChromeBookmarkImportPanel
+        importPort={chromeBookmarkImportPort}
+        onImported={onBookmarksImported}
+      />
 
       {error ? (
         <p className="m-0 text-sm text-bm-danger" role="alert">

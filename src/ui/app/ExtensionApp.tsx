@@ -49,6 +49,8 @@ import {
   emptyGeneralSettingsPort,
   type GeneralSettingsPort
 } from "~/ui/features/settings/general-settings-port"
+import { createIndexedDbChromeBookmarkImportPort } from "~/adapters/indexeddb-chrome-bookmark-import-port"
+import type { ChromeBookmarkImportPort } from "~/ui/features/settings/chrome-bookmark-import-port"
 import { ShareSettingsSection } from "~/ui/features/settings/ShareSettingsSection"
 import {
   emptyShareSettingsPort,
@@ -310,9 +312,12 @@ function RouteHeader({
 type RouteBodyProps = {
   bookmarkImportPort: BookmarkImportPort
   archiveSettingsPort: ArchiveSettingsPort
+  bookmarkFormPort: BookmarkFormPort
   bookmarkListRevision: number
   bookmarkListPort: BookmarkListPort
+  chromeBookmarkImportPort: ChromeBookmarkImportPort
   generalSettingsPort: GeneralSettingsPort
+  onBookmarksImported: () => void
   headingRef: React.RefObject<HTMLHeadingElement>
   labelCreateRequest: LabelsCreateRequest
   labelManagementPort: LabelManagementPort
@@ -412,13 +417,16 @@ function WelcomeScreen({
 function RouteBody({
   bookmarkImportPort,
   archiveSettingsPort,
+  bookmarkFormPort,
   bookmarkListRevision,
   bookmarkListPort,
+  chromeBookmarkImportPort,
   headingRef,
   labelCreateRequest,
   labelManagementPort,
   labelsManageMode,
   navigate,
+  onBookmarksImported,
   onLabelCreateRequestHandled,
   onEditBookmark,
   generalSettingsPort,
@@ -531,7 +539,11 @@ function RouteBody({
           className="min-w-0 space-y-6 overflow-x-auto rounded-bm-dialog border-2 border-bm-border bg-bm-paper p-3 sm:p-5 lg:p-8"
         >
           {route.section === "general" && (
-            <GeneralSettingsSection port={generalSettingsPort} />
+            <GeneralSettingsSection
+              chromeBookmarkImportPort={chromeBookmarkImportPort}
+              onBookmarksImported={onBookmarksImported}
+              port={generalSettingsPort}
+            />
           )}
           {route.section === "archive" && (
             <ArchiveSettingsSection port={archiveSettingsPort} />
@@ -604,6 +616,7 @@ export function ExtensionApp({
   archiveSettingsPort = emptyArchiveSettingsPort,
   bookmarkFormPort = emptyBookmarkFormPort,
   bookmarkListPort = emptyBookmarkListPort,
+  chromeBookmarkImportPort,
   generalSettingsPort = emptyGeneralSettingsPort,
   labelManagementPort = emptyLabelManagementPort,
   onboardingPort = emptyOnboardingPort,
@@ -618,6 +631,7 @@ export function ExtensionApp({
   archiveSettingsPort?: ArchiveSettingsPort
   bookmarkFormPort?: BookmarkFormPort
   bookmarkListPort?: BookmarkListPort
+  chromeBookmarkImportPort?: ChromeBookmarkImportPort
   generalSettingsPort?: GeneralSettingsPort
   labelManagementPort?: LabelManagementPort
   onboardingPort?: OnboardingPort
@@ -646,6 +660,19 @@ export function ExtensionApp({
   const [bookmarkDialogMode, setBookmarkDialogMode] =
     React.useState<BookmarkDialogMode | null>(null)
   const [bookmarkListRevision, setBookmarkListRevision] = React.useState(0)
+  const resolvedChromeBookmarkImportPort = React.useMemo(
+    () =>
+      chromeBookmarkImportPort ??
+      createIndexedDbChromeBookmarkImportPort({
+        onMetadataComplete: () => {
+          setBookmarkListRevision((revision) => revision + 1)
+        },
+      }),
+    [chromeBookmarkImportPort],
+  )
+  const handleChromeBookmarksImported = React.useCallback(() => {
+    setBookmarkListRevision((revision) => revision + 1)
+  }, [])
   const [labelCreateRequest, setLabelCreateRequest] =
     React.useState<LabelsCreateRequest>(null)
   const [labelsManageMode, setLabelsManageMode] = React.useState(false)
@@ -919,9 +946,12 @@ export function ExtensionApp({
         <RouteBody
           bookmarkImportPort={bookmarkImportPort}
           archiveSettingsPort={archiveSettingsPort}
+          bookmarkFormPort={bookmarkFormPort}
           bookmarkListPort={bookmarkListPort}
           bookmarkListRevision={bookmarkListRevision}
+          chromeBookmarkImportPort={resolvedChromeBookmarkImportPort}
           generalSettingsPort={generalSettingsPort}
+          onBookmarksImported={handleChromeBookmarksImported}
           headingRef={headingRef}
           labelCreateRequest={labelCreateRequest}
           labelManagementPort={labelManagementPort}
