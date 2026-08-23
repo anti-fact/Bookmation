@@ -108,7 +108,8 @@ export function FrequentVisitReminderSettings({
             自動ブックマークのリマインダー
           </h3>
           <p className="mt-1 text-sm text-bm-muted-text">
-            履歴の権限を許可した場合だけ、よく訪問する未保存ページを知らせます。
+            Bookmation 拡張機能の履歴権限を許可した場合だけ、よく訪問する未保存ページを知らせます（Chrome
+            アカウントの同期設定とは別です）。
           </p>
         </div>
         <Switch

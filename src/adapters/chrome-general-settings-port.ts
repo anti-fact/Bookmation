@@ -84,6 +84,12 @@ function decodeMessageResponse(
 
   const response = value as ExtensionMessageResponse
   if (!response.ok) {
+    if (response.error.code === "REMINDER_PERMISSION_DENIED") {
+      throw new GeneralSettingsPortError(
+        response.error.code,
+        "Bookmation の履歴権限を許可してください。Chrome アカウントの同期設定とは別です。"
+      )
+    }
     throw new GeneralSettingsPortError(
       response.error.code,
       response.error.code === "INTERNAL_ERROR"

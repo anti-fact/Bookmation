@@ -86,4 +86,44 @@ describe("createChromeGeneralSettingsPort", () => {
       "設定の保存に失敗しました。もう一度お試しください。"
     )
   })
+
+  it("updates reminder settings through the background with a full snapshot", async () => {
+    const chromeApi = createChromeApi()
+    vi.mocked(chromeApi.runtime.sendMessage).mockResolvedValue({
+      ok: true,
+      requestId: "reminder-1",
+      data: {
+        contextMenuBookmarkEnabled: true,
+        frequentVisitReminderEnabled: true,
+        frequentVisitWindow: "LAST_7_DAYS",
+        frequentVisitDayThreshold: 3,
+      },
+    })
+
+    const port = createChromeGeneralSettingsPort(chromeApi, () => "reminder-1")
+
+    await expect(
+      port.updateReminderSettings({ frequentVisitReminderEnabled: true }),
+    ).resolves.toEqual({
+      contextMenuBookmarkEnabled: true,
+      frequentVisitReminderEnabled: true,
+      frequentVisitWindow: "LAST_7_DAYS",
+      frequentVisitDayThreshold: 3,
+    })
+  })
+
+  it("maps REMINDER_PERMISSION_DENIED to a user-facing permission message", async () => {
+    const chromeApi = createChromeApi()
+    vi.mocked(chromeApi.runtime.sendMessage).mockResolvedValue({
+      ok: false,
+      requestId: "reminder-2",
+      error: { code: "REMINDER_PERMISSION_DENIED" },
+    })
+
+    const port = createChromeGeneralSettingsPort(chromeApi, () => "reminder-2")
+
+    await expect(
+      port.updateReminderSettings({ frequentVisitReminderEnabled: true }),
+    ).rejects.toThrow("Bookmation の履歴権限を許可してください")
+  })
 })

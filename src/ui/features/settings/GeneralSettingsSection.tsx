@@ -16,10 +16,10 @@ export function GeneralSettingsSection({
       </div>
       <ul className="m-0 flex list-none flex-col gap-6 p-0">
         <li>
-          <FrequentVisitReminderSettings port={port} />
+          <ContextMenuBookmarkSwitch port={port} />
         </li>
         <li>
-          <ContextMenuBookmarkSwitch port={port} />
+          <FrequentVisitReminderSettings port={port} />
         </li>
       </ul>
     </div>

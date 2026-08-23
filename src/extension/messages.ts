@@ -164,6 +164,7 @@ export type ExtensionMessageErrorCode =
   | "UNAUTHORIZED_SENDER"
   | "ACTION_NOT_AVAILABLE"
   | "INTERNAL_ERROR"
+  | "REMINDER_PERMISSION_DENIED"
   | DomainErrorCode
 
 export type ExtensionMessageResponse =

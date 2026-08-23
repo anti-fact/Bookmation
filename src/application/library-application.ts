@@ -25,6 +25,7 @@ import {
 } from "./category-templates"
 import type { ExtensionMessageApplication } from "./extension-message-application"
 import { evaluateVisitReminders } from "./evaluate-visit-reminders"
+import { toGeneralSettingsSnapshotData } from "./general-settings-snapshot"
 import { getPendingVisitReminder } from "./get-pending-visit-reminder"
 
 function record(value: unknown): Record<string, unknown> | null {
@@ -58,12 +59,7 @@ export function createLibraryApplication(
         return {
           requestId: request.requestId,
           ok: true,
-          data: {
-            contextMenuBookmarkEnabled: settings.contextMenuBookmarkEnabled,
-            frequentVisitReminderEnabled: settings.frequentVisitReminderEnabled,
-            frequentVisitWindow: settings.frequentVisitWindow,
-            frequentVisitDayThreshold: settings.frequentVisitDayThreshold,
-          },
+          data: toGeneralSettingsSnapshotData(settings),
         }
       }
 
@@ -106,18 +102,14 @@ export function createLibraryApplication(
           return {
             requestId: request.requestId,
             ok: true,
-            data: {
-              frequentVisitReminderEnabled: settings.frequentVisitReminderEnabled,
-              frequentVisitWindow: settings.frequentVisitWindow,
-              frequentVisitDayThreshold: settings.frequentVisitDayThreshold,
-            },
+            data: toGeneralSettingsSnapshotData(settings),
           }
         } catch (error: unknown) {
           if (error instanceof ReminderSettingsApplicationError) {
             return {
               requestId: request.requestId,
               ok: false,
-              error: { code: "INTERNAL_ERROR" },
+              error: { code: "REMINDER_PERMISSION_DENIED" },
             }
           }
           throw error
@@ -178,15 +170,16 @@ export function createLibraryApplication(
           return invalid(request.requestId)
         }
         try {
-          const result = await updateContextMenuBookmarkEnabled(
+          await updateContextMenuBookmarkEnabled(
             new ChromeLocalSettingsStore(),
             new ChromeContextMenuAdapter(createChromeContextMenusApi(chrome.contextMenus)),
             togglePayload.enabled,
           )
+          const settings = await new ChromeLocalSettingsStore().get()
           return {
             requestId: request.requestId,
             ok: true,
-            data: { contextMenuBookmarkEnabled: result.contextMenuBookmarkEnabled },
+            data: toGeneralSettingsSnapshotData(settings),
           }
         } catch (error: unknown) {
           if (error instanceof ContextMenuApplicationError) {
