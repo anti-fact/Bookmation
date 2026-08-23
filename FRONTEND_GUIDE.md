@@ -616,6 +616,8 @@ Settingsはmodalではなく`#/settings/general`、`#/settings/archive`、`#/set
 
 archive pageは一覧、選択、復元、部分失敗、`ARCHIVE_HISTORY_NOT_FOUND`を扱う。share pageはDrive account、QR／CSV export、QR読取を扱う。QR容量超過時は部分QRを表示せず、同じ選択を保持したまま`CSVでエクスポート`へ誘導する。
 
+UI-10では、一般設定の全controlを`GeneralSettingsPort`経由で`chrome.storage.local`へ接続した。リマインダーと自動archiveは利用者操作からoptional permissionを確認・要求し、Service Workerでも実権限を再検査してからONを保存する。archiveとshareはproduction component、選択set、部分復元失敗、履歴なし、Drive状態、ID dedupe、QR容量超過からCSVへの誘導をPort境界まで実装した。BE-14、TASK-103、TASK-104の永続処理は未着手なので、productionのarchive／share Portは空状態を返し、Web fixtureで各状態を検証する。
+
 ### Phase 11: reminder、import、共有のdialogを作る
 
 - Visit reminderはURL、期間内の訪問日数、はい、いいえ、`次回以降表示しない`を示す。

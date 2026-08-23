@@ -27,6 +27,7 @@ export const EXTENSION_MESSAGE_ACTIONS = {
   CANCEL_CLASSIFICATION_JOB: "cancel-classification-job",
   SEARCH_LIBRARY: "search-library",
   GET_GENERAL_SETTINGS_SNAPSHOT: "get-general-settings-snapshot",
+  UPDATE_GENERAL_SETTINGS: "update-general-settings",
   SET_CONTEXT_MENU_BOOKMARK_ENABLED: "set-context-menu-bookmark-enabled",
 } as const
 
@@ -86,6 +87,15 @@ export type SetContextMenuBookmarkEnabledPayload = Readonly<{
   enabled: boolean
 }>
 
+export type UpdateGeneralSettingsPayload = Readonly<{
+  frequentVisitReminderEnabled?: boolean
+  frequentVisitWindow?: "LAST_7_DAYS" | "LAST_30_DAYS" | "LAST_365_DAYS" | null
+  frequentVisitDayThreshold?: number | null
+  autoArchiveEnabled?: boolean
+  archiveAfterDays?: number
+  aiGranularity?: 0 | 1 | 2 | 3 | 4
+}>
+
 export type ListBookmarksPayload = Readonly<{
   limit?: number
   labelId?: string
@@ -135,6 +145,7 @@ export type ExtensionMessageRequest =
   | MessageRequest<"cancel-classification-job", "dashboard", CancelClassificationJobPayload>
   | MessageRequest<"search-library", "dashboard" | "ai-host", SearchLibraryPayload>
   | MessageRequest<"get-general-settings-snapshot", "dashboard", Record<never, never>>
+  | MessageRequest<"update-general-settings", "dashboard", UpdateGeneralSettingsPayload>
   | MessageRequest<
       "set-context-menu-bookmark-enabled",
       "dashboard",

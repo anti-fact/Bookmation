@@ -5,6 +5,7 @@ import { safeLogError } from "~/adapters/security/log-redaction"
 import { CATEGORY_TEMPLATE_CATALOG } from "~/catalogs/category-templates"
 import type { ExtensionMessageResponse } from "~/extension/messages"
 import { isDomainError } from "~/domain"
+import { assertLocalSettingsValid, type LocalSettings } from "~/domain/local-settings"
 
 import { handleClassificationJobMessage } from "./classification-job-application"
 import {
@@ -23,7 +24,6 @@ function record(value: unknown): Record<string, unknown> | null {
     ? (value as Record<string, unknown>)
     : null
 }
-
 function isCursor(value: unknown): value is { savedAt: number; id: string } {
   const cursor = record(value)
   return !!cursor && typeof cursor.savedAt === "number" && typeof cursor.id === "string"
@@ -31,6 +31,18 @@ function isCursor(value: unknown): value is { savedAt: number; id: string } {
 
 function invalid(requestId: string): ExtensionMessageResponse {
   return { requestId, ok: false, error: { code: "INVALID_MESSAGE" } }
+}
+
+function settingsSnapshot(settings: LocalSettings) {
+  return {
+    frequentVisitReminderEnabled: settings.frequentVisitReminderEnabled,
+    frequentVisitWindow: settings.frequentVisitWindow,
+    frequentVisitDayThreshold: settings.frequentVisitDayThreshold,
+    autoArchiveEnabled: settings.autoArchiveEnabled,
+    archiveAfterDays: settings.archiveAfterDays,
+    contextMenuBookmarkEnabled: settings.contextMenuBookmarkEnabled,
+    aiGranularity: settings.aiGranularity,
+  }
 }
 
 /** BE-04/05 actionをChrome境界からApplicationへ集約する。 */
@@ -49,7 +61,59 @@ export function createLibraryApplication(
         return {
           requestId: request.requestId,
           ok: true,
-          data: { contextMenuBookmarkEnabled: settings.contextMenuBookmarkEnabled },
+          data: settingsSnapshot(settings),
+        }
+      }
+
+      if (request.action === "update-general-settings") {
+        const updatePayload = record(request.payload)
+        if (!updatePayload) return invalid(request.requestId)
+        const allowedKeys = new Set([
+          "frequentVisitReminderEnabled",
+          "frequentVisitWindow",
+          "frequentVisitDayThreshold",
+          "autoArchiveEnabled",
+          "archiveAfterDays",
+          "aiGranularity",
+        ])
+        if (Object.keys(updatePayload).some((key) => !allowedKeys.has(key))) {
+          return invalid(request.requestId)
+        }
+        if (
+          updatePayload.autoArchiveEnabled === true &&
+          !(await chrome.permissions.contains({ permissions: ["history"] }))
+        ) {
+          return {
+            requestId: request.requestId,
+            ok: false,
+            error: { code: "ARCHIVE_HISTORY_PERMISSION_REQUIRED" },
+          }
+        }
+        if (
+          updatePayload.frequentVisitReminderEnabled === true &&
+          !(await chrome.permissions.contains({
+            permissions: ["history", "notifications"],
+          }))
+        ) {
+          return {
+            requestId: request.requestId,
+            ok: false,
+            error: { code: "REMINDER_PERMISSION_REQUIRED" },
+          }
+        }
+        const store = new ChromeLocalSettingsStore()
+        const current = await store.get()
+        const next = { ...current, ...updatePayload } as LocalSettings
+        try {
+          assertLocalSettingsValid(next)
+        } catch {
+          return invalid(request.requestId)
+        }
+        await store.set(next)
+        return {
+          requestId: request.requestId,
+          ok: true,
+          data: settingsSnapshot(next),
         }
       }
 
@@ -67,7 +131,10 @@ export function createLibraryApplication(
           return {
             requestId: request.requestId,
             ok: true,
-            data: { contextMenuBookmarkEnabled: result.contextMenuBookmarkEnabled },
+            data: settingsSnapshot({
+              ...(await new ChromeLocalSettingsStore().get()),
+              contextMenuBookmarkEnabled: result.contextMenuBookmarkEnabled,
+            }),
           }
         } catch (error: unknown) {
           if (error instanceof ContextMenuApplicationError) {
