@@ -24,6 +24,7 @@
 ## P1 — 最初のprototype前
 
 - [ ] **TODO-007: 分類fixtureとpolicy v2評価batchを作る**
+  - 進捗（2026-08-23）: 実モデル評価基盤（fixtureSchemaVersion 3／resultSchemaVersion 1／scorerVersion `classification-eval-scorer-v2`、N=10、除外allowlist、隔離DB契約、fake Provider 制御系）を `src/evaluation/` に実装。Plan: [plans/2026-08-23-task-015-classification-eval.md](plans/2026-08-23-task-015-classification-eval.md)。残: production runtime 結合（#16）、実 Gemini Nano batch（#13+#16）、Category 0件等の runtime 決定的fixture、設定 migration gate fixture。
   - 完了条件: Category 0件／1件／複数、親一致／不一致、選択Category内／外の同じnormalizedName、カテゴリ／タグ各namespaceの同名拒否、USER／AI由来タグ競合、policy version 2全5値、4重要度、正常・不正候補混在、重複canonical化、再分類時のAI edge置換と非AI provenance保持、旧件数上限を超える正常候補の全件採用、1件以上で試行終了、quality-zero／technical failure分離、PREPARED／DISPATCH_RESERVED／pendingApply、model／execution counter分離、3回目lease失効finalizer、lease期限直前／一致／直後と結果-finalizer race、retryContext allowlist、設定state先行分岐、AI enabled gate付きstale Job差替え、試行間非結合、3 quality-zeroのNEEDS_REVIEWをfake／記録済みProviderで決定的に試験する。実モデルは [AI_GUIDE.md](AI_GUIDE.md#必須の実モデル評価) のfixtureSchemaVersion 3／resultSchemaVersion 1／scorerVersion v2、事前固定artifact hash、補充allowlistとrunSequence、MODEL_DECISION／APPLICABLE／COMMITTED、期待Category、REUSE ID／CREATE normalizedNameのconcept oracle、action／importance／duplicate採点、非曖昧期待集合非空、N=10、成功率閾値、隣接4境界20 points、同等表現6種×Category内外を満たす。新規install既定、LOCAL_SETTINGS_V1 allowlist、durable migration gate中の全設定依存command排他と中断再開もfixture化する。
 - [ ] **TODO-008: 重複URLの期待動作を決める**
   - 完了条件: URL正規化、再保存、タグ統合、利用者確認の4ケースを [REQUIREMENTS.md](REQUIREMENTS.md) または [DB-SCHEMA.md](DB-SCHEMA.md) に記録する。

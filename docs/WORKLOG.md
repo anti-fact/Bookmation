@@ -1006,6 +1006,32 @@ Chrome Prompt API v151 での型定義エラーを修正し、Availability チ�
 - repository管理されたPlaywright拡張E2Eと人間による実Chrome受入は未実施である。
 - 実装はbase commit `e770827`上の未commit差分であり、commit／pushは未実施である。
 
+## 2026-08-23 — TASK-015 分類評価基盤（fixture v3 / scorer v2）
+
+### 目的
+
+policy v2 の品質を、固定fixture×細分化度の N=10 batch と再採点可能な artifact で追跡できるようにする。production runtime（#16）とは分離する。
+
+### 変更
+
+- `src/evaluation/` に fixtureSchemaVersion 3、resultSchemaVersion 1、scorerVersion `classification-eval-scorer-v2` を実装
+- NORMAL / MULTI_CONCEPT / AMBIGUOUS / BOUNDARY×4 / EQUIVALENCE 6×2 の default fixture set と preflight／SHA-256 固定
+- 環境除外 allowlist、runSequence N=10、隔離DB復元契約、fake／oracle Provider、制御系決定的テスト
+- Plan: [plans/2026-08-23-task-015-classification-eval.md](plans/2026-08-23-task-015-classification-eval.md)
+- BACKEND_TASKS BE-08 を進行中にし、評価2項目を完了チェック
+
+### 検証
+
+- コマンド: `pnpm typecheck` / `pnpm test`
+- 結果: 成功（308 tests）
+- 証拠・観察: `src/evaluation/**/*.test.ts` 16 件。oracle fake batch で scorer 閾値合格。`allowRealModel: true` は依存未充足で拒否。
+
+### 残課題
+
+- BE-08 production runtime（prompt／validator／Tag適用／policy v2 Job）は #16
+- 実 Gemini Nano N=10 最終batchは #13 + #16 後
+- TODO-007 の runtime 決定的fixture（lease finalizer 等）は未完了
+
 ## 追記テンプレート
 
 ```markdown

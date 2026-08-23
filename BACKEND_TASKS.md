@@ -92,7 +92,7 @@ flowchart TD
 | BE-19 | 初回Category template適用 | 進行中 | 未定 | ISSUE-022、BE-03、BE-05 | 利用者が明示適用したtemplate Categoryだけを通常規則で重複なく作成できる |
 | BE-06 | 永続AI Job | 完了 | 未定 | BE-03、BE-04 | workerやAI Hostが止まっても分類要求を失わない |
 | BE-07 | Prompt API Hostスパイク | 進行中 | みやけ | BE-00、BE-03 | 対応環境とAI実行場所を実証できる |
-| BE-08 | AI分類と結果適用 | 未着手 | 未定 | BE-05〜BE-07 | カテゴリ／タグ規則どおり分類し、失敗時も保存を守る |
+| BE-08 | AI分類と結果適用 | 進行中 | Auto | BE-05〜BE-07 | カテゴリ／タグ規則どおり分類し、失敗時も保存を守る |
 | BE-09 | Keyword検索・AIアシスタント | 未着手 | 未定 | BE-02、BE-05、BE-07 | 最大8件の候補と検索／機能説明を返せる |
 | BE-10 | 権限・入力・Blob安全化 | 完了 | 未定 | BE-03、BE-04 | 最小権限で危険入力と外部画像追跡を防げる |
 | BE-11 | 中断復旧とMigration | 未着手 | 未定 | BE-06、BE-08、BE-09 | 更新・再送・途中停止から安全に回復できる |
@@ -325,10 +325,12 @@ sequenceDiagram
 - [ ] 正常候補が1件以上なら、生応答ではなく検証・正規化済み候補だけを持つ `pendingApply` を先に永続化する。process loss、同じlease内の結果再送、DB retryではこれを再検証して全正常候補を原子的に再適用し、`executionAttempt` を増やさずモデルも再呼出ししない。terminal確定時に `pendingApply` を削除する。
 - [ ] モデル呼出し前と適用直前はdurable gate不在を確認し、classificationSettings正本を先に分岐する。disabled／再設定待ちはpolicy必須のfingerprintを作らずCANCELED_SETTINGS／CLOSED、差替えJobなし、bookmarkStateBeforeJob復帰へ進む。CONFIGUREDかつenabledの場合だけBookmark／Category／Tagの同じ決定的query・並びからbase input fingerprintを再計算する。staleなら旧JobをCANCELEDにし、`activeInputKey=(bookmarkId, newInputFingerprint)` のunique indexを使った現在snapshotのversion 2 Job get-or-createとBookmark PENDINGを同じtransactionで行う。同じrequest／activeInputKeyは既存Jobへ収束し、新Jobは `modelAttempt=0` とする。候補外IDとsnapshot後発変更を別errorにする。
 - [ ] 再試行入力はallowlist済み理由コードだけを持つ `retryContext` とし、生の前回出力やページ文字列を含めず、base input fingerprintから除外する。
-- [ ] 実モデル評価は [AI_GUIDE.md](docs/AI_GUIDE.md#必須の実モデル評価) のfixtureSchemaVersion 3／resultSchemaVersion 1／scorerVersion v2を実装する。事前固定fixture hash、runSequence順の最初の非除外N=10、初回dispatch前だけの環境除外allowlist、MODEL_DECISION／APPLICABLE／COMMITTED、commit後state、result artifact hashを保存して再採点可能にする。最初のDISPATCH_RESERVED後のHost消失／technical failureやモデル由来失敗は補充せず分母へ残す。
-- [ ] 各評価runをfixture v3のinitialStateから復元した専用隔離DBで実行し、先行runのCREATE／edge／revision／Job／tombstoneを後続へ持ち越さない。hash前preflightでNormalizer v1のCREATE oracle非衝突と全入力byte／Provider quota適合を拒否可能にし、result artifactでresponse disposition、attempt outcome、terminalReasonCode、COMMITTEDの不変条件を検証する。
+- [x] 実モデル評価は [AI_GUIDE.md](docs/AI_GUIDE.md#必須の実モデル評価) のfixtureSchemaVersion 3／resultSchemaVersion 1／scorerVersion v2を実装する。事前固定fixture hash、runSequence順の最初の非除外N=10、初回dispatch前だけの環境除外allowlist、MODEL_DECISION／APPLICABLE／COMMITTED、commit後state、result artifact hashを保存して再採点可能にする。最初のDISPATCH_RESERVED後のHost消失／technical failureやモデル由来失敗は補充せず分母へ残す。
+- [x] 各評価runをfixture v3のinitialStateから復元した専用隔離DBで実行し、先行runのCREATE／edge／revision／Job／tombstoneを後続へ持ち越さない。hash前preflightでNormalizer v1のCREATE oracle非衝突と全入力byte／Provider quota適合を拒否可能にし、result artifactでresponse disposition、attempt outcome、terminalReasonCode、COMMITTEDの不変条件を検証する。
 
-成果物: ClassificationProvider Port、Prompt adapter、結果validator、適用use case。
+成果物: ClassificationProvider Port、Prompt adapter、結果validator、適用use case。評価基盤は `src/evaluation/`（Plan: [docs/plans/2026-08-23-task-015-classification-eval.md](docs/plans/2026-08-23-task-015-classification-eval.md)）。production runtime 本体は別途（#16）。
+
+進捗メモ（2026-08-23）: TASK-015 評価契約（fixture v3 / result v1 / scorer v2 / fake batch / 制御系）を実装。実 Gemini Nano N=10 最終batchと Tag 適用 runtime は未完了。
 
 完了条件: 不正JSON、Category 0件／1件／複数、カテゴリ生成、policy version 2不一致、全5値の再利用範囲とimportance、選択Category内外の同等Tag規則、USERタグ優先、AI由来名競合、正常・不正候補混在、全正常候補採用、quality-zeroとtechnical failureの区別、3件の `DISPATCH_RESERVED` 枠、PREPARED回収、3回目lease失効finalizer、late response拒否、`pendingApply` 再開、lease所有権取得claim時の `executionAttempt` 加算、設定state先行分岐、候補集合fingerprint再計算、`activeInputKey` によるstale get-or-create、再分類時のAI TAG edge置換、手動USER昇格、派生CATEGORY provenance、非AI保持、LOCAL_SETTINGS_V1 allowlist、durable gate全command排他、v1履歴／移行とunique index作成順、PENDING／NEEDS_REVIEW／FAILED状態、候補外ID、再送、手動編集競合、transaction全rollbackの自動テストが通る。
 
