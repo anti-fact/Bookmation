@@ -1,12 +1,10 @@
 import { describe, expect, it, vi } from "vitest"
 
 import { ONBOARDING_STATE_KEY } from "~/extension/onboarding"
+import { OnboardingPortError } from "~/extension/onboarding-errors"
 import type { BookmarkFormPort } from "~/ui/features/bookmarks/bookmark-form-port"
 
-import {
-  createChromeOnboardingPort,
-  OnboardingPortError
-} from "./chrome-onboarding-port"
+import { createChromeOnboardingPort } from "./chrome-onboarding-port"
 
 function createStorage(initial: Record<string, unknown> = {}) {
   const values = { ...initial }
@@ -52,6 +50,10 @@ describe("createChromeOnboardingPort", () => {
 
     await port.start()
     await port.saveSelection({ "study.lecture": ["授業ページ"] })
+    expect(storage.values[ONBOARDING_STATE_KEY]).toMatchObject({
+      catalogVersion: "2026-08-23",
+      categorySelection: { "study.lecture": ["授業ページ"] }
+    })
     const completed = await port.complete({
       "study.lecture": ["授業ページ"]
     })
@@ -59,13 +61,13 @@ describe("createChromeOnboardingPort", () => {
     expect(bookmarkFormPort.createCategory).toHaveBeenCalledWith({
       name: "授業・講義",
       requestId: expect.stringMatching(
-        /^onboarding:.*:category:study\.lecture$/
+        /^onboarding:.*:category:study_lecture$/
       )
     })
     expect(bookmarkFormPort.createTag).toHaveBeenCalledWith({
       category: { id: "category-created", name: "授業・講義", revision: 1 },
       name: "授業ページ",
-      requestId: expect.stringMatching(/^onboarding:.*:tag:study\.lecture:0$/)
+      requestId: expect.stringMatching(/^onboarding:.*:tag:study_lecture:0$/)
     })
     expect(completed).toMatchObject({
       categorySelection: {},
@@ -139,6 +141,52 @@ describe("createChromeOnboardingPort", () => {
     expect(await port.load()).toMatchObject({
       categorySelection: { "study.lecture": ["授業ページ"] },
       status: "IN_PROGRESS"
+    })
+  })
+
+  it("skips onboarding without creating labels", async () => {
+    const storage = createStorage()
+    const bookmarkFormPort = createBookmarkPort()
+    const port = createChromeOnboardingPort({ bookmarkFormPort, storage })
+
+    await port.start()
+    await port.saveSelection({ "study.lecture": ["授業ページ"] })
+    const skipped = await port.skip()
+
+    expect(bookmarkFormPort.createCategory).not.toHaveBeenCalled()
+    expect(bookmarkFormPort.createTag).not.toHaveBeenCalled()
+    expect(skipped).toMatchObject({
+      categorySelection: {},
+      currentStepId: null,
+      status: "COMPLETED"
+    })
+  })
+
+  it("clears a stale draft when the catalog version changes", async () => {
+    const storage = createStorage({
+      [ONBOARDING_STATE_KEY]: {
+        applyRequestId: "apply-1",
+        catalogVersion: "old-version",
+        categorySelection: { "study.lecture": ["授業ページ"] },
+        currentStepId: "categories",
+        initializedBy: "INSTALL",
+        schemaVersion: 1,
+        status: "IN_PROGRESS",
+        updatedAt: 1
+      }
+    })
+    const port = createChromeOnboardingPort({
+      bookmarkFormPort: createBookmarkPort(),
+      storage
+    })
+
+    const result = await port.loadWithMeta()
+
+    expect(result?.catalogMismatch).toBe(true)
+    expect(result?.state.categorySelection).toEqual({})
+    expect(storage.values[ONBOARDING_STATE_KEY]).toMatchObject({
+      catalogVersion: "2026-08-23",
+      categorySelection: {}
     })
   })
 })

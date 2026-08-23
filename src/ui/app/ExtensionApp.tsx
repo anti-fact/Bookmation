@@ -33,6 +33,7 @@ import {
   emptyLabelManagementPort,
   type LabelManagementPort
 } from "~/ui/features/labels/label-management-port"
+import { getOnboardingErrorMessage } from "~/extension/onboarding-errors"
 import { OnboardingCategoriesPage } from "~/ui/features/onboarding/OnboardingCategoriesPage"
 import {
   emptyOnboardingPort,
@@ -737,7 +738,12 @@ export function ExtensionApp({
       }
       pendingSelectionSave.current = setTimeout(() => {
         pendingSelectionSave.current = null
-        void onboardingPort.saveSelection(selection).then(setOnboardingState)
+        void onboardingPort
+          .saveSelection(selection)
+          .then(setOnboardingState)
+          .catch((error: unknown) => {
+            setOnboardingNotice(getOnboardingErrorMessage(error))
+          })
       }, 300)
     },
     [onboardingPort]
@@ -807,16 +813,24 @@ export function ExtensionApp({
             clearTimeout(pendingSelectionSave.current)
             pendingSelectionSave.current = null
           }
-          setOnboardingState(await onboardingPort.skip())
-          navigate({ kind: "home" })
+          try {
+            setOnboardingState(await onboardingPort.skip())
+            navigate({ kind: "home" })
+          } catch (error) {
+            throw new Error(getOnboardingErrorMessage(error))
+          }
         }}
         onSubmit={async (selection) => {
           if (pendingSelectionSave.current) {
             clearTimeout(pendingSelectionSave.current)
             pendingSelectionSave.current = null
           }
-          setOnboardingState(await onboardingPort.complete(selection))
-          navigate({ kind: "home" })
+          try {
+            setOnboardingState(await onboardingPort.complete(selection))
+            navigate({ kind: "home" })
+          } catch (error) {
+            throw new Error(getOnboardingErrorMessage(error))
+          }
         }}
       />
     )
