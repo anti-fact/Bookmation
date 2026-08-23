@@ -27,6 +27,7 @@ export const EXTENSION_MESSAGE_ACTIONS = {
   CANCEL_CLASSIFICATION_JOB: "cancel-classification-job",
   SEARCH_LIBRARY: "search-library",
   GET_GENERAL_SETTINGS_SNAPSHOT: "get-general-settings-snapshot",
+  UPDATE_GENERAL_SETTINGS: "update-general-settings",
   SET_CONTEXT_MENU_BOOKMARK_ENABLED: "set-context-menu-bookmark-enabled",
   UPDATE_REMINDER_SETTINGS: "update-reminder-settings",
   HANDLE_VISIT_REMINDER: "handle-visit-reminder",
@@ -95,6 +96,12 @@ export type UpdateReminderSettingsPayload = Readonly<{
   frequentVisitDayThreshold?: number | null
 }>
 
+export type UpdateGeneralSettingsPayload = Readonly<{
+  autoArchiveEnabled?: boolean
+  archiveAfterDays?: number
+  aiGranularity?: 0 | 1 | 2 | 3 | 4
+}>
+
 export type HandleVisitReminderPayload = Readonly<{
   reminderId: string
   response: "yes" | "no" | "dismissed"
@@ -150,6 +157,7 @@ export type ExtensionMessageRequest =
   | MessageRequest<"cancel-classification-job", "dashboard", CancelClassificationJobPayload>
   | MessageRequest<"search-library", "dashboard" | "ai-host", SearchLibraryPayload>
   | MessageRequest<"get-general-settings-snapshot", "dashboard", Record<never, never>>
+  | MessageRequest<"update-general-settings", "dashboard", UpdateGeneralSettingsPayload>
   | MessageRequest<
       "set-context-menu-bookmark-enabled",
       "dashboard",
@@ -166,6 +174,7 @@ export type ExtensionMessageErrorCode =
   | "INTERNAL_ERROR"
   | "REMINDER_PERMISSION_DENIED"
   | "REMINDER_CONFIG_INVALID"
+  | "ARCHIVE_HISTORY_PERMISSION_REQUIRED"
   | DomainErrorCode
 
 export type ExtensionMessageResponse =

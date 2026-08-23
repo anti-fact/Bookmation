@@ -16,7 +16,7 @@ describe("migrateLocalSettings", () => {
 
   it("空オブジェクト → DEFAULT_LOCAL_SETTINGS を返す", () => {
     expect(migrateLocalSettings({})).toMatchObject({
-      aiGranularity: 0,
+      aiGranularity: 2,
       archiveAfterDays: 30,
       autoArchiveEnabled: false,
       contextMenuBookmarkEnabled: true,
@@ -92,7 +92,6 @@ describe("migrateLocalSettings", () => {
     expect(result.frequentVisitDayThreshold).toBe(5)
   })
 })
-
 describe("assertLocalSettingsValid", () => {
   it("DEFAULT_LOCAL_SETTINGS はバリデーションを通る", () => {
     expect(() => assertLocalSettingsValid(DEFAULT_LOCAL_SETTINGS)).not.toThrow()

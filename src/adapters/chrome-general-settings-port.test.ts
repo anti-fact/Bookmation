@@ -2,6 +2,16 @@ import { describe, expect, it, vi } from "vitest"
 
 import { createChromeGeneralSettingsPort } from "./chrome-general-settings-port"
 
+const snapshot = {
+  aiGranularity: 2,
+  archiveAfterDays: 30,
+  autoArchiveEnabled: false,
+  contextMenuBookmarkEnabled: true,
+  frequentVisitDayThreshold: null,
+  frequentVisitReminderEnabled: false,
+  frequentVisitWindow: null
+} as const
+
 function createChromeApi() {
   return {
     runtime: {
@@ -17,21 +27,13 @@ describe("createChromeGeneralSettingsPort", () => {
     vi.mocked(chromeApi.runtime.sendMessage).mockResolvedValue({
       ok: true,
       requestId: "read-1",
-      data: {
-        contextMenuBookmarkEnabled: true,
-        frequentVisitReminderEnabled: false,
-        frequentVisitWindow: null,
-        frequentVisitDayThreshold: null,
-      },
+      data: snapshot
     })
 
     const port = createChromeGeneralSettingsPort(chromeApi, () => "read-1")
 
     await expect(port.getSnapshot()).resolves.toEqual({
-      contextMenuBookmarkEnabled: true,
-      frequentVisitReminderEnabled: false,
-      frequentVisitWindow: null,
-      frequentVisitDayThreshold: null,
+      ...snapshot
     })
     expect(chromeApi.runtime.sendMessage).toHaveBeenCalledWith({
       action: "get-general-settings-snapshot",
@@ -47,21 +49,14 @@ describe("createChromeGeneralSettingsPort", () => {
     vi.mocked(chromeApi.runtime.sendMessage).mockResolvedValue({
       ok: true,
       requestId: "write-1",
-      data: {
-        contextMenuBookmarkEnabled: false,
-        frequentVisitReminderEnabled: false,
-        frequentVisitWindow: null,
-        frequentVisitDayThreshold: null,
-      },
+      data: { ...snapshot, contextMenuBookmarkEnabled: false }
     })
 
     const port = createChromeGeneralSettingsPort(chromeApi, () => "write-1")
 
     await expect(port.setContextMenuBookmarkEnabled(false)).resolves.toEqual({
-      contextMenuBookmarkEnabled: false,
-      frequentVisitReminderEnabled: false,
-      frequentVisitWindow: null,
-      frequentVisitDayThreshold: null,
+      ...snapshot,
+      contextMenuBookmarkEnabled: false
     })
     expect(chromeApi.runtime.sendMessage).toHaveBeenCalledWith({
       action: "set-context-menu-bookmark-enabled",
@@ -87,82 +82,54 @@ describe("createChromeGeneralSettingsPort", () => {
     )
   })
 
-  it("updates reminder settings through the background with a full snapshot", async () => {
-    const chromeApi = createChromeApi()
+  it("does not persist auto archive when history permission is denied", async () => {
+    const chromeApi = {
+      ...createChromeApi(),
+      permissions: {
+        contains: vi.fn().mockResolvedValue(false),
+        request: vi.fn().mockResolvedValue(false)
+      }
+    }
+    const port = createChromeGeneralSettingsPort(
+      chromeApi,
+      () => "permission-1"
+    )
+
+    await expect(port.setAutoArchiveEnabled(true)).rejects.toThrow(
+      "自動アーカイブを有効にできません"
+    )
+    expect(chromeApi.permissions.request).toHaveBeenCalledWith({
+      permissions: ["history"]
+    })
+    expect(chromeApi.runtime.sendMessage).not.toHaveBeenCalled()
+  })
+
+  it("persists auto archive only after history permission is granted", async () => {
+    const chromeApi = {
+      ...createChromeApi(),
+      permissions: {
+        contains: vi.fn().mockResolvedValue(false),
+        request: vi.fn().mockResolvedValue(true)
+      }
+    }
     vi.mocked(chromeApi.runtime.sendMessage).mockResolvedValue({
+      data: { ...snapshot, autoArchiveEnabled: true },
       ok: true,
-      requestId: "reminder-1",
-      data: {
-        contextMenuBookmarkEnabled: true,
-        frequentVisitReminderEnabled: true,
-        frequentVisitWindow: "LAST_7_DAYS",
-        frequentVisitDayThreshold: 3,
-      },
+      requestId: "permission-2"
     })
+    const port = createChromeGeneralSettingsPort(
+      chromeApi,
+      () => "permission-2"
+    )
 
-    const port = createChromeGeneralSettingsPort(chromeApi, () => "reminder-1")
-
-    await expect(
-      port.updateReminderSettings({ frequentVisitReminderEnabled: true }),
-    ).resolves.toEqual({
-      contextMenuBookmarkEnabled: true,
-      frequentVisitReminderEnabled: true,
-      frequentVisitWindow: "LAST_7_DAYS",
-      frequentVisitDayThreshold: 3,
+    await expect(port.setAutoArchiveEnabled(true)).resolves.toMatchObject({
+      autoArchiveEnabled: true
     })
-  })
-
-  it("accepts partial reminder snapshots from older background handlers", async () => {
-    const chromeApi = createChromeApi()
-    vi.mocked(chromeApi.runtime.sendMessage).mockResolvedValue({
-      ok: true,
-      requestId: "reminder-partial",
-      data: {
-        frequentVisitReminderEnabled: true,
-        frequentVisitWindow: "LAST_365_DAYS",
-        frequentVisitDayThreshold: 40,
-      },
-    })
-
-    const port = createChromeGeneralSettingsPort(chromeApi, () => "reminder-partial")
-
-    await expect(
-      port.updateReminderSettings({ frequentVisitDayThreshold: 40 }),
-    ).resolves.toEqual({
-      contextMenuBookmarkEnabled: true,
-      frequentVisitReminderEnabled: true,
-      frequentVisitWindow: "LAST_365_DAYS",
-      frequentVisitDayThreshold: 40,
-    })
-  })
-
-  it("maps REMINDER_PERMISSION_DENIED to a user-facing permission message", async () => {
-    const chromeApi = createChromeApi()
-    vi.mocked(chromeApi.runtime.sendMessage).mockResolvedValue({
-      ok: false,
-      requestId: "reminder-2",
-      error: { code: "REMINDER_PERMISSION_DENIED" },
-    })
-
-    const port = createChromeGeneralSettingsPort(chromeApi, () => "reminder-2")
-
-    await expect(
-      port.updateReminderSettings({ frequentVisitReminderEnabled: true }),
-    ).rejects.toThrow("Bookmation の履歴権限を許可してください")
-  })
-
-  it("maps REMINDER_CONFIG_INVALID to a user-facing validation message", async () => {
-    const chromeApi = createChromeApi()
-    vi.mocked(chromeApi.runtime.sendMessage).mockResolvedValue({
-      ok: false,
-      requestId: "reminder-3",
-      error: { code: "REMINDER_CONFIG_INVALID" },
-    })
-
-    const port = createChromeGeneralSettingsPort(chromeApi, () => "reminder-3")
-
-    await expect(
-      port.updateReminderSettings({ frequentVisitDayThreshold: 40 }),
-    ).rejects.toThrow("選択した期間に合う訪問日数を入力してください。")
+    expect(chromeApi.runtime.sendMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: "update-general-settings",
+        payload: { autoArchiveEnabled: true }
+      })
+    )
   })
 })

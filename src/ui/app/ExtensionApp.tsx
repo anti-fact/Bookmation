@@ -40,10 +40,20 @@ import {
   type OnboardingPort
 } from "~/ui/features/onboarding/onboarding-port"
 import { GeneralSettingsSection } from "~/ui/features/settings/GeneralSettingsSection"
+import { ArchiveSettingsSection } from "~/ui/features/settings/ArchiveSettingsSection"
+import {
+  emptyArchiveSettingsPort,
+  type ArchiveSettingsPort
+} from "~/ui/features/settings/archive-settings-port"
 import {
   emptyGeneralSettingsPort,
   type GeneralSettingsPort
 } from "~/ui/features/settings/general-settings-port"
+import { ShareSettingsSection } from "~/ui/features/settings/ShareSettingsSection"
+import {
+  emptyShareSettingsPort,
+  type ShareSettingsPort
+} from "~/ui/features/settings/share-settings-port"
 import { SearchBox } from "~/ui/features/search/SearchBox"
 import { SearchResultsPage } from "~/ui/features/search/SearchResultsPage"
 import {
@@ -60,7 +70,6 @@ import { Button } from "~/ui/primitives"
 import { joinClassNames } from "~/ui/primitives/class-names"
 
 import { useAppRuntime, useHashRouteStore } from "./AppProviders"
-import { PromptApiTester } from "./PromptApiTester"
 import {
   getHashRouteKey,
   serializeHashRoute,
@@ -289,6 +298,7 @@ function RouteHeader({
 }
 
 type RouteBodyProps = {
+  archiveSettingsPort: ArchiveSettingsPort
   bookmarkListRevision: number
   bookmarkListPort: BookmarkListPort
   generalSettingsPort: GeneralSettingsPort
@@ -306,6 +316,7 @@ type RouteBodyProps = {
   route: HashRoute
   runtime: ReturnType<typeof useAppRuntime>
   searchPort: SearchPort
+  shareSettingsPort: ShareSettingsPort
 }
 
 type WelcomeScreenProps = {
@@ -387,6 +398,7 @@ function WelcomeScreen({
 
 // UI-02では画面遷移の骨組みを実装し、後続機能の領域はプレースホルダーにします。
 function RouteBody({
+  archiveSettingsPort,
   bookmarkListRevision,
   bookmarkListPort,
   headingRef,
@@ -399,7 +411,8 @@ function RouteBody({
   generalSettingsPort,
   route,
   runtime,
-  searchPort
+  searchPort,
+  shareSettingsPort
 }: RouteBodyProps) {
   if (route.kind === "labels") {
     return (
@@ -504,17 +517,13 @@ function RouteBody({
           className="min-w-0 space-y-6 overflow-x-auto rounded-bm-dialog border-2 border-bm-border bg-bm-paper p-3 sm:p-5 lg:p-8"
         >
           {route.section === "general" && (
-            <>
-              <PromptApiTester />
-              <div className="border-t border-bm-border pt-6">
-                <GeneralSettingsSection port={generalSettingsPort} />
-              </div>
-            </>
+            <GeneralSettingsSection port={generalSettingsPort} />
           )}
-          {route.section !== "general" && (
-            <p className="m-0 text-sm leading-6 text-bm-muted-text">
-              この設定項目は現在準備中です。
-            </p>
+          {route.section === "archive" && (
+            <ArchiveSettingsSection port={archiveSettingsPort} />
+          )}
+          {route.section === "share" && (
+            <ShareSettingsSection port={shareSettingsPort} />
           )}
         </section>
       </div>
@@ -571,21 +580,25 @@ function RouteBody({
 
 export function ExtensionApp({
   aiAssistantPort = emptyAiAssistantPort,
+  archiveSettingsPort = emptyArchiveSettingsPort,
   bookmarkFormPort = emptyBookmarkFormPort,
   bookmarkListPort = emptyBookmarkListPort,
   generalSettingsPort = emptyGeneralSettingsPort,
   labelManagementPort = emptyLabelManagementPort,
   onboardingPort = emptyOnboardingPort,
   searchPort = emptySearchPort,
+  shareSettingsPort = emptyShareSettingsPort,
   visitReminderPort = emptyVisitReminderPort
 }: {
   aiAssistantPort?: AiAssistantPort
+  archiveSettingsPort?: ArchiveSettingsPort
   bookmarkFormPort?: BookmarkFormPort
   bookmarkListPort?: BookmarkListPort
   generalSettingsPort?: GeneralSettingsPort
   labelManagementPort?: LabelManagementPort
   onboardingPort?: OnboardingPort
   searchPort?: SearchPort
+  shareSettingsPort?: ShareSettingsPort
   visitReminderPort?: VisitReminderPort
 }) {
   const routeStore = useHashRouteStore()
@@ -878,6 +891,7 @@ export function ExtensionApp({
           </p>
         ) : null}
         <RouteBody
+          archiveSettingsPort={archiveSettingsPort}
           bookmarkListPort={bookmarkListPort}
           bookmarkListRevision={bookmarkListRevision}
           generalSettingsPort={generalSettingsPort}
@@ -893,6 +907,7 @@ export function ExtensionApp({
           route={route}
           runtime={runtime}
           searchPort={searchPort}
+          shareSettingsPort={shareSettingsPort}
         />
       </AppShell>
       <BookmarkDialog

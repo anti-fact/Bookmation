@@ -58,6 +58,9 @@
       "history",
       "alarms"
     ],
+    "optional_permissions": [
+      "notifications"
+    ],
     "host_permissions": [
       "https://*/*",
       "http://*/*"

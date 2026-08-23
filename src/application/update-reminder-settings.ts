@@ -1,8 +1,8 @@
 import {
   assertLocalSettingsValid,
-  type FrequentVisitWindow,
   type LocalSettings,
 } from "~/domain/local-settings"
+import type { FrequentVisitWindow } from "~/domain/types"
 import type { LocalSettingsStore } from "~/ports/local-settings-store-port"
 import type { ReminderPermissionsPort } from "~/ports/visit-reminder-port"
 
@@ -42,7 +42,7 @@ export async function updateReminderSettings(
     frequentVisitDayThreshold = null
   }
 
-  let frequentVisitReminderEnabled =
+  const frequentVisitReminderEnabled =
     patch.frequentVisitReminderEnabled ?? current.frequentVisitReminderEnabled
 
   if (patch.frequentVisitReminderEnabled === true && !current.frequentVisitReminderEnabled) {

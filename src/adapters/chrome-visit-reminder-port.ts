@@ -17,6 +17,25 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value)
 }
 
+function decodePendingReminder(value: unknown) {
+  if (value === null) return null
+  if (
+    !isRecord(value) ||
+    typeof value.reminderId !== "string" ||
+    typeof value.normalizedUrl !== "string" ||
+    typeof value.title !== "string" ||
+    typeof value.visitDays !== "number"
+  ) {
+    throw new Error("保留中のリマインダーの取得に失敗しました。")
+  }
+  return {
+    reminderId: value.reminderId,
+    normalizedUrl: value.normalizedUrl,
+    title: value.title,
+    visitDays: value.visitDays,
+  }
+}
+
 export function createChromeVisitReminderPort(
   chromeApi: VisitReminderChromeApi,
   createRequestId: () => string = () => crypto.randomUUID()
@@ -45,7 +64,7 @@ export function createChromeVisitReminderPort(
         throw new Error("保留中のリマインダーの取得に失敗しました。")
       }
 
-      return response.data ?? null
+      return decodePendingReminder(response.data ?? null)
     },
 
     async respond(input) {

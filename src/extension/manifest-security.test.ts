@@ -10,6 +10,7 @@ describe("manifest security", () => {
     ) as {
       manifest: {
         permissions: string[]
+        optional_permissions: string[]
         host_permissions: string[]
         commands: Record<string, unknown>
       }
@@ -22,6 +23,7 @@ describe("manifest security", () => {
       "history",
       "alarms",
     ])
+    expect(packageJson.manifest.optional_permissions).toEqual(["notifications"])
     expect(packageJson.manifest.host_permissions).toEqual([
       "https://*/*",
       "http://*/*",

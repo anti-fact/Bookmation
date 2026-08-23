@@ -7,6 +7,10 @@ import { safeLogError } from "~/adapters/security/log-redaction"
 import { CATEGORY_TEMPLATE_CATALOG } from "~/catalogs/category-templates"
 import type { ExtensionMessageResponse } from "~/extension/messages"
 import { isDomainError, DomainErrorCode } from "~/domain"
+import {
+  assertLocalSettingsValid,
+  type LocalSettings,
+} from "~/domain/local-settings"
 
 import { handleClassificationJobMessage } from "./classification-job-application"
 import { handleVisitReminder } from "./handle-visit-reminder"
@@ -124,6 +128,43 @@ export function createLibraryApplication(
             }
           }
           throw error
+        }
+      }
+
+      if (request.action === "update-general-settings") {
+        const updatePayload = record(request.payload)
+        if (!updatePayload) return invalid(request.requestId)
+        const allowedKeys = new Set([
+          "autoArchiveEnabled",
+          "archiveAfterDays",
+          "aiGranularity",
+        ])
+        if (Object.keys(updatePayload).some((key) => !allowedKeys.has(key))) {
+          return invalid(request.requestId)
+        }
+        if (
+          updatePayload.autoArchiveEnabled === true &&
+          !(await chrome.permissions.contains({ permissions: ["history"] }))
+        ) {
+          return {
+            requestId: request.requestId,
+            ok: false,
+            error: { code: "ARCHIVE_HISTORY_PERMISSION_REQUIRED" },
+          }
+        }
+        const store = new ChromeLocalSettingsStore()
+        const current = await store.get()
+        const next = { ...current, ...updatePayload } as LocalSettings
+        try {
+          assertLocalSettingsValid(next)
+        } catch {
+          return invalid(request.requestId)
+        }
+        await store.set(next)
+        return {
+          requestId: request.requestId,
+          ok: true,
+          data: toGeneralSettingsSnapshotData(next),
         }
       }
 
