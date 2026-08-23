@@ -20,6 +20,7 @@ import {
   emptyBookmarkListPort,
   type BookmarkListPort
 } from "~/ui/features/bookmarks/bookmark-list-port"
+import { OnboardingCategoriesPage } from "~/ui/features/onboarding/OnboardingCategoriesPage"
 import { GeneralSettingsSection } from "~/ui/features/settings/GeneralSettingsSection"
 import {
   emptyGeneralSettingsPort,
@@ -80,6 +81,11 @@ const welcomeDescription = [
   "かんたんな初期設定を終わらせて、さっそくはじめましょう。"
 ] as const
 
+const onboardingCategoriesDescription = [
+  "あなたのブックマークにぴったりのカテゴリを作りましょう。",
+  "カテゴリは後から設定で変更できます。"
+] as const
+
 // ルートごとの見出しと説明を一か所へ集め、画面本体との表記ずれを防ぎます。
 function getRouteCopy(route: HashRoute): RouteCopy {
   switch (route.kind) {
@@ -87,6 +93,11 @@ function getRouteCopy(route: HashRoute): RouteCopy {
       return {
         description: welcomeDescription.join("\n"),
         heading: "Bookmationへようこそ"
+      }
+    case "onboarding":
+      return {
+        description: onboardingCategoriesDescription.join("\n"),
+        heading: "あなたにあったカテゴリを選ぶ"
       }
     case "home":
       return {
@@ -224,6 +235,7 @@ function RouteHeader({
         <AppHeader {...commonProps} onClose={closeSurface} variant="settings" />
       )
     case "welcome":
+    case "onboarding":
     case "not-found":
       return null
   }
@@ -290,7 +302,7 @@ function WelcomeScreen({
           </p>
           <Button
             className="mt-7 h-[5.1875rem] w-full max-w-[26.75rem] !rounded-none px-6 !font-normal sm:mt-9 sm:!text-[1.75rem]"
-            onClick={() => navigate({ kind: "home" })}
+            onClick={() => navigate({ kind: "onboarding", step: "categories" })}
           >
             ここからはじめる
           </Button>
@@ -579,6 +591,18 @@ export function ExtensionApp({
         heading={copy.heading}
         headingRef={headingRef}
         navigate={navigate}
+      />
+    )
+  }
+
+  if (route.kind === "onboarding") {
+    return (
+      <OnboardingCategoriesPage
+        description={copy.description}
+        heading={copy.heading}
+        headingRef={headingRef}
+        // TASK-014: 選択内容から Category / Tag を作る ApplyCategoryTemplates はまだ繋いでいません。
+        onSubmit={() => navigate({ kind: "home" })}
       />
     )
   }
