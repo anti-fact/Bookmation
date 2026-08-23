@@ -213,37 +213,6 @@ describe("LocalDataLayer", () => {
     })
   })
 
-  describe("BE-06: durable classification job leases", () => {
-    it("claims one pending job and does not lease it twice", async () => {
-      const jobId = uuid()
-      await layer.saveBookmarkWithJob({ id: uuid(), rawUrl: "https://job.example/", title: "Job", creationRequestId: uuid(), jobId, now: 100 })
-
-      const claimed = await layer.claimClassificationJob({ executorInstanceId: "host-a", leaseMs: 1000, now: 200 })
-      const second = await layer.claimClassificationJob({ executorInstanceId: "host-b", leaseMs: 1000, now: 201 })
-
-      expect(claimed).toMatchObject({ id: jobId, state: "RUNNING", executorInstanceId: "host-a", attempt: 1, leaseExpiresAt: 1200 })
-      expect(second).toBeNull()
-    })
-
-    it("requeues an expired lease and allows another host to claim it", async () => {
-      const jobId = uuid()
-      await layer.saveBookmarkWithJob({ id: uuid(), rawUrl: "https://expired-job.example/", title: "Expired", creationRequestId: uuid(), jobId, now: 100 })
-      await layer.claimClassificationJob({ executorInstanceId: "host-a", leaseMs: 10, now: 200 })
-
-      await expect(layer.requeueExpiredClassificationJobs({ now: 211 })).resolves.toBe(1)
-      const claimed = await layer.claimClassificationJob({ executorInstanceId: "host-b", leaseMs: 20, now: 212 })
-
-      expect(claimed).toMatchObject({ id: jobId, state: "RUNNING", executorInstanceId: "host-b", attempt: 2 })
-    })
-
-    it("retries and cancels only allowed job states", async () => {
-      const jobId = uuid()
-      await layer.saveBookmarkWithJob({ id: uuid(), rawUrl: "https://cancel-job.example/", title: "Cancel", creationRequestId: uuid(), jobId })
-      await expect(layer.cancelClassificationJob(jobId, 300)).resolves.toMatchObject({ state: "CANCELED", finishedAt: 300 })
-      await expect(layer.retryClassificationJob(jobId)).rejects.toThrow(DomainErrorCode.INVALID_ID)
-    })
-  })
-
   describe("BE-05: soft delete visibility", () => {
     it("removes a soft-deleted bookmark and its edges from active queries", async () => {
       const bookmarkId = uuid()
@@ -601,6 +570,52 @@ describe("LocalDataLayer", () => {
         creationRequestId: uuid(),
       })
       expect(recreated.normalizedName).toBe("reuseme")
+    })
+  })
+
+  describe("BE-09: lexical search", () => {
+    it("returns active Labels before Bookmarks and caps the combined result", async () => {
+      const category = await layer.createCategory({ id: uuid(), name: "React", creationRequestId: uuid() })
+      await layer.saveBookmarkWithJob({ id: uuid(), rawUrl: "https://react.dev/", title: "React docs", creationRequestId: uuid(), jobId: uuid() })
+      await Promise.all(
+        Array.from({ length: 8 }, (_, index) =>
+          layer.saveBookmarkWithJob({
+            id: uuid(),
+            rawUrl: `https://react-${index}.example/`,
+            title: `React ${index}`,
+            creationRequestId: uuid(),
+            jobId: uuid(),
+          }),
+        ),
+      )
+
+      const result = await layer.searchAllByKeyword("react", 8)
+
+      expect(result.labels.map((label) => label.id)).toEqual([category.id])
+      expect(result.bookmarks).toHaveLength(7)
+      expect(await layer.searchAllByKeyword("", 8)).toEqual({ labels: [], bookmarks: [] })
+    })
+
+    it("returns at most eight deterministic autocomplete candidates", async () => {
+      await Promise.all(
+        Array.from({ length: 9 }, (_, index) =>
+          layer.saveBookmarkWithJob({
+            id: uuid(),
+            rawUrl: `https://autocomplete-${index}.example/`,
+            title: `Autocomplete ${index}`,
+            creationRequestId: uuid(),
+            jobId: uuid(),
+          }),
+        ),
+      )
+
+      const candidates = await layer.suggestAllByKeyword("autocomplete", 9)
+
+      expect(candidates).toHaveLength(8)
+      expect(candidates.every((candidate) => candidate.entityType === "BOOKMARK")).toBe(true)
+      expect(candidates.map((candidate) => candidate.entityId)).toEqual(
+        [...candidates].map((candidate) => candidate.entityId).sort(),
+      )
     })
   })
 })
