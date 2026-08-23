@@ -312,7 +312,6 @@ function RouteHeader({
 type RouteBodyProps = {
   bookmarkImportPort: BookmarkImportPort
   archiveSettingsPort: ArchiveSettingsPort
-  bookmarkFormPort: BookmarkFormPort
   bookmarkListRevision: number
   bookmarkListPort: BookmarkListPort
   chromeBookmarkImportPort: ChromeBookmarkImportPort
@@ -417,7 +416,6 @@ function WelcomeScreen({
 function RouteBody({
   bookmarkImportPort,
   archiveSettingsPort,
-  bookmarkFormPort,
   bookmarkListRevision,
   bookmarkListPort,
   chromeBookmarkImportPort,
@@ -539,11 +537,7 @@ function RouteBody({
           className="min-w-0 space-y-6 overflow-x-auto rounded-bm-dialog border-2 border-bm-border bg-bm-paper p-3 sm:p-5 lg:p-8"
         >
           {route.section === "general" && (
-            <GeneralSettingsSection
-              chromeBookmarkImportPort={chromeBookmarkImportPort}
-              onBookmarksImported={onBookmarksImported}
-              port={generalSettingsPort}
-            />
+            <GeneralSettingsSection port={generalSettingsPort} />
           )}
           {route.section === "archive" && (
             <ArchiveSettingsSection port={archiveSettingsPort} />
@@ -553,6 +547,8 @@ function RouteBody({
               <ShareSettingsSection port={shareSettingsPort} />
               <SettingsWorkflowSection
                 bookmarkImportPort={bookmarkImportPort}
+                chromeBookmarkImportPort={chromeBookmarkImportPort}
+                onBookmarksImported={onBookmarksImported}
                 shareWorkflowPort={shareWorkflowPort}
               />
             </div>
@@ -946,7 +942,6 @@ export function ExtensionApp({
         <RouteBody
           bookmarkImportPort={bookmarkImportPort}
           archiveSettingsPort={archiveSettingsPort}
-          bookmarkFormPort={bookmarkFormPort}
           bookmarkListPort={bookmarkListPort}
           bookmarkListRevision={bookmarkListRevision}
           chromeBookmarkImportPort={resolvedChromeBookmarkImportPort}

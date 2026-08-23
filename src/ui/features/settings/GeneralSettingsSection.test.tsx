@@ -8,16 +8,10 @@ import {
   emptyGeneralSettingsPort,
   type GeneralSettingsPort
 } from "./general-settings-port"
-import { emptyChromeBookmarkImportPort } from "./chrome-bookmark-import-port"
 import { GeneralSettingsSection } from "./GeneralSettingsSection"
 
 function renderGeneralSettings(port: GeneralSettingsPort = createPort()) {
-  return (
-    <GeneralSettingsSection
-      chromeBookmarkImportPort={emptyChromeBookmarkImportPort}
-      port={port}
-    />
-  )
+  return <GeneralSettingsSection port={port} />
 }
 
 function createPort(
@@ -54,6 +48,11 @@ describe("GeneralSettingsSection", () => {
         .getByRole("slider", { name: "AIタグの細分化" })
         .getAttribute("aria-valuenow")
     ).toBe("2")
+    expect(
+      screen.queryByRole("group", {
+        name: "Chrome ブックマークの取り込み"
+      })
+    ).toBeNull()
   })
 
   it("clears the visit-day value whenever the window changes", async () => {
