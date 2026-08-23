@@ -2,6 +2,7 @@ import * as React from "react"
 
 import { Select, Slider, Switch } from "~/ui/primitives"
 
+import { GeminiNanoSettings } from "./GeminiNanoSettings"
 import type {
   AiGranularity,
   GeneralSettingsPort,
@@ -299,6 +300,8 @@ export function GeneralSettingsSection({ port }: { port: GeneralSettingsPort }) 
           </span>
         </label>
       </fieldset>
+
+      <GeminiNanoSettings />
 
       <div className="space-y-4 border-t-2 border-bm-muted pt-6">
         <Slider
