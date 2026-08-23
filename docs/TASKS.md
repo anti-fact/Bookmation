@@ -70,7 +70,7 @@
 - [x] `割り当てを変更` から `chrome://extensions/shortcuts` への遷移または手順案内を実装する。
 - [ ] 2 commands を別 handler へ接続する。
 - [ ] 共通ヘッダーの追加操作から、`http:` / `https:` URL、任意title、0件以上のactive Tag IDを入力、検証、保存する。TagはTASK-005と共有する順次追加componentを使い、Categoryは選択Tagの親から自動導出する。
-- [ ] `runtime.onInstalled` の `reason=INSTALL` だけで初回状態を初期化し、初回だけ導入ホーム、完了後は最近追加ホームを開く。
+- [x] `runtime.onInstalled` の `reason=INSTALL` だけで初回状態を初期化し、初回だけ導入ホーム、完了後は最近追加ホームを開く。
 - UI-03でpopup画面、Chrome Port、保存中／成功／重複／失敗状態、Web fixtureを実装した。実保存Application、command保存、URL指定保存は未完了である。
 - 完了条件: 3保存入口が共通 use case を使い、DashboardのBookmark追加ではTagを順次追加／解除して保存でき、worker 再起動でもデータを失わない。
 
@@ -78,10 +78,10 @@
 
 - [ ] ISSUE-022で候補名／件数、set構成、選択方式、初期選択、skip、名前編集、初回後の再表示、locale、catalog version、再適用と名前競合のUXを決定する。決定前に本番候補をhardcodeしない。
 - [x] version付きのローカルCategory template catalogを定義し、remote fetchや実行コードを含めずbundleする。
-- [ ] 初回オンボーディングへtemplate stepを追加し、catalog表示だけではCategoryを作らない。途中終了時は既存のonboarding進捗から再開する。
+- [x] 初回オンボーディングへtemplate stepを追加し、catalog表示だけではCategoryを作らない。途中終了時は既存のonboarding進捗から再開する。
 - [x] 利用者の明示適用を通常のCategory作成use caseへ渡し、`origin=USER`、Normalizer、一意名、tombstone予約を維持する。AI用Category作成経路や `origin=TEMPLATE` を追加しない。
 - [x] 複数候補の適用requestを冪等化し、応答消失後の再送、既存／tombstone同名、部分失敗、update／reloadでの意図しない再適用を扱う。
-- [ ] 作成されたCategoryを通常の一覧・編集・削除から扱え、既存Categoryを自動改名・削除しない。
+- [x] 作成されたCategoryを通常の一覧・編集・削除から扱え、既存Categoryを自動改名・削除しない。
 - [ ] Webプレビュー、Playwright実拡張E2E、人間受入で未適用／適用中／成功／競合／再開状態を確認する。
 - 完了条件: ISSUE-022がDecidedになり、利用者操作前のCategory件数が変わらず、明示適用後だけ通常のUSER Categoryが重複なく作成され、update／reload／retryで再作成されない。
 

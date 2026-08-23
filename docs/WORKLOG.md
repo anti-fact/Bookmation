@@ -1123,6 +1123,35 @@ Bookmark一覧とカテゴリ・タグ一覧の画面上で、自然言語検索
 - AIへ提示済み候補からID集合を選ばせ、Service Workerで再検証する二段階backend契約は未接続である。現時点はモデルへ候補IDを渡さず、trustedな字句検索候補をそのまま表示する。
 - repository管理された実拡張E2E、実Prompt APIモデル、人間による実Chrome受入は未実施である。
 
+## 2026-08-23 — UI-09 Welcome／Category template再開と明示適用
+
+### 目的
+
+install時だけwelcomeを開き、Category templateの選択を途中再開し、明示保存後だけ通常のCategory／Tagを作成する。
+
+### 変更
+
+- `reason=INSTALL`の初回だけinstall stateとonboarding stateを同時に初期化し、update、通常起動、同じinstall signalの再送ではwelcomeを開かない既存境界を維持した。
+- welcome開始、Category step、選択draft、apply request ID、完了を`chrome.storage.local`へ保存し、未完了状態でホームを開いた場合はwelcomeまたはCategory stepへreplace遷移するようにした。
+- 既存のaccordion内checkboxへ初期選択復元と変更通知、保存中、失敗、再試行を追加した。catalog閲覧だけではLabelを作らない。
+- `OnboardingPort`とChrome adapterを追加し、明示保存されたCategoryとTagだけを既存`BookmarkFormPort`の通常作成use caseへ渡した。部分失敗のretryでは保存済みapply request IDを再利用する。
+- 既存同名Category／Tagは再利用し、別親に同名Tagがある場合は自動移動せずdraftを保持してエラーにする。完了後だけonboarding selectionを消して最近追加ホームへ移る。
+- App Shell Web previewへonboarding fake Portを追加した。
+
+### 検証
+
+- `pnpm typecheck`: 成功。
+- onboarding state／install／adapter／component／App Shell対象test: 成功。
+- `pnpm test`: 69 files／380 tests成功。
+- UI-09変更対象のESLint: 成功。
+- `pnpm ui:build`、`pnpm build`: 成功。
+- `git diff --check`: 成功。
+
+### 残課題
+
+- ISSUE-022の初回後の再表示、名前編集、locale追加、catalog更新／再適用の詳細UXは未決であり実装していない。
+- repository管理された実拡張E2E、build済み拡張のinstall event、人間による実Chrome受入は未実施である。
+
 ## 追記テンプレート
 
 ```markdown

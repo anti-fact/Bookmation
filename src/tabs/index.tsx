@@ -6,6 +6,7 @@ import { createBrowserAiAssistantPort } from "~/adapters/browser-ai-assistant-po
 import { createChromeBookmarkFormPort } from "~/adapters/chrome-bookmark-form-port"
 import { createChromeGeneralSettingsPort } from "~/adapters/chrome-general-settings-port"
 import { createChromeLabelManagementPort } from "~/adapters/chrome-label-management-port"
+import { createChromeOnboardingPort } from "~/adapters/chrome-onboarding-port"
 import { createIndexedDbBookmarkListPort } from "~/adapters/indexeddb-bookmark-list-port"
 import { createChromeSearchPort } from "~/adapters/chrome-search-port"
 import { AppProviders } from "~/ui/app/AppProviders"
@@ -36,6 +37,10 @@ export default function DashboardTab() {
     () => createChromeLabelManagementPort(),
     []
   )
+  const onboardingPort = React.useMemo(
+    () => createChromeOnboardingPort({ bookmarkFormPort }),
+    [bookmarkFormPort]
+  )
   const searchPort = React.useMemo(() => createChromeSearchPort(), [])
 
   return (
@@ -47,6 +52,7 @@ export default function DashboardTab() {
           bookmarkListPort={bookmarkListPort}
           generalSettingsPort={generalSettingsPort}
           labelManagementPort={labelManagementPort}
+          onboardingPort={onboardingPort}
           searchPort={searchPort}
         />
       </AppErrorBoundary>

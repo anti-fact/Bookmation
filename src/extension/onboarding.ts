@@ -6,26 +6,43 @@ export interface OnboardingState {
   currentStepId: string | null
   initializedBy: "INSTALL"
   updatedAt: number
+  categorySelection?: Record<string, string[]>
+  applyRequestId?: string
 }
 
-const STORAGE_KEY = "bookmation_onboarding_state"
+export const ONBOARDING_STATE_KEY = "bookmation_onboarding_state"
 
-type StorageLocal = Pick<typeof chrome.storage.local, "get" | "set">
+export type OnboardingStorage = {
+  get(key: string): Promise<Record<string, unknown>>
+  set(value: Record<string, unknown>): Promise<void>
+}
 
 export async function getOnboardingState(
-  storage: StorageLocal = chrome.storage.local,
+  storage: OnboardingStorage = chrome.storage.local
 ): Promise<OnboardingState | null> {
-  const result = await storage.get(STORAGE_KEY)
-  const raw = result[STORAGE_KEY]
+  const result = await storage.get(ONBOARDING_STATE_KEY)
+  const raw = result[ONBOARDING_STATE_KEY]
   if (raw === undefined || raw === null || typeof raw !== "object") {
     return null
   }
-  return raw as OnboardingState
+  const candidate = raw as Record<string, unknown>
+  if (
+    candidate.schemaVersion !== 1 ||
+    (candidate.status !== "NOT_STARTED" &&
+      candidate.status !== "IN_PROGRESS" &&
+      candidate.status !== "COMPLETED") ||
+    (candidate.currentStepId !== null &&
+      typeof candidate.currentStepId !== "string") ||
+    candidate.initializedBy !== "INSTALL" ||
+    typeof candidate.updatedAt !== "number"
+  )
+    return null
+  return candidate as unknown as OnboardingState
 }
 
 export async function initializeOnboardingIfMissing(
-  storage: StorageLocal = chrome.storage.local,
-  now: number = Date.now(),
+  storage: OnboardingStorage = chrome.storage.local,
+  now: number = Date.now()
 ): Promise<OnboardingState> {
   const existing = await getOnboardingState(storage)
   if (existing) {
@@ -37,8 +54,8 @@ export async function initializeOnboardingIfMissing(
     status: "NOT_STARTED",
     currentStepId: "welcome",
     initializedBy: "INSTALL",
-    updatedAt: now,
+    updatedAt: now
   }
-  await storage.set({ [STORAGE_KEY]: created })
+  await storage.set({ [ONBOARDING_STATE_KEY]: created })
   return created
 }

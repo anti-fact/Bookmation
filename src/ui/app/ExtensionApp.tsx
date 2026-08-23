@@ -34,6 +34,10 @@ import {
   type LabelManagementPort
 } from "~/ui/features/labels/label-management-port"
 import { OnboardingCategoriesPage } from "~/ui/features/onboarding/OnboardingCategoriesPage"
+import {
+  emptyOnboardingPort,
+  type OnboardingPort
+} from "~/ui/features/onboarding/onboarding-port"
 import { GeneralSettingsSection } from "~/ui/features/settings/GeneralSettingsSection"
 import {
   emptyGeneralSettingsPort,
@@ -302,7 +306,7 @@ type WelcomeScreenProps = {
   description: string
   heading: string
   headingRef: React.Ref<HTMLHeadingElement>
-  navigate: NavigateRoute
+  onStart: () => Promise<void>
 }
 
 // Figma「メイン画面」の初期画面を、通常画面のヘッダーやカードから独立して再現します。
@@ -310,8 +314,21 @@ function WelcomeScreen({
   description,
   heading,
   headingRef,
-  navigate
+  onStart
 }: WelcomeScreenProps) {
+  const [startState, setStartState] = React.useState<
+    "idle" | "saving" | "error"
+  >("idle")
+
+  const start = async () => {
+    setStartState("saving")
+    try {
+      await onStart()
+    } catch {
+      setStartState("error")
+    }
+  }
+
   return (
     <div className="min-h-dvh overflow-x-clip bg-bm-paper text-bm-ink">
       <main
@@ -346,10 +363,16 @@ function WelcomeScreen({
           </p>
           <Button
             className="mt-7 h-[5.1875rem] w-full max-w-[26.75rem] !rounded-none px-6 !font-normal sm:mt-9 sm:!text-[1.75rem]"
-            onClick={() => navigate({ kind: "onboarding", step: "categories" })}
+            loading={startState === "saving"}
+            onClick={() => void start()}
           >
-            ここからはじめる
+            {startState === "saving" ? "準備しています" : "ここからはじめる"}
           </Button>
+          {startState === "error" ? (
+            <p className="mb-0 mt-4 text-sm text-bm-error" role="alert">
+              初期設定を開始できませんでした。もう一度お試しください。
+            </p>
+          ) : null}
         </section>
       </main>
     </div>
@@ -547,6 +570,7 @@ export function ExtensionApp({
   bookmarkListPort = emptyBookmarkListPort,
   generalSettingsPort = emptyGeneralSettingsPort,
   labelManagementPort = emptyLabelManagementPort,
+  onboardingPort = emptyOnboardingPort,
   searchPort = emptySearchPort
 }: {
   aiAssistantPort?: AiAssistantPort
@@ -554,6 +578,7 @@ export function ExtensionApp({
   bookmarkListPort?: BookmarkListPort
   generalSettingsPort?: GeneralSettingsPort
   labelManagementPort?: LabelManagementPort
+  onboardingPort?: OnboardingPort
   searchPort?: SearchPort
 }) {
   const routeStore = useHashRouteStore()
@@ -579,6 +604,8 @@ export function ExtensionApp({
     React.useState<LabelsCreateRequest>(null)
   const [labelsManageMode, setLabelsManageMode] = React.useState(false)
   const [notice, setNotice] = React.useState<string | null>(null)
+  const [onboardingState, setOnboardingState] =
+    React.useState<Awaited<ReturnType<OnboardingPort["load"]>>>(null)
 
   // ブラウザ標準とアプリ独自のスクロール復元が競合しないようにします。
   React.useEffect(() => runtime.setManualScrollRestoration(), [runtime])
@@ -643,6 +670,24 @@ export function ExtensionApp({
     [route, routeKey, routeStore, runtime]
   )
 
+  React.useEffect(() => {
+    let active = true
+    void onboardingPort.load().then((state) => {
+      if (!active || !state) return
+      setOnboardingState(state)
+      if (route.kind !== "home" || state.status === "COMPLETED") return
+      navigate(
+        state.status === "NOT_STARTED"
+          ? { kind: "welcome" }
+          : { kind: "onboarding", step: "categories" },
+        { replace: true }
+      )
+    })
+    return () => {
+      active = false
+    }
+  }, [navigate, onboardingPort, route.kind])
+
   const closeSurface = React.useCallback(() => {
     const currentSurface =
       route.kind === "labels"
@@ -669,7 +714,11 @@ export function ExtensionApp({
         description={copy.description}
         heading={copy.heading}
         headingRef={headingRef}
-        navigate={navigate}
+        onStart={async () => {
+          const state = await onboardingPort.start()
+          setOnboardingState(state)
+          navigate({ kind: "onboarding", step: "categories" })
+        }}
       />
     )
   }
@@ -680,8 +729,14 @@ export function ExtensionApp({
         description={copy.description}
         heading={copy.heading}
         headingRef={headingRef}
-        // TASK-014: 選択内容から Category / Tag を作る ApplyCategoryTemplates はまだ繋いでいません。
-        onSubmit={() => navigate({ kind: "home" })}
+        initialSelection={onboardingState?.categorySelection}
+        onSelectionChange={async (selection) => {
+          setOnboardingState(await onboardingPort.saveSelection(selection))
+        }}
+        onSubmit={async (selection) => {
+          setOnboardingState(await onboardingPort.complete(selection))
+          navigate({ kind: "home" })
+        }}
       />
     )
   }

@@ -590,12 +590,12 @@ UI-08では、Bookmark一覧とカテゴリ・タグ一覧で共有する`AiAgen
 
 1. `reason=INSTALL`でだけ`#/welcome`を開く。
 2. logo、説明、開始buttonをscreen sheetどおり配置する。
-3. 開始後は`#/home`へ遷移する。
+3. 開始後はCategory template stepへ進み、保存完了後に`#/home`へ遷移する。
 4. update、development reload、通常起動ではwelcomeを再表示しない。
-5. Category templateはcatalog表示だけでCategoryを作らない。
-6. 具体的な候補、初期選択、skip、再表示はISSUE-022をDecidedにしてから実装する。
+5. Category templateはcatalog表示だけでCategoryを作らず、`設定を保存`の明示操作後だけ選択済みCategory／Tagを作る。
+6. 2026-08-23に確定した候補、set、accordion内checkbox、初期未選択を使う。初回後の再表示と名前編集はISSUE-022の残項目として先行実装しない。
 
-未決のtemplate UIを見た目だけ先行してproductionへ入れない。必要ならWeb previewの`experimental` fixtureへ隔離し、production buildへ含めない。
+UI-09では、install時だけwelcomeとonboarding stateを初期化し、開始、選択draft、適用request ID、完了を`chrome.storage.local`へ保存する。途中で閉じてホームを開くと保存済みstepとcheckbox選択を復元する。明示保存では既存のCategory／Tag作成Portを使い、USER origin、一意名、親Category revision、request ID再利用を維持する。異なる親に同名Tagがある場合は自動移動せず、draftを保持したエラーにする。
 
 ### Phase 10: Settingsを作る
 
