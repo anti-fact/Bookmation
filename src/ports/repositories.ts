@@ -59,6 +59,11 @@ export interface ListRecentBookmarksResult {
   nextCursor: BookmarkCursor | null
 }
 export interface SearchAllByKeywordResult { labels: PersistedLabelRecord[]; bookmarks: PersistedActiveBookmarkRecord[] }
+export interface SearchDocumentRebuildResult {
+  processed: number
+  deleted: number
+  complete: boolean
+}
 export interface SuggestAllByKeywordCandidate {
   entityType: "LABEL" | "BOOKMARK"
   entityId: string
@@ -128,6 +133,8 @@ export interface LocalDataLayerPort {
   listLabelCandidates(keyword: string, kind?: "CATEGORY" | "TAG", limit?: number): Promise<LabelCandidate[]>
   searchAllByKeyword(keyword: string, limit?: number): Promise<SearchAllByKeywordResult>
   suggestAllByKeyword(keyword: string, limit?: number): Promise<SuggestAllByKeywordCandidate[]>
+  rebuildSearchDocuments(input?: { limit?: number; now?: number }): Promise<SearchDocumentRebuildResult>
+  collectUnreferencedBlobs(): Promise<number>
   softDeleteBookmark(bookmarkId: string, expectedRevision: number): Promise<void>
   softDeleteTag(tagId: string, expectedRevision: number): Promise<void>
   getCategoryEditDetail(categoryId: string): Promise<{

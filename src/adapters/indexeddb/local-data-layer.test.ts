@@ -571,6 +571,77 @@ describe("LocalDataLayer", () => {
       })
       expect(recreated.normalizedName).toBe("reuseme")
     })
+
+    it("keeps a tombstoned Category while a child Tag tombstone remains", async () => {
+      const category = await layer.createCategory({ id: uuid(), name: "Parent", creationRequestId: uuid() })
+      const tag = await layer.createTag({
+        id: uuid(),
+        name: "Child",
+        parentCategoryId: category.id,
+        expectedParentRevision: category.revision,
+        creationRequestId: uuid(),
+      })
+      const tx = layer.rawDb.transaction(STORES.labels, "readwrite")
+      await tx.store.put({ ...category, deletedAt: 10, revision: 2, updatedAt: 10 })
+      await tx.store.put({ ...tag, deletedAt: 10, revision: 2, updatedAt: 10 })
+      await tx.done
+
+      await expect(layer.physicalGcLabel(category.id)).rejects.toThrow(
+        DomainErrorCode.TAG_PARENT_CATEGORY_RECORD_MISSING,
+      )
+    })
+  })
+
+  describe("BE-11: maintenance recovery", () => {
+    it("rebuilds search documents in resumable batches and removes stale documents", async () => {
+      const category = await layer.createCategory({ id: uuid(), name: "Rebuild", creationRequestId: uuid() })
+      const bookmark = await layer.saveBookmarkWithJob({
+        id: uuid(),
+        rawUrl: "https://rebuild.example/",
+        title: "Rebuild bookmark",
+        creationRequestId: uuid(),
+        jobId: uuid(),
+      })
+      const initial = await layer.rawDb.getAll(STORES.searchDocuments)
+      const tx = layer.rawDb.transaction(STORES.searchDocuments, "readwrite")
+      await tx.store.delete(initial[0]!.id)
+      await tx.store.put({ ...initial[1]!, id: `BOOKMARK:${uuid()}`, entityId: uuid() })
+      await tx.done
+
+      let result = await layer.rebuildSearchDocuments({ limit: 1, now: 100 })
+      expect(result.complete).toBe(false)
+      do {
+        result = await layer.rebuildSearchDocuments({ limit: 1, now: 100 })
+      } while (!result.complete)
+
+      const documents = await layer.rawDb.getAll(STORES.searchDocuments)
+      expect(documents.map((document) => document.id).sort()).toEqual([
+        `BOOKMARK:${bookmark.bookmark.id}`,
+        `LABEL:${category.id}`,
+      ])
+      expect((await layer.getSchemaMeta()).migrationState).toBe("IDLE")
+    })
+
+    it("collects only Blob records unreferenced by active or tombstoned Bookmarks", async () => {
+      const referencedBlobId = uuid()
+      const orphanBlobId = uuid()
+      const blob = new Blob([new Uint8Array([1, 2, 3])], { type: "image/png" })
+      await layer.putBlobRecord({ id: referencedBlobId, kind: "FAVICON", mimeType: "image/png", byteLength: 3, width: 1, height: 1, data: blob, contentHash: "a" })
+      await layer.putBlobRecord({ id: orphanBlobId, kind: "THUMBNAIL", mimeType: "image/png", byteLength: 3, width: 1, height: 1, data: blob, contentHash: "b" })
+      const saved = await layer.saveBookmarkWithJob({
+        id: uuid(),
+        rawUrl: "https://blob-reference.example/",
+        title: "Blob reference",
+        faviconBlobId: referencedBlobId,
+        creationRequestId: uuid(),
+        jobId: uuid(),
+      })
+      await layer.softDeleteBookmark(saved.bookmark.id, saved.bookmark.revision)
+
+      await expect(layer.collectUnreferencedBlobs()).resolves.toBe(1)
+      await expect(layer.getBlobRecord(referencedBlobId)).resolves.toBeDefined()
+      await expect(layer.getBlobRecord(orphanBlobId)).resolves.toBeUndefined()
+    })
   })
 
   describe("BE-09: lexical search", () => {
