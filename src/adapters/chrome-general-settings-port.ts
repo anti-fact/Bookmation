@@ -2,9 +2,11 @@ import {
   EXTENSION_MESSAGE_SCHEMA_VERSION,
   type ExtensionMessageResponse
 } from "~/extension/messages"
+import type { FrequentVisitWindow } from "~/domain/types"
 import {
   type GeneralSettingsPort,
-  type GeneralSettingsSnapshot
+  type GeneralSettingsSnapshot,
+  type ReminderSettingsPatch
 } from "~/ui/features/settings/general-settings-port"
 
 export class GeneralSettingsPortError extends Error {
@@ -28,6 +30,20 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value)
 }
 
+function decodeWindow(value: unknown): FrequentVisitWindow | null {
+  if (value === null) {
+    return null
+  }
+  if (
+    value === "LAST_7_DAYS" ||
+    value === "LAST_30_DAYS" ||
+    value === "LAST_365_DAYS"
+  ) {
+    return value
+  }
+  return null
+}
+
 function decodeSnapshot(data: unknown): GeneralSettingsSnapshot {
   if (!isRecord(data) || typeof data.contextMenuBookmarkEnabled !== "boolean") {
     throw new GeneralSettingsPortError(
@@ -35,7 +51,24 @@ function decodeSnapshot(data: unknown): GeneralSettingsSnapshot {
       "設定を読み込めませんでした。"
     )
   }
-  return { contextMenuBookmarkEnabled: data.contextMenuBookmarkEnabled }
+  const frequentVisitReminderEnabled =
+    typeof data.frequentVisitReminderEnabled === "boolean"
+      ? data.frequentVisitReminderEnabled
+      : false
+  const frequentVisitWindow = decodeWindow(data.frequentVisitWindow)
+  const frequentVisitDayThreshold =
+    data.frequentVisitDayThreshold === null
+      ? null
+      : typeof data.frequentVisitDayThreshold === "number"
+        ? data.frequentVisitDayThreshold
+        : null
+
+  return {
+    contextMenuBookmarkEnabled: data.contextMenuBookmarkEnabled,
+    frequentVisitReminderEnabled,
+    frequentVisitWindow,
+    frequentVisitDayThreshold,
+  }
 }
 
 function decodeMessageResponse(
@@ -62,9 +95,9 @@ function decodeMessageResponse(
   return decodeSnapshot(response.data)
 }
 
-function sendSettingsMessage(
+function sendMessage(
   chromeApi: GeneralSettingsChromeApi,
-  action: "get-general-settings-snapshot" | "set-context-menu-bookmark-enabled",
+  action: string,
   payload: Record<string, unknown>,
   requestId: string
 ): Promise<GeneralSettingsSnapshot> {
@@ -95,7 +128,7 @@ export function createChromeGeneralSettingsPort(
   return {
     async getSnapshot() {
       const requestId = createRequestId()
-      return sendSettingsMessage(
+      return sendMessage(
         chromeApi,
         "get-general-settings-snapshot",
         {},
@@ -105,12 +138,22 @@ export function createChromeGeneralSettingsPort(
 
     async setContextMenuBookmarkEnabled(enabled) {
       const requestId = createRequestId()
-      return sendSettingsMessage(
+      return sendMessage(
         chromeApi,
         "set-context-menu-bookmark-enabled",
         { enabled },
         requestId
       )
-    }
+    },
+
+    async updateReminderSettings(patch) {
+      const requestId = createRequestId()
+      return sendMessage(
+        chromeApi,
+        "update-reminder-settings",
+        { ...patch },
+        requestId
+      )
+    },
   }
 }

@@ -7,6 +7,9 @@ import { safeLogError, safeLogInfo, safeLogWarning } from "~/adapters/security/l
 import { handleExtensionCommand } from "~extension/command-handlers"
 import { handleContextMenuClick } from "~extension/context-menu-handlers"
 import { registerContextMenuLifecycle } from "~extension/context-menu-lifecycle"
+import {
+  registerVisitReminderLifecycle,
+} from "~extension/visit-reminder-lifecycle"
 import { isExtensionCommand } from "~extension/commands"
 import { initializeOnInstall } from "~extension/install-handler"
 import { createExtensionMessageRouter } from "~extension/message-router"
@@ -62,6 +65,8 @@ chrome.runtime.onInstalled.addListener((details) => {
 })
 
 registerContextMenuLifecycle(chrome.runtime, chrome.storage)
+
+registerVisitReminderLifecycle(chrome)
 
 chrome.contextMenus.onClicked.addListener((info) => {
   void handleContextMenuClick(info, contextMenuDeps).catch((error: unknown) => {

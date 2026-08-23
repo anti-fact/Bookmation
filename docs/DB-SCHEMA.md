@@ -812,7 +812,7 @@ interface VisitReminderRecord {
 }
 ~~~
 
-同じ正規化URLに有効な `PENDING` を複数作らない。評価時は `chrome.history.getVisits()` の各 `visitTime` を現在の端末ローカル暦日へ変換し、同じcanonical URL・同じ暦日を1件へまとめる。選択期間の開始時刻と、そのURLの最新 `countingResetAt` の遅い方より後だけを数える。`いいえ` はstateを `DECLINED`、`respondedAt` と `countingResetAt` を応答時刻へ更新し、次の候補はそれ以降の訪問日だけで再判定する。同日中でもreset後の訪問は新しい1日目になり得る。「次回以降表示しない」は候補URL単位で `SUPPRESSED` にし、resetより優先する。グローバル設定 `frequentVisitReminderEnabled` は変更せず、履歴がさらに増えても同じURLを再候補化しない。`SAVED` へ変えるのは利用者が `はい` を選び、Bookmark保存がcommitした後だけとする。OS通知を明示回答せず閉じた `DISMISSED` の再表示規則はISSUE-008で決める。
+同じ正規化URLに有効な `PENDING` を複数作らない。評価時は `chrome.history.getVisits()` の各 `visitTime` を現在の端末ローカル暦日へ変換し、同じcanonical URL・同じ暦日を1件へまとめる。選択期間の開始時刻と、そのURLの最新 `countingResetAt` の遅い方より後だけを数える。`いいえ` はstateを `DECLINED`、`respondedAt` と `countingResetAt` を応答時刻へ更新し、次の候補はそれ以降の訪問日だけで再判定する。同日中でもreset後の訪問は新しい1日目になり得る。「次回以降表示しない」は候補URL単位で `SUPPRESSED` にし、resetより優先する。グローバル設定 `frequentVisitReminderEnabled` は変更せず、履歴がさらに増えても同じURLを再候補化しない。`SAVED` へ変えるのは利用者が `はい` を選び、Bookmark保存がcommitした後だけとする。OS通知を明示回答せず閉じた `DISMISSED` は `いいえ` と同じく `countingResetAt` を応答時刻へ更新する（ISSUE-D39）。
 
 ## archiveOperations
 

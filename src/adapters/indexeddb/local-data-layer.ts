@@ -1436,6 +1436,10 @@ export class LocalDataLayer {
     return recoverStaleClassificationJobs(this.db, now)
   }
 
+  async requeueExpiredClassificationJobs(input: { now?: EpochMs } = {}): Promise<number> {
+    return recoverStaleClassificationJobs(this.db, input.now ?? Date.now())
+  }
+
   async claimClassificationJob(
     input: Omit<ClaimClassificationJobInput, "now"> & { now?: EpochMs },
   ): Promise<ClaimClassificationJobResult | null> {

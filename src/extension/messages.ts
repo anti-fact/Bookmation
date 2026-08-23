@@ -28,6 +28,9 @@ export const EXTENSION_MESSAGE_ACTIONS = {
   SEARCH_LIBRARY: "search-library",
   GET_GENERAL_SETTINGS_SNAPSHOT: "get-general-settings-snapshot",
   SET_CONTEXT_MENU_BOOKMARK_ENABLED: "set-context-menu-bookmark-enabled",
+  UPDATE_REMINDER_SETTINGS: "update-reminder-settings",
+  HANDLE_VISIT_REMINDER: "handle-visit-reminder",
+  GET_PENDING_VISIT_REMINDER: "get-pending-visit-reminder",
 } as const
 
 export type ExtensionMessageAction =
@@ -86,6 +89,18 @@ export type SetContextMenuBookmarkEnabledPayload = Readonly<{
   enabled: boolean
 }>
 
+export type UpdateReminderSettingsPayload = Readonly<{
+  frequentVisitReminderEnabled?: boolean
+  frequentVisitWindow?: "LAST_7_DAYS" | "LAST_30_DAYS" | "LAST_365_DAYS" | null
+  frequentVisitDayThreshold?: number | null
+}>
+
+export type HandleVisitReminderPayload = Readonly<{
+  reminderId: string
+  response: "yes" | "no" | "dismissed"
+  suppressFuture?: boolean
+}>
+
 export type ListBookmarksPayload = Readonly<{
   limit?: number
   labelId?: string
@@ -140,6 +155,9 @@ export type ExtensionMessageRequest =
       "dashboard",
       SetContextMenuBookmarkEnabledPayload
     >
+  | MessageRequest<"update-reminder-settings", "dashboard", UpdateReminderSettingsPayload>
+  | MessageRequest<"handle-visit-reminder", "dashboard", HandleVisitReminderPayload>
+  | MessageRequest<"get-pending-visit-reminder", "dashboard", Record<never, never>>
 
 export type ExtensionMessageErrorCode =
   | "INVALID_MESSAGE"

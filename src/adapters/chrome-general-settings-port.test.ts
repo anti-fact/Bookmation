@@ -17,13 +17,21 @@ describe("createChromeGeneralSettingsPort", () => {
     vi.mocked(chromeApi.runtime.sendMessage).mockResolvedValue({
       ok: true,
       requestId: "read-1",
-      data: { contextMenuBookmarkEnabled: true }
+      data: {
+        contextMenuBookmarkEnabled: true,
+        frequentVisitReminderEnabled: false,
+        frequentVisitWindow: null,
+        frequentVisitDayThreshold: null,
+      },
     })
 
     const port = createChromeGeneralSettingsPort(chromeApi, () => "read-1")
 
     await expect(port.getSnapshot()).resolves.toEqual({
-      contextMenuBookmarkEnabled: true
+      contextMenuBookmarkEnabled: true,
+      frequentVisitReminderEnabled: false,
+      frequentVisitWindow: null,
+      frequentVisitDayThreshold: null,
     })
     expect(chromeApi.runtime.sendMessage).toHaveBeenCalledWith({
       action: "get-general-settings-snapshot",
@@ -39,13 +47,21 @@ describe("createChromeGeneralSettingsPort", () => {
     vi.mocked(chromeApi.runtime.sendMessage).mockResolvedValue({
       ok: true,
       requestId: "write-1",
-      data: { contextMenuBookmarkEnabled: false }
+      data: {
+        contextMenuBookmarkEnabled: false,
+        frequentVisitReminderEnabled: false,
+        frequentVisitWindow: null,
+        frequentVisitDayThreshold: null,
+      },
     })
 
     const port = createChromeGeneralSettingsPort(chromeApi, () => "write-1")
 
     await expect(port.setContextMenuBookmarkEnabled(false)).resolves.toEqual({
-      contextMenuBookmarkEnabled: false
+      contextMenuBookmarkEnabled: false,
+      frequentVisitReminderEnabled: false,
+      frequentVisitWindow: null,
+      frequentVisitDayThreshold: null,
     })
     expect(chromeApi.runtime.sendMessage).toHaveBeenCalledWith({
       action: "set-context-menu-bookmark-enabled",

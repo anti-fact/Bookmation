@@ -13,6 +13,7 @@ import {
   SEARCH_SCHEMA_VERSION,
   STORES,
   TAG_MUTATION_RECEIPT_INDEXES,
+  VISIT_REMINDER_INDEXES,
 } from "./stores"
 import type {
   PersistedActiveBookmarkRecord,
@@ -24,6 +25,7 @@ import type {
   PersistedSchemaMetaRecord,
   PersistedSearchDocumentRecord,
   PersistedTagMutationReceiptRecord,
+  PersistedVisitReminderRecord,
 } from "./persisted-types"
 
 export interface BookmationDbSchema extends DBSchema {
@@ -93,6 +95,14 @@ export interface BookmationDbSchema extends DBSchema {
     value: PersistedTagMutationReceiptRecord
     indexes: {
       [TAG_MUTATION_RECEIPT_INDEXES.byTagCreatedAt]: [string, number]
+    }
+  }
+  visitReminders: {
+    key: string
+    value: PersistedVisitReminderRecord
+    indexes: {
+      [VISIT_REMINDER_INDEXES.byNormalizedUrlHash]: string
+      [VISIT_REMINDER_INDEXES.byState]: string
     }
   }
   blobs: {
@@ -185,6 +195,16 @@ function createStores(db: IDBPDatabase<BookmationDbSchema>): void {
     store.createIndex(TAG_MUTATION_RECEIPT_INDEXES.byTagCreatedAt, ["tagId", "createdAt"], {
       unique: false,
     })
+  }
+
+  if (!db.objectStoreNames.contains(STORES.visitReminders)) {
+    const store = db.createObjectStore(STORES.visitReminders, { keyPath: "id" })
+    store.createIndex(
+      VISIT_REMINDER_INDEXES.byNormalizedUrlHash,
+      "normalizedUrlHash",
+      { unique: true },
+    )
+    store.createIndex(VISIT_REMINDER_INDEXES.byState, "state", { unique: false })
   }
 
   if (!db.objectStoreNames.contains(STORES.blobs)) {
