@@ -8,8 +8,13 @@ export const SETTINGS_SECTIONS = ["general", "archive", "share"] as const
 
 export type SettingsSection = (typeof SETTINGS_SECTIONS)[number]
 
+export const ONBOARDING_STEPS = ["categories"] as const
+
+export type OnboardingStep = (typeof ONBOARDING_STEPS)[number]
+
 export type KnownHashRoute =
   | { kind: "welcome" }
+  | { kind: "onboarding"; step: OnboardingStep }
   | { kind: "home" }
   | {
       kind: "bookmarks"
@@ -152,6 +157,13 @@ export function parseHashRoute(hash: string): HashRoute {
       return hasNoQuery(rawQuery)
         ? { kind: "welcome" }
         : notFound(hash, "invalid-query")
+    case "/onboarding/categories":
+      return hasNoQuery(rawQuery)
+        ? {
+            kind: "onboarding",
+            step: path.slice("/onboarding/".length) as OnboardingStep
+          }
+        : notFound(hash, "invalid-query")
     case "/home":
       return hasNoQuery(rawQuery)
         ? { kind: "home" }
@@ -195,6 +207,8 @@ export function serializeHashRoute(route: KnownHashRoute): string {
   switch (route.kind) {
     case "welcome":
       return "#/welcome"
+    case "onboarding":
+      return `#/onboarding/${route.step}`
     case "home":
       return "#/home"
     case "bookmarks": {
@@ -249,6 +263,7 @@ export function getAppHeaderVariant(route: HashRoute): AppHeaderVariant | null {
     case "settings":
       return "settings"
     case "welcome":
+    case "onboarding":
     case "not-found":
       return null
   }

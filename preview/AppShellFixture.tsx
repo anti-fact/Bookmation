@@ -13,6 +13,7 @@ const fixtureRoutes = [
   ["共有設定", "#/settings/share"],
   ["検索結果", "#/search?q=あとで読む"],
   ["初回画面", "#/welcome"],
+  ["カテゴリ選択", "#/onboarding/categories"],
   ["不正URL", "#/unknown"]
 ] as const
 

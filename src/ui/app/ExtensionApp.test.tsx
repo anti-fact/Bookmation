@@ -315,6 +315,26 @@ describe("ExtensionApp", () => {
     expect(startButton.className).toContain("!rounded-none")
 
     fireEvent.click(startButton)
+    expect(store.navigate).toHaveBeenCalledWith({
+      kind: "onboarding",
+      step: "categories"
+    })
+  })
+
+  it("shows the category onboarding step and returns home once it is saved", () => {
+    const { store } = renderApp({ kind: "onboarding", step: "categories" })
+
+    expect(
+      screen.queryByRole("banner", { name: "アプリケーションヘッダー" })
+    ).toBeNull()
+    expect(
+      screen.getByRole("heading", { level: 1, name: "あなたにあったカテゴリを選ぶ" })
+    ).not.toBeNull()
+    expect(
+      screen.getByRole("button", { name: /授業・講義/ })
+    ).not.toBeNull()
+
+    fireEvent.click(screen.getByRole("button", { name: "設定を保存" }))
     expect(store.navigate).toHaveBeenCalledWith({ kind: "home" })
   })
 
