@@ -120,12 +120,14 @@ const onboardingState = (status: "IN_PROGRESS" | "COMPLETED") => ({
 const onboardingPort: OnboardingPort = {
   complete: async () => onboardingState("COMPLETED"),
   load: async () => null,
+  loadWithMeta: async () => null,
   saveSelection: async (categorySelection) => ({
     ...onboardingState("IN_PROGRESS"),
     categorySelection: Object.fromEntries(
       Object.entries(categorySelection).map(([id, tags]) => [id, [...tags]])
     )
   }),
+  skip: async () => onboardingState("COMPLETED"),
   start: async () => onboardingState("IN_PROGRESS")
 }
 

@@ -86,6 +86,37 @@ describe("OnboardingCategoriesPage", () => {
     expect(onSubmit).toHaveBeenCalledWith({ "study.lecture": ["授業ページ"] })
   })
 
+  it("shows a skip action on the category onboarding step", () => {
+    render(
+      <OnboardingCategoriesPage
+        catalog={catalog}
+        description="説明"
+        heading="あなたにあったカテゴリを選ぶ"
+        onSkip={vi.fn()}
+        onSubmit={vi.fn()}
+      />
+    )
+
+    expect(screen.getByRole("button", { name: "スキップ" })).not.toBeNull()
+  })
+
+  it("calls onSkip when the skip action is used", async () => {
+    const user = userEvent.setup()
+    const onSkip = vi.fn()
+    render(
+      <OnboardingCategoriesPage
+        catalog={catalog}
+        description="説明"
+        heading="あなたにあったカテゴリを選ぶ"
+        onSkip={onSkip}
+        onSubmit={vi.fn()}
+      />
+    )
+
+    await user.click(screen.getByRole("button", { name: "スキップ" }))
+    expect(onSkip).toHaveBeenCalledOnce()
+  })
+
   it("restores a saved selection and reports each later change", async () => {
     const user = userEvent.setup()
     const onSelectionChange = vi.fn()

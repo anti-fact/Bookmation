@@ -1,5 +1,9 @@
 import { CATEGORY_PRESET_CATALOG } from "~/catalogs/onboarding-category-presets"
 import {
+  reconcileOnboardingState,
+  sanitizeCategorySelection
+} from "~/extension/onboarding-draft"
+import {
   getOnboardingState,
   initializeOnboardingIfMissing,
   ONBOARDING_STATE_KEY,
@@ -9,6 +13,11 @@ import {
 import type { BookmarkFormPort } from "~/ui/features/bookmarks/bookmark-form-port"
 import type { CategoryPresetSelection } from "~/ui/features/onboarding/OnboardingCategoriesPage"
 import type { OnboardingPort } from "~/ui/features/onboarding/onboarding-port"
+
+import {
+  OnboardingPortError,
+  toOnboardingRequestToken
+} from "~/extension/onboarding-errors"
 
 import { createChromeBookmarkFormPort } from "./chrome-bookmark-form-port"
 
@@ -26,18 +35,6 @@ function nextState(
   patch: Partial<OnboardingState>
 ): OnboardingState {
   return { ...current, ...patch, updatedAt: Date.now() }
-}
-
-export class OnboardingPortError extends Error {
-  constructor(
-    readonly code:
-      | "ONBOARDING_CATEGORY_UNKNOWN"
-      | "ONBOARDING_TAG_UNKNOWN"
-      | "ONBOARDING_TAG_CONFLICT"
-  ) {
-    super(code)
-    this.name = "OnboardingPortError"
-  }
 }
 
 export function createChromeOnboardingPort({
@@ -61,17 +58,43 @@ export function createChromeOnboardingPort({
     )
     return result
   }
+  const persistIfChanged = async (
+    original: OnboardingState,
+    reconciled: ReturnType<typeof reconcileOnboardingState>
+  ) => {
+    const selectionChanged =
+      JSON.stringify(reconciled.state.categorySelection ?? {}) !==
+      JSON.stringify(original.categorySelection ?? {})
+    const versionChanged =
+      reconciled.state.catalogVersion !== original.catalogVersion
+    if (reconciled.catalogMismatch || selectionChanged || versionChanged) {
+      await write(reconciled.state)
+    }
+    return reconciled
+  }
+  const loadReconciled = async () => {
+    const state = await getOnboardingState(storage)
+    if (!state) return null
+    const reconciled = reconcileOnboardingState(state, CATEGORY_PRESET_CATALOG)
+    return persistIfChanged(state, reconciled)
+  }
 
   return {
     async load() {
       await pendingMutation
-      return getOnboardingState(storage)
+      const reconciled = await loadReconciled()
+      return reconciled?.state ?? null
+    },
+    async loadWithMeta() {
+      await pendingMutation
+      return loadReconciled()
     },
     start() {
       return serialize(async () => {
         const state = await current()
         return write(
           nextState(state, {
+            catalogVersion: CATEGORY_PRESET_CATALOG.version,
             categorySelection: state.categorySelection ?? {},
             currentStepId: "categories",
             status: "IN_PROGRESS"
@@ -82,11 +105,29 @@ export function createChromeOnboardingPort({
     saveSelection(selection) {
       return serialize(async () => {
         const state = await current()
+        const categorySelection = sanitizeCategorySelection(
+          CATEGORY_PRESET_CATALOG,
+          selection
+        )
         return write(
           nextState(state, {
-            categorySelection: cloneSelection(selection),
+            catalogVersion: CATEGORY_PRESET_CATALOG.version,
+            categorySelection: cloneSelection(categorySelection),
             currentStepId: "categories",
             status: "IN_PROGRESS"
+          })
+        )
+      })
+    },
+    skip() {
+      return serialize(async () => {
+        const state = await current()
+        return write(
+          nextState(state, {
+            catalogVersion: CATEGORY_PRESET_CATALOG.version,
+            categorySelection: {},
+            currentStepId: null,
+            status: "COMPLETED"
           })
         )
       })
@@ -94,11 +135,16 @@ export function createChromeOnboardingPort({
     complete(selection) {
       return serialize(async () => {
         let state = await current()
+        const sanitized = sanitizeCategorySelection(
+          CATEGORY_PRESET_CATALOG,
+          selection
+        )
         const applyRequestId = state.applyRequestId ?? crypto.randomUUID()
         state = await write(
           nextState(state, {
             applyRequestId,
-            categorySelection: cloneSelection(selection),
+            catalogVersion: CATEGORY_PRESET_CATALOG.version,
+            categorySelection: cloneSelection(sanitized),
             currentStepId: "categories",
             status: "IN_PROGRESS"
           })
@@ -108,7 +154,7 @@ export function createChromeOnboardingPort({
             set.categories.map((category) => [category.id, category] as const)
           )
         )
-        for (const [categoryId, selectedTags] of Object.entries(selection)) {
+        for (const [categoryId, selectedTags] of Object.entries(sanitized)) {
           const preset = categories.get(categoryId)
           if (!preset)
             throw new OnboardingPortError("ONBOARDING_CATEGORY_UNKNOWN")
@@ -123,7 +169,7 @@ export function createChromeOnboardingPort({
             categoryCandidates.find((item) => item.name === preset.name) ??
             (await bookmarkFormPort.createCategory({
               name: preset.name,
-              requestId: `onboarding:${applyRequestId}:category:${preset.id}`
+              requestId: `onboarding:${applyRequestId}:category:${toOnboardingRequestToken(preset.id)}`
             }))
 
           for (const tagName of uniqueTags) {
@@ -137,7 +183,7 @@ export function createChromeOnboardingPort({
             await bookmarkFormPort.createTag({
               category,
               name: tagName,
-              requestId: `onboarding:${applyRequestId}:tag:${preset.id}:${preset.tags.indexOf(tagName)}`
+              requestId: `onboarding:${applyRequestId}:tag:${toOnboardingRequestToken(preset.id)}:${preset.tags.indexOf(tagName)}`
             })
           }
         }

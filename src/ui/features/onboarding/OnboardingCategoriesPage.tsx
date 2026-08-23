@@ -1,7 +1,7 @@
 /**
  * 初回オンボーディングでカテゴリとタグを選ぶ画面です。
  * Figma「初期画面」に合わせ、共通ヘッダーを持たない独立した1枚として組みます。
- * 選択は画面内の state だけに持ち、保存操作まで Label を作りません。
+ * 選択は端末へ draft 保存し、明示的な保存操作まで Label を作りません。
  */
 import * as React from "react"
 import { MinusIcon, PlusIcon } from "@radix-ui/react-icons"
@@ -39,9 +39,11 @@ export type OnboardingCategoriesPageProps = {
   heading: string
   headingRef?: React.Ref<HTMLHeadingElement>
   initialSelection?: CategoryPresetSelection
+  notice?: string | null
   onSelectionChange?: (
     selection: CategoryPresetSelection
   ) => void | Promise<void>
+  onSkip?: () => void | Promise<void>
   onSubmit: (selection: CategoryPresetSelection) => void | Promise<void>
 }
 
@@ -134,16 +136,19 @@ export function OnboardingCategoriesPage({
   heading,
   headingRef,
   initialSelection,
+  notice,
   onSelectionChange,
+  onSkip,
   onSubmit
 }: OnboardingCategoriesPageProps) {
   const fieldIdPrefix = React.useId()
   const [selection, setSelection] = React.useState<CategoryPresetSelection>(
     initialSelection ?? EMPTY_SELECTION
   )
-  const [submitState, setSubmitState] = React.useState<
-    "idle" | "saving" | "error"
-  >("idle")
+  const [submitState, setSubmitState] = React.useState<"idle" | "saving">(
+    "idle"
+  )
+  const [submitError, setSubmitError] = React.useState<string | null>(null)
 
   React.useEffect(() => {
     setSelection(initialSelection ?? EMPTY_SELECTION)
@@ -153,20 +158,25 @@ export function OnboardingCategoriesPage({
     (categoryId: string, tag: string) => {
       const next = toggleTag(selection, categoryId, tag)
       setSelection(next)
-      void Promise.resolve(onSelectionChange?.(next)).catch(() =>
-        setSubmitState("error")
-      )
+      setSubmitError(null)
+      void onSelectionChange?.(next)
     },
     [onSelectionChange, selection]
   )
 
   const handleSubmit = async () => {
     setSubmitState("saving")
+    setSubmitError(null)
     try {
       await onSubmit(selection)
       setSubmitState("idle")
-    } catch {
-      setSubmitState("error")
+    } catch (error) {
+      setSubmitState("idle")
+      setSubmitError(
+        error instanceof Error && error.message
+          ? error.message
+          : "設定を保存できませんでした。選択内容を確認して再試行してください。"
+      )
     }
   }
 
@@ -199,6 +209,14 @@ export function OnboardingCategoriesPage({
             ))}
           </p>
         </header>
+        {notice ? (
+          <p
+            className="mb-0 mt-6 rounded-bm-field border-2 border-bm-border bg-bm-paper px-4 py-3 text-sm"
+            role="status"
+          >
+            {notice}
+          </p>
+        ) : null}
         {catalog.sets.map((set) => (
           <section aria-labelledby={`${fieldIdPrefix}-${set.id}`} key={set.id}>
             <h2
@@ -226,11 +244,29 @@ export function OnboardingCategoriesPage({
             </Accordion>
           </section>
         ))}
-        <div className="mt-16 flex justify-end">
-          {submitState === "error" ? (
-            <p className="mr-4 self-center text-sm text-bm-error" role="alert">
-              設定を保存できませんでした。選択内容を確認して再試行してください。
+        <div className="mt-16 flex flex-col items-stretch justify-end gap-4 sm:flex-row sm:items-center">
+          {submitError ? (
+            <p className="m-0 text-sm text-bm-error sm:mr-auto" role="alert">
+              {submitError}
             </p>
+          ) : null}
+          {onSkip ? (
+            <Button
+              className="h-[3.25rem] w-full max-w-[15rem] !rounded-none px-6 !font-normal sm:!text-[1.125rem]"
+              onClick={() => {
+                setSubmitError(null)
+                void Promise.resolve(onSkip()).catch((error: unknown) => {
+                  setSubmitError(
+                    error instanceof Error && error.message
+                      ? error.message
+                      : "設定を保存できませんでした。選択内容を確認して再試行してください。"
+                  )
+                })
+              }}
+              variant="outline"
+            >
+              スキップ
+            </Button>
           ) : null}
           <Button
             className="h-[3.25rem] w-full max-w-[15rem] !rounded-none px-6 !font-normal sm:!text-[1.125rem]"

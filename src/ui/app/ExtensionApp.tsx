@@ -33,6 +33,7 @@ import {
   emptyLabelManagementPort,
   type LabelManagementPort
 } from "~/ui/features/labels/label-management-port"
+import { getOnboardingErrorMessage } from "~/extension/onboarding-errors"
 import { OnboardingCategoriesPage } from "~/ui/features/onboarding/OnboardingCategoriesPage"
 import {
   emptyOnboardingPort,
@@ -625,6 +626,12 @@ export function ExtensionApp({
   const [notice, setNotice] = React.useState<string | null>(null)
   const [onboardingState, setOnboardingState] =
     React.useState<Awaited<ReturnType<OnboardingPort["load"]>>>(null)
+  const [onboardingNotice, setOnboardingNotice] = React.useState<string | null>(
+    null
+  )
+  const pendingSelectionSave = React.useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  )
   const [visitReminderOpen, setVisitReminderOpen] = React.useState(false)
   const [pendingVisitReminder, setPendingVisitReminder] =
     React.useState<Awaited<ReturnType<VisitReminderPort["getPending"]>>>(null)
@@ -707,12 +714,17 @@ export function ExtensionApp({
 
   React.useEffect(() => {
     let active = true
-    void onboardingPort.load().then((state) => {
-      if (!active || !state) return
-      setOnboardingState(state)
-      if (route.kind !== "home" || state.status === "COMPLETED") return
+    void onboardingPort.loadWithMeta().then((result) => {
+      if (!active || !result) return
+      setOnboardingState(result.state)
+      setOnboardingNotice(
+        result.catalogMismatch
+          ? "候補が更新されたため、以前の選択をクリアしました。もう一度選び直してください。"
+          : null
+      )
+      if (route.kind !== "home" || result.state.status === "COMPLETED") return
       navigate(
-        state.status === "NOT_STARTED"
+        result.state.status === "NOT_STARTED"
           ? { kind: "welcome" }
           : { kind: "onboarding", step: "categories" },
         { replace: true }
@@ -722,6 +734,33 @@ export function ExtensionApp({
       active = false
     }
   }, [navigate, onboardingPort, route.kind])
+
+  React.useEffect(
+    () => () => {
+      if (pendingSelectionSave.current) {
+        clearTimeout(pendingSelectionSave.current)
+      }
+    },
+    []
+  )
+
+  const persistSelection = React.useCallback(
+    (selection: Parameters<OnboardingPort["saveSelection"]>[0]) => {
+      if (pendingSelectionSave.current) {
+        clearTimeout(pendingSelectionSave.current)
+      }
+      pendingSelectionSave.current = setTimeout(() => {
+        pendingSelectionSave.current = null
+        void onboardingPort
+          .saveSelection(selection)
+          .then(setOnboardingState)
+          .catch((error: unknown) => {
+            setOnboardingNotice(getOnboardingErrorMessage(error))
+          })
+      }, 300)
+    },
+    [onboardingPort]
+  )
 
   const closeSurface = React.useCallback(() => {
     const currentSurface =
@@ -765,12 +804,46 @@ export function ExtensionApp({
         heading={copy.heading}
         headingRef={headingRef}
         initialSelection={onboardingState?.categorySelection}
-        onSelectionChange={async (selection) => {
-          setOnboardingState(await onboardingPort.saveSelection(selection))
+        notice={onboardingNotice}
+        onSelectionChange={(selection) => {
+          setOnboardingState((current) =>
+            current
+              ? {
+                  ...current,
+                  categorySelection: Object.fromEntries(
+                    Object.entries(selection).map(([categoryId, tags]) => [
+                      categoryId,
+                      [...tags]
+                    ])
+                  )
+                }
+              : current
+          )
+          persistSelection(selection)
+        }}
+        onSkip={async () => {
+          if (pendingSelectionSave.current) {
+            clearTimeout(pendingSelectionSave.current)
+            pendingSelectionSave.current = null
+          }
+          try {
+            setOnboardingState(await onboardingPort.skip())
+            navigate({ kind: "home" })
+          } catch (error) {
+            throw new Error(getOnboardingErrorMessage(error))
+          }
         }}
         onSubmit={async (selection) => {
-          setOnboardingState(await onboardingPort.complete(selection))
-          navigate({ kind: "home" })
+          if (pendingSelectionSave.current) {
+            clearTimeout(pendingSelectionSave.current)
+            pendingSelectionSave.current = null
+          }
+          try {
+            setOnboardingState(await onboardingPort.complete(selection))
+            navigate({ kind: "home" })
+          } catch (error) {
+            throw new Error(getOnboardingErrorMessage(error))
+          }
         }}
       />
     )
