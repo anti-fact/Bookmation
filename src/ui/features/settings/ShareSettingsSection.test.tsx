@@ -6,6 +6,46 @@ import { describe, expect, it, vi } from "vitest"
 import { ShareSettingsSection } from "./ShareSettingsSection"
 
 describe("ShareSettingsSection", () => {
+  it("filters individual bookmarks by title and description while typing", async () => {
+    const user = userEvent.setup()
+    render(
+      <ShareSettingsSection
+        port={{
+          connectDrive: vi.fn(),
+          exportBookmarks: vi.fn(),
+          load: vi.fn().mockResolvedValue({
+            drive: null,
+            items: [
+              {
+                bookmarkIds: ["bookmark-react"],
+                description: "react.dev",
+                id: "bookmark-react",
+                kind: "BOOKMARK",
+                label: "React Reference"
+              },
+              {
+                bookmarkIds: ["bookmark-ts"],
+                description: "typescriptlang.org",
+                id: "bookmark-ts",
+                kind: "BOOKMARK",
+                label: "TypeScript Handbook"
+              }
+            ]
+          }),
+          openQrReader: vi.fn()
+        }}
+      />
+    )
+
+    const search = await screen.findByRole("searchbox", {
+      name: "共有対象を検索"
+    })
+    await user.type(search, "typescriptlang")
+
+    expect(screen.queryByText("React Reference")).toBeNull()
+    expect(screen.getByText("TypeScript Handbook")).not.toBeNull()
+  })
+
   it("deduplicates bookmark ids and preserves selection when QR capacity is exceeded", async () => {
     const user = userEvent.setup()
     const exportBookmarks = vi

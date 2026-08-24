@@ -10,6 +10,7 @@ import { createChromeOnboardingPort } from "~/adapters/chrome-onboarding-port"
 import { createChromeVisitReminderPort } from "~/adapters/chrome-visit-reminder-port"
 import { createIndexedDbBookmarkListPort } from "~/adapters/indexeddb-bookmark-list-port"
 import { createChromeSearchPort } from "~/adapters/chrome-search-port"
+import { createIndexedDbShareSettingsPort } from "~/adapters/indexeddb-share-settings-port"
 import { AppProviders } from "~/ui/app/AppProviders"
 import { ClassificationHost } from "~/ui/app/ClassificationHost"
 import { AppErrorBoundary } from "~/ui/app/ErrorBoundary"
@@ -44,6 +45,10 @@ export default function DashboardTab() {
     [bookmarkFormPort]
   )
   const searchPort = React.useMemo(() => createChromeSearchPort(), [])
+  const shareSettingsPort = React.useMemo(
+    () => createIndexedDbShareSettingsPort(),
+    []
+  )
   const visitReminderPort = React.useMemo(
     () => createChromeVisitReminderPort({ runtime: chrome.runtime }),
     []
@@ -61,6 +66,7 @@ export default function DashboardTab() {
           labelManagementPort={labelManagementPort}
           onboardingPort={onboardingPort}
           searchPort={searchPort}
+          shareSettingsPort={shareSettingsPort}
           visitReminderPort={visitReminderPort}
         />
       </AppErrorBoundary>
