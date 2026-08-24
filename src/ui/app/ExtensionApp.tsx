@@ -50,6 +50,7 @@ import {
   type GeneralSettingsPort
 } from "~/ui/features/settings/general-settings-port"
 import { createIndexedDbChromeBookmarkImportPort } from "~/adapters/indexeddb-chrome-bookmark-import-port"
+import { ChromeBookmarkImportPanel } from "~/ui/features/settings/ChromeBookmarkImportPanel"
 import type { ChromeBookmarkImportPort } from "~/ui/features/settings/chrome-bookmark-import-port"
 import { ShareSettingsSection } from "~/ui/features/settings/ShareSettingsSection"
 import {
@@ -70,14 +71,9 @@ import {
 import { VisitReminderDialog } from "~/ui/features/visit-reminder/VisitReminderDialog"
 import { Button } from "~/ui/primitives"
 import { joinClassNames } from "~/ui/primitives/class-names"
-import { SettingsWorkflowSection } from "~/ui/features/workflows/SettingsWorkflowSection"
 import { VisitReminder } from "~/ui/features/workflows/VisitReminder"
 import {
-  emptyBookmarkImportPort,
-  emptyShareWorkflowPort,
   emptyVisitReminderPort as emptyWorkflowVisitReminderPort,
-  type BookmarkImportPort,
-  type ShareWorkflowPort,
   type VisitReminderPort as WorkflowVisitReminderPort
 } from "~/ui/features/workflows/workflow-ports"
 
@@ -310,7 +306,6 @@ function RouteHeader({
 }
 
 type RouteBodyProps = {
-  bookmarkImportPort: BookmarkImportPort
   archiveSettingsPort: ArchiveSettingsPort
   bookmarkListRevision: number
   bookmarkListPort: BookmarkListPort
@@ -331,7 +326,6 @@ type RouteBodyProps = {
   route: HashRoute
   runtime: ReturnType<typeof useAppRuntime>
   searchPort: SearchPort
-  shareWorkflowPort: ShareWorkflowPort
   shareSettingsPort: ShareSettingsPort
 }
 
@@ -414,7 +408,6 @@ function WelcomeScreen({
 
 // UI-02では画面遷移の骨組みを実装し、後続機能の領域はプレースホルダーにします。
 function RouteBody({
-  bookmarkImportPort,
   archiveSettingsPort,
   bookmarkListRevision,
   bookmarkListPort,
@@ -431,7 +424,6 @@ function RouteBody({
   route,
   runtime,
   searchPort,
-  shareWorkflowPort,
   shareSettingsPort
 }: RouteBodyProps) {
   if (route.kind === "labels") {
@@ -545,11 +537,9 @@ function RouteBody({
           {route.section === "share" && (
             <div className="space-y-8">
               <ShareSettingsSection port={shareSettingsPort} />
-              <SettingsWorkflowSection
-                bookmarkImportPort={bookmarkImportPort}
-                chromeBookmarkImportPort={chromeBookmarkImportPort}
-                onBookmarksImported={onBookmarksImported}
-                shareWorkflowPort={shareWorkflowPort}
+              <ChromeBookmarkImportPanel
+                importPort={chromeBookmarkImportPort}
+                onImported={onBookmarksImported}
               />
             </div>
           )}
@@ -608,7 +598,6 @@ function RouteBody({
 
 export function ExtensionApp({
   aiAssistantPort = emptyAiAssistantPort,
-  bookmarkImportPort = emptyBookmarkImportPort,
   archiveSettingsPort = emptyArchiveSettingsPort,
   bookmarkFormPort = emptyBookmarkFormPort,
   bookmarkListPort = emptyBookmarkListPort,
@@ -618,12 +607,10 @@ export function ExtensionApp({
   onboardingPort = emptyOnboardingPort,
   searchPort = emptySearchPort,
   shareSettingsPort = emptyShareSettingsPort,
-  shareWorkflowPort = emptyShareWorkflowPort,
   visitWorkflowPort = emptyWorkflowVisitReminderPort,
   visitReminderPort = emptyVisitReminderPort
 }: {
   aiAssistantPort?: AiAssistantPort
-  bookmarkImportPort?: BookmarkImportPort
   archiveSettingsPort?: ArchiveSettingsPort
   bookmarkFormPort?: BookmarkFormPort
   bookmarkListPort?: BookmarkListPort
@@ -633,7 +620,6 @@ export function ExtensionApp({
   onboardingPort?: OnboardingPort
   searchPort?: SearchPort
   shareSettingsPort?: ShareSettingsPort
-  shareWorkflowPort?: ShareWorkflowPort
   visitWorkflowPort?: WorkflowVisitReminderPort
   visitReminderPort?: VisitReminderPort
 }) {
@@ -662,9 +648,9 @@ export function ExtensionApp({
       createIndexedDbChromeBookmarkImportPort({
         onMetadataComplete: () => {
           setBookmarkListRevision((revision) => revision + 1)
-        },
+        }
       }),
-    [chromeBookmarkImportPort],
+    [chromeBookmarkImportPort]
   )
   const handleChromeBookmarksImported = React.useCallback(() => {
     setBookmarkListRevision((revision) => revision + 1)
@@ -678,9 +664,9 @@ export function ExtensionApp({
   const [onboardingNotice, setOnboardingNotice] = React.useState<string | null>(
     null
   )
-  const pendingSelectionSave = React.useRef<ReturnType<typeof setTimeout> | null>(
-    null
-  )
+  const pendingSelectionSave = React.useRef<ReturnType<
+    typeof setTimeout
+  > | null>(null)
   const [visitReminderOpen, setVisitReminderOpen] = React.useState(false)
   const [pendingVisitReminder, setPendingVisitReminder] =
     React.useState<Awaited<ReturnType<VisitReminderPort["getPending"]>>>(null)
@@ -940,7 +926,6 @@ export function ExtensionApp({
           </p>
         ) : null}
         <RouteBody
-          bookmarkImportPort={bookmarkImportPort}
           archiveSettingsPort={archiveSettingsPort}
           bookmarkListPort={bookmarkListPort}
           bookmarkListRevision={bookmarkListRevision}
@@ -960,7 +945,6 @@ export function ExtensionApp({
           runtime={runtime}
           searchPort={searchPort}
           shareSettingsPort={shareSettingsPort}
-          shareWorkflowPort={shareWorkflowPort}
         />
       </AppShell>
       <BookmarkDialog
