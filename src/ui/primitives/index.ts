@@ -1,5 +1,6 @@
 // 共通 UI を利用する側が、この一か所から import できるようにする公開窓口です。
 export * from "./accordion"
+export * from "./alert-dialog"
 export * from "./button"
 export * from "./checkbox"
 export * from "./collapsible"

@@ -1,7 +1,7 @@
 # Bookmation バックエンド実装タスク
 
 - 状態: 実装中バックログ
-- 更新日: 2026-08-23
+- 更新日: 2026-08-25
 - 対象: Chrome拡張機能内のDomain、Application、JSON document、IndexedDB、Manifest V3 Service Worker、AI Host、Chrome API、Google Driveアダプター
 - 対象外: React画面の見た目、独自リモートサーバー、外部LLMへの自動fallback
 - 正本: [バックエンド設計](docs/BACKEND.md) / [DBスキーマ](docs/DB-SCHEMA.md) / [セキュリティ](docs/SECURITY.md) / [要件](docs/REQUIREMENTS.md)
@@ -310,6 +310,7 @@ sequenceDiagram
 - [ ] USERカテゴリ、USERタグ、AIタグのID付き候補を作る。
 - [ ] [AI_GUIDE.md](docs/AI_GUIDE.md) の固定system prompt、未信頼JSON入力、Category 1件、REUSE／CREATE、importance、evidenceText、confidenceを持つ厳格schemaを実装する。Tag配列へ業務上の `maxItems` を置かない。
 - [ ] 固定promptで、選択Category内の完全一致、正規化一致、同義語、正式名／略称、翻訳、表記揺れを全細分化度でREUSEして意味が合うUSERタグを優先し、選択Category外にだけ同等Tagがある概念はREUSE／CREATE／親変更せず省くようGemini Nanoへ指示する。信頼側はID、親、revision、normalizedName一致を決定的に検証し、異なるnormalizedNameの意味同等性はversion付きoracleの実モデル評価で判定する。
+- [ ] 現行Gemini Nanoを速度・安定性のbaselineとして、promptVersionごとの最適化、意味推測を行わない版付き入出力サニタイザー、別の端末内ClassificationProviderを同一fixtureと基準端末で比較する。既存品質基準に合格した案だけをモデル呼出し時間／Job終端時間のp50・p95で選び、Provider／model／prompt／sanitizer versionをJob snapshotと評価artifactへ固定する。外部AIへの暗黙fallbackは行わない。
 - [ ] policy version 2の全5組を実装する。0／1は`CORE`、2は`MAJOR`まで、3は`SUPPORTING`まで、4は`DETAIL`までCREATEを許し、再利用範囲も値ごとに変える。値0でも必要最小限のCOREをCREATEでき、`maxNewTags`／`maxAssignedTags`を使わない。
 - [ ] 新規AIタグproposalが `tagUniqueName` と競合したらoriginを問わず既存Tagを再評価する。選択Category内の同じnormalizedNameのactive Tagは信頼側でREUSEへ解決し、親不一致またはtombstone競合はその候補だけを棄却する。異名同義を未定義のalias推測で変換・棄却しない。
 - [ ] AIによるカテゴリ作成・改名・削除と、候補外IDを拒否する。

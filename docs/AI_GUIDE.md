@@ -1,11 +1,11 @@
-# Gemini Nano 自動タグ分類仕様
+# 端末内AI自動タグ分類仕様（Gemini Nano基準）
 
 - 状態: 確定仕様
-- 基準日: 2026-08-23
-- 適用範囲: Bookmark保存後にGemini Nanoで実行する自動分類
+- 基準日: 2026-08-25
+- 適用範囲: Bookmark保存後にGemini Nanoまたは互換する端末内Providerで実行する自動分類
 - 関連: [要件](REQUIREMENTS.md) / [バックエンド](BACKEND.md) / [DBスキーマ](DB-SCHEMA.md) / [セキュリティ](SECURITY.md) / [テスト](TESTING.md)
 
-この文書を、Gemini Nanoへ渡すプロンプト、分類policy、出力形式、検証、再試行の正本とする。旧 `policyVersion: 1` の `0→0 / 1→1 / 2→2 / 3→4 / 4→6` 件という上限方式は廃止し、互換性のない新仕様を `policyVersion: 2` とする。
+この文書を、Gemini Nanoへ渡すプロンプト、互換する端末内Provider、分類policy、出力形式、検証、再試行の正本とする。旧 `policyVersion: 1` の `0→0 / 1→1 / 2→2 / 3→4 / 4→6` 件という上限方式は廃止し、互換性のない新仕様を `policyVersion: 2` とする。
 
 ## 固定する意味
 
@@ -397,11 +397,29 @@ JobにはattemptId、phase、quality／technical outcome、acceptedCount、rejec
 - 旧件数上限を前提にした実モデル試験結果は、version 2の再利用傾向、重要度範囲、全正常候補採用、再試行停止条件を実証したものとして扱わない。
 - `chrome.storage.local` からIndexedDB正本へのsnapshot取得、全設定read／writeと分類設定依存command／background処理との排他、crash後の再開、mirror修復は [DB-SCHEMA.md](DB-SCHEMA.md#マイグレーション) のdurable migration gateを正とし、移行途中のstorage値を再読込して判断を変えない。
 
+## 分類速度・安定性の最適化
+
+現行のGemini Nano分類は、実利用で待ち時間が長く、同じ種類の入力でも分類結果が安定しない状態を改善対象とする。Bookmark保存自体はAI完了を待たせず、分類中も手動Tag編集を利用できる現在の非同期境界を維持する。
+
+改善案は、固定fixtureと同一端末条件で次の順序を固定せず比較する。
+
+1. 固定system promptと入力表現を簡潔化し、`promptVersion` を更新する。
+2. モデル入出力へ決定的なコードサニタイザーを追加し、入力の型・長さ・JSON escape・禁止制御文字と、出力のschema・ID・親Category・revision・Normalizer・重複を検査する。
+3. Gemini Nano以外の端末内AIを `ClassificationProvider` の別実装として評価する。
+
+サニタイザーは `inputSanitizerVersion` と `outputSanitizerVersion` を持つ。許可された決定的変換と不正候補の棄却だけを行い、異なる正規化名の同義語推定、候補外IDの補完、Category変更、根拠の捏造、失敗応答の成功化を行わない。意味判断をコードへ移す場合は、版付きの規則・出典・fixtureを先に追加し、policy versionまたはcandidate query versionを上げる。
+
+代替Providerは、ページ情報とLabelを外部へ送らず端末内だけで処理し、既存の入力snapshot、出力schema、policy version 2、候補検証、再試行、Job冪等性をそのまま満たす必要がある。Provider ID、モデルversion、promptVersion、sanitizer versionをJob snapshotと評価artifactへ記録し、Job実行中にProviderを切り替えない。クラウドAIへの暗黙fallbackは行わない。
+
+各候補は同じfixture setで、既存の意味的成功率に加えて、モデル呼出し時間とJob作成から終端までの時間のp50／p95、quality-zero率、technical failure率を測る。品質・安全基準を満たさない高速案と、基準端末で現行よりp95を改善しない案は採用しない。複数案が基準を満たす場合はp95が短く、端末資源消費が小さい案を選ぶ。いずれも満たさない場合は自動分類を確定結果として扱わず、PENDING／NEEDS_REVIEW／FAILEDの状態表示と手動分類を維持する。
+
+prompt、sanitizer、Providerのいずれかを変更した場合は、結果を見てoracleを変更せず、新しいversionで固定Nの全batchを再実行する。
+
 ## 必須の実モデル評価
 
 実モデルの品質評価と、validator／再試行制御の決定的テストを分ける。正常・不正candidate混在、timeout、truncated、初回0件から次回成功、3回quality-zero、late response、process loss、DB rollbackはfakeまたは記録済みProviderで必ず再現し、Gemini Nanoが都合よく不正応答を返すまで待つ試験にはしない。
 
-実モデル評価はprompt versionごとに、開始前に固定した各fixture・各細分化度について `N=10` Jobを実行する。各Jobは最大3 model attemptを持ち、model attemptごとに独立したLanguageModel sessionを作って終了後に破棄する。Chrome version、Prompt API状態、provider model、promptVersion、responseSchemaVersion、fixtureSchemaVersion、fixtureVersion、scorerVersion、fixture set hash、policy、各attemptの構造化結果と診断理由コードを、個人データを除いた評価記録へ残す。
+実モデル評価はProvider、prompt、sanitizerのversion組ごとに、開始前に固定した各fixture・各細分化度について `N=10` Jobを実行する。各Jobは最大3 model attemptを持ち、model attemptごとに独立したmodel sessionを作って終了後に破棄する。Chrome version、OS、基準端末区分、Prompt API状態、provider ID／model、promptVersion、inputSanitizerVersion、outputSanitizerVersion、responseSchemaVersion、fixtureSchemaVersion、fixtureVersion、scorerVersion、fixture set hash、policy、各attemptのモデル呼出し時間、Job終端までの時間、構造化結果と診断理由コードを、個人データを除いた評価記録へ残す。
 
 補充できるのは、当該runで `modelAttempt=0`、`DISPATCH_RESERVED` が一度もcommitされず、モデル応答を一度も受信していない状態で、後述のallowlist済み環境理由により実行不能になった場合だけとする。1回でも `DISPATCH_RESERVED` がcommitされたrunは、直後のAI Host消失、timeout、切断、結果喪失を含めて除外せず、technical failureまたは意味的不成功として分母へ残す。モデルが返したschema不正、`NEEDS_REVIEW`、正常候補0件も除外しない。各cellはrunSequence順で最初の非除外10件だけを `sampleIndex=1..10` とし、除外runを記録したまま10件に達するまで補充する。任意の失敗runを後から除外したり、10件到達後に好結果を追加したりしない。
 

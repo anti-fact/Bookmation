@@ -72,6 +72,7 @@ Prompt API は Service Worker から実行せず、対応確認済みのトッ�
 - [セキュリティ](docs/SECURITY.md)
 - [テスト仕様](docs/TESTING.md)
 - [実装タスク](docs/TASKS.md)
+- [未実装・未完成の機能一覧](docs/IMPLEMENTATION-GAPS.md)
 - [最短の参加手順](docs/QUICKSTART.md)
 
 すべての文書は [AGENTS.md](AGENTS.md) から辿れる。複雑な実装は [PLANS.md](docs/PLANS.md)、小規模作業は [TODO.md](docs/TODO.md)、未決事項は [ISSUES.md](docs/ISSUES.md) で管理する。

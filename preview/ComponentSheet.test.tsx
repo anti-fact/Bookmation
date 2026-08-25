@@ -13,12 +13,22 @@ describe("ComponentSheet", () => {
       screen.getByRole("heading", { name: "Bookmation component-sheet" })
     ).not.toBeNull()
 
-    for (const heading of ["Button", "Dialog", "Switch", "Slider", "Select"]) {
+    for (const heading of [
+      "Button",
+      "Dialog",
+      "AlertDialog",
+      "Switch",
+      "Slider",
+      "Select"
+    ]) {
       expect(screen.getByRole("heading", { name: heading })).not.toBeNull()
     }
 
     expect(
       screen.getByRole("button", { name: "編集Dialogを開く" })
+    ).not.toBeNull()
+    expect(
+      screen.getByRole("button", { name: "削除警告を開く" })
     ).not.toBeNull()
     const deleteButton = screen.getByRole("button", { name: "削除する" })
     expect(deleteButton.className).toContain("bg-bm-danger")
