@@ -193,6 +193,8 @@ Providerは、対応を実証したトップレベル拡張機能ドキュメン
 
 将来、明示的なユーザー同意がある場合だけRemoteAiProviderを追加できる構造にする。MVPでは実装しない。
 
+Gemini Nanoの速度または分類品質が基準を満たさない場合は、固定promptの最適化、決定的な入出力サニタイザー、または別の端末内AIを同じ `ClassificationProvider` 境界で比較できるようにする。代替Providerも端末外へページ情報を送らず、同じpolicy snapshot、出力schema、候補検証、再試行、冪等性を満たす。Provider ID／model version、promptVersion、input／output sanitizer versionをJobと評価artifactへ固定し、実行中のJobでは切り替えない。選定条件と測定方法は [AI_GUIDE.md](./AI_GUIDE.md#分類速度安定性の最適化) を正本とする。
+
 ### AI Hostの実行手順
 
 1. AI Host候補のトップレベル拡張ページが可視状態で開く。

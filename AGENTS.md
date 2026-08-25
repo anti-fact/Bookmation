@@ -23,3 +23,4 @@
 - [docs/MEMORY.md](docs/MEMORY.md)
 - [docs/REFERENCES.md](docs/REFERENCES.md)
 - [docs/AI_GUIDE.md](docs/AI_GUIDE.md)
+- [docs/IMPLEMENTATION-GAPS.md](docs/IMPLEMENTATION-GAPS.md)

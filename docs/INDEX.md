@@ -12,37 +12,38 @@ Bookmation は、閲覧中のページまたは指定URLを専用ストアへ保
 
 ## プロダクトと実装
 
-| 文書 | 役割 |
-| --- | --- |
-| [FRONTEND.md](FRONTEND.md) | Chrome 拡張機能、画面、状態管理、アクセシビリティ |
-| [FRONTEND_GUIDE.md](../FRONTEND_GUIDE.md) | 更新済みFigma SVGからRadix／Plasmo／Tailwind UIを実装する具体的な順序 |
-| [BACKEND.md](BACKEND.md) | P0ローカル処理と、確定済みP1の履歴・共有・同期・取込境界 |
-| [DB-SCHEMA.md](DB-SCHEMA.md) | IndexedDB上の版付きJSON document、索引、移行、同期 |
-| [UI.md](UI.md) | 初回ホーム、popup、LIST / GRID、親カテゴリ／子タグ一覧、フルページ検索、編集・作成・設定・AI入力ポップアップ、共有、無限スクロール |
-| [SECURITY.md](SECURITY.md) | 権限、個人データ、AI、共有・同期の安全要件 |
-| [TESTING.md](TESTING.md) | 最新画面・設定・共有状態のWeb fixture、実拡張機能E2E、証拠、人間の最終受入 |
-| [AI_GUIDE.md](AI_GUIDE.md) | Gemini Nano自動タグ分類の固定プロンプト、policy version 2、入出力型、候補検証、再試行仕様の正本 |
+| 文書                                             | 役割                                                                                                                               |
+| ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------- |
+| [FRONTEND.md](FRONTEND.md)                       | Chrome 拡張機能、画面、状態管理、アクセシビリティ                                                                                  |
+| [FRONTEND_GUIDE.md](../FRONTEND_GUIDE.md)        | 更新済みFigma SVGからRadix／Plasmo／Tailwind UIを実装する具体的な順序                                                              |
+| [BACKEND.md](BACKEND.md)                         | P0ローカル処理と、確定済みP1の履歴・共有・同期・取込境界                                                                           |
+| [DB-SCHEMA.md](DB-SCHEMA.md)                     | IndexedDB上の版付きJSON document、索引、移行、同期                                                                                 |
+| [UI.md](UI.md)                                   | 初回ホーム、popup、LIST / GRID、親カテゴリ／子タグ一覧、フルページ検索、編集・作成・設定・AI入力ポップアップ、共有、無限スクロール |
+| [SECURITY.md](SECURITY.md)                       | 権限、個人データ、AI、共有・同期の安全要件                                                                                         |
+| [TESTING.md](TESTING.md)                         | 最新画面・設定・共有状態のWeb fixture、実拡張機能E2E、証拠、人間の最終受入                                                         |
+| [AI_GUIDE.md](AI_GUIDE.md)                       | Gemini Nano自動タグ分類の固定プロンプト、policy version 2、入出力型、候補検証、再試行仕様の正本                                    |
+| [IMPLEMENTATION-GAPS.md](IMPLEMENTATION-GAPS.md) | 現mainに対して未実装・未完成の利用者向け機能と、対応するGitHub Issue                                                               |
 
 ## 計画と運用
 
-| 文書 | 役割 |
-| --- | --- |
-| [BACKEND_TASKS.md](../BACKEND_TASKS.md) | バックエンド担当向けの依存フロー、実装順、成果物、完了条件 |
-| [PLANS.md](PLANS.md) | 長時間・複雑タスク用 Execution Plan の規約 |
-| [2026-08-16-dev-scaffold.md](plans/2026-08-16-dev-scaffold.md) | 開発基盤と最初の保存縦切り Plan |
-| [2026-08-22-task-003-local-data-layer.md](plans/2026-08-22-task-003-local-data-layer.md) | TASK-003 / BE-02 ローカルデータ層（IndexedDB・Repository）Plan |
-| [2026-08-22-task-004-save-ui-requirements.md](plans/2026-08-22-task-004-save-ui-requirements.md) | TASK-004 / BE-03・BE-04 保存 UI・commands・URL 指定保存 要件定義 |
-| [2026-08-22-be-06-classification-job.md](plans/2026-08-22-be-06-classification-job.md) | BE-06 永続 AI 分類 Jobのpolicy v1履歴。現行v2分類仕様は [AI_GUIDE.md](AI_GUIDE.md) |
-| [2026-08-23-be-10-security-hardening.md](plans/2026-08-23-be-10-security-hardening.md) | BE-10 / TASK-010 権限・入力・Blob 安全化 Execution Plan |
-| [2026-08-23-be-16-context-menu-save.md](plans/2026-08-23-be-16-context-menu-save.md) | BE-16 / TASK-106 右クリック context menu 保存 Execution Plan |
-| [TASKS.md](TASKS.md) | チームで分担する実装ワークパッケージ、依存関係、完了条件 |
-| [TODO.md](TODO.md) | 1 PR 程度で完了できる小規模タスク |
-| [ISSUES.md](ISSUES.md) | 未決定事項・プロダクト上の問題 |
-| [TECH-DEBT-TRACKER.md](TECH-DEBT-TRACKER.md) | 意図して先送りする技術的負債 |
-| [TROUBLESHOOTING.md](TROUBLESHOOTING.md) | 症状から原因確認と復旧へ進む手引き |
-| [WORKLOG.md](WORKLOG.md) | 実施済み作業と検証結果の時系列記録 |
-| [MEMORY.md](MEMORY.md) | 長期間変えない用語・判断・不変条件 |
-| [REFERENCES.md](REFERENCES.md) | デザインシート、参考 UI、公式技術資料と確認範囲 |
+| 文書                                                                                             | 役割                                                                               |
+| ------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------- |
+| [BACKEND_TASKS.md](../BACKEND_TASKS.md)                                                          | バックエンド担当向けの依存フロー、実装順、成果物、完了条件                         |
+| [PLANS.md](PLANS.md)                                                                             | 長時間・複雑タスク用 Execution Plan の規約                                         |
+| [2026-08-16-dev-scaffold.md](plans/2026-08-16-dev-scaffold.md)                                   | 開発基盤と最初の保存縦切り Plan                                                    |
+| [2026-08-22-task-003-local-data-layer.md](plans/2026-08-22-task-003-local-data-layer.md)         | TASK-003 / BE-02 ローカルデータ層（IndexedDB・Repository）Plan                     |
+| [2026-08-22-task-004-save-ui-requirements.md](plans/2026-08-22-task-004-save-ui-requirements.md) | TASK-004 / BE-03・BE-04 保存 UI・commands・URL 指定保存 要件定義                   |
+| [2026-08-22-be-06-classification-job.md](plans/2026-08-22-be-06-classification-job.md)           | BE-06 永続 AI 分類 Jobのpolicy v1履歴。現行v2分類仕様は [AI_GUIDE.md](AI_GUIDE.md) |
+| [2026-08-23-be-10-security-hardening.md](plans/2026-08-23-be-10-security-hardening.md)           | BE-10 / TASK-010 権限・入力・Blob 安全化 Execution Plan                            |
+| [2026-08-23-be-16-context-menu-save.md](plans/2026-08-23-be-16-context-menu-save.md)             | BE-16 / TASK-106 右クリック context menu 保存 Execution Plan                       |
+| [TASKS.md](TASKS.md)                                                                             | チームで分担する実装ワークパッケージ、依存関係、完了条件                           |
+| [TODO.md](TODO.md)                                                                               | 1 PR 程度で完了できる小規模タスク                                                  |
+| [ISSUES.md](ISSUES.md)                                                                           | 未決定事項・プロダクト上の問題                                                     |
+| [TECH-DEBT-TRACKER.md](TECH-DEBT-TRACKER.md)                                                     | 意図して先送りする技術的負債                                                       |
+| [TROUBLESHOOTING.md](TROUBLESHOOTING.md)                                                         | 症状から原因確認と復旧へ進む手引き                                                 |
+| [WORKLOG.md](WORKLOG.md)                                                                         | 実施済み作業と検証結果の時系列記録                                                 |
+| [MEMORY.md](MEMORY.md)                                                                           | 長期間変えない用語・判断・不変条件                                                 |
+| [REFERENCES.md](REFERENCES.md)                                                                   | デザインシート、参考 UI、公式技術資料と確認範囲                                    |
 
 ## 文書の状態表現
 

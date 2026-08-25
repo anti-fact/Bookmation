@@ -1,7 +1,7 @@
 # 要件
 
 - 状態: 初期要件ベースライン（開発基盤のみ実装済み）
-- 基準日: 2026-08-23
+- 基準日: 2026-08-25
 
 ## 目的
 
@@ -92,6 +92,7 @@ Bookmation は、Chrome 標準ブックマークとは別にページを保存�
 | NFR-010 | UI Webプレビュー | 本番と同じReact／Tailwind componentをfake Adapterとfixtureで動かし、通常Webページとして主要画面・状態を確認できる |
 | NFR-011 | AIエージェントE2E | 人間へ引き渡す前に、AIエージェントがビルド済みManifest V3拡張をPlaywrightで操作し、成功・失敗・skipと再現証拠を残す |
 | NFR-012 | 人間による最終受入 | AIエージェントのPlaywright結果を確認後、人間が同じcommit／buildを実Chromeで確認し、承認または差戻しを記録する |
+| NFR-013 | AI分類の速度と安定性 | 現行Gemini Nanoを基準に、版付きprompt最適化、意味を捏造しない決定的な入出力サニタイズ、または同じ安全契約を満たす別の端末内AIを同一fixtureで比較する。既存の品質基準を満たしたうえでモデル呼出し時間とJob終端時間のp50／p95を改善し、Provider・prompt・sanitizerの版を記録する。ページ情報を外部AIへ送るfallbackは行わず、基準を満たす案がなければ手動分類を維持する |
 
 ## テスト受入順序
 
