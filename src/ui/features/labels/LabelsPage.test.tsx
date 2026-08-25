@@ -168,4 +168,163 @@ describe("LabelsPage", () => {
       screen.getByRole("dialog", { name: "カテゴリを作成" })
     ).not.toBeNull()
   })
+
+  it("deletes a category only after showing and confirming its impact", async () => {
+    const user = userEvent.setup()
+    const port = createPort()
+    render(
+      <LabelsPage
+        createRequest={null}
+        manageMode
+        onCreateRequestHandled={vi.fn()}
+        onNavigate={vi.fn()}
+        port={port}
+      />
+    )
+
+    await user.click(await screen.findByRole("button", { name: "#開発" }))
+    const editor = await screen.findByRole("dialog", { name: "#開発を管理" })
+    const deleteButton = within(editor).getByRole("button", {
+      name: "カテゴリと子タグを削除"
+    })
+    await waitFor(() =>
+      expect((deleteButton as HTMLButtonElement).disabled).toBe(false)
+    )
+    await user.click(deleteButton)
+
+    const warning = await screen.findByRole("alertdialog", {
+      name: "カテゴリ「#開発」を削除しますか？"
+    })
+    expect(port.deleteCategory).not.toHaveBeenCalled()
+    expect(within(warning).getByText("1件", { selector: "dd" })).not.toBeNull()
+    expect(within(warning).getByText("4件", { selector: "dd" })).not.toBeNull()
+    expect(within(warning).getByText("#TypeScript")).not.toBeNull()
+
+    await user.click(
+      within(warning).getByRole("button", { name: "キャンセル" })
+    )
+    await waitFor(() => {
+      expect(screen.queryByRole("alertdialog")).toBeNull()
+      expect(document.activeElement).toBe(deleteButton)
+    })
+    expect(port.deleteCategory).not.toHaveBeenCalled()
+
+    await user.click(deleteButton)
+    const reopenedWarning = await screen.findByRole("alertdialog")
+    await user.click(
+      within(reopenedWarning).getByRole("button", { name: "削除する" })
+    )
+
+    await waitFor(() =>
+      expect(port.deleteCategory).toHaveBeenCalledWith({
+        detail: expect.objectContaining({
+          impactFingerprint: "impact",
+          referencedActiveBookmarkCount: 4
+        }),
+        requestId: expect.stringMatching(/^category-delete:/)
+      })
+    )
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull())
+  })
+
+  it("refreshes a stale category deletion preview before allowing retry", async () => {
+    const user = userEvent.setup()
+    const port = createPort()
+    const firstDetail = {
+      activeTagCount: 1,
+      activeTags: [{ id: "tag-ts", name: "TypeScript", revision: 3 }],
+      category: { id: "category-dev", name: "開発", revision: 2 },
+      impactFingerprint: "impact-before",
+      referencedActiveBookmarkCount: 4
+    }
+    const latestDetail = {
+      activeTagCount: 2,
+      activeTags: [
+        { id: "tag-ts", name: "TypeScript", revision: 3 },
+        { id: "tag-react", name: "React", revision: 1 }
+      ],
+      category: { id: "category-dev", name: "開発", revision: 3 },
+      impactFingerprint: "impact-after",
+      referencedActiveBookmarkCount: 6
+    }
+    vi.mocked(port.getCategoryDetail)
+      .mockResolvedValueOnce(firstDetail)
+      .mockResolvedValueOnce(latestDetail)
+    vi.mocked(port.deleteCategory)
+      .mockRejectedValueOnce(new Error("CATEGORY_DELETE_PREVIEW_STALE"))
+      .mockResolvedValueOnce(undefined)
+
+    render(
+      <LabelsPage
+        createRequest={null}
+        manageMode
+        onCreateRequestHandled={vi.fn()}
+        onNavigate={vi.fn()}
+        port={port}
+      />
+    )
+
+    await user.click(await screen.findByRole("button", { name: "#開発" }))
+    const editor = await screen.findByRole("dialog", { name: "#開発を管理" })
+    const deleteButton = within(editor).getByRole("button", {
+      name: "カテゴリと子タグを削除"
+    })
+    await waitFor(() =>
+      expect((deleteButton as HTMLButtonElement).disabled).toBe(false)
+    )
+    await user.click(deleteButton)
+    await user.click(
+      within(await screen.findByRole("alertdialog")).getByRole("button", {
+        name: "削除する"
+      })
+    )
+
+    const warning = await screen.findByRole("alertdialog")
+    expect(
+      await within(warning).findByText(
+        "削除対象が更新されました。最新の内容を確認して、もう一度削除してください"
+      )
+    ).not.toBeNull()
+    expect(within(warning).getByText("2件", { selector: "dd" })).not.toBeNull()
+    expect(within(warning).getByText("6件", { selector: "dd" })).not.toBeNull()
+    expect(within(warning).getByText("#React")).not.toBeNull()
+    expect(port.deleteCategory).toHaveBeenCalledOnce()
+
+    await user.click(within(warning).getByRole("button", { name: "削除する" }))
+
+    await waitFor(() => expect(port.deleteCategory).toHaveBeenCalledTimes(2))
+    const firstRequest = vi.mocked(port.deleteCategory).mock.calls[0]?.[0]
+    const secondRequest = vi.mocked(port.deleteCategory).mock.calls[1]?.[0]
+    expect(firstRequest?.detail).toEqual(firstDetail)
+    expect(secondRequest?.detail).toEqual(latestDetail)
+    expect(secondRequest?.requestId).not.toBe(firstRequest?.requestId)
+  })
+
+  it("keeps tag deletion immediate without opening a warning dialog", async () => {
+    const user = userEvent.setup()
+    const port = createPort()
+    render(
+      <LabelsPage
+        createRequest={null}
+        manageMode
+        onCreateRequestHandled={vi.fn()}
+        onNavigate={vi.fn()}
+        port={port}
+      />
+    )
+
+    await user.click(await screen.findByRole("button", { name: "#TypeScript" }))
+    const editor = await screen.findByRole("dialog", {
+      name: "#TypeScriptを編集"
+    })
+    await user.click(within(editor).getByRole("button", { name: "タグを削除" }))
+
+    await waitFor(() =>
+      expect(port.deleteTag).toHaveBeenCalledWith({
+        id: "tag-ts",
+        revision: 3
+      })
+    )
+    expect(screen.queryByRole("alertdialog")).toBeNull()
+  })
 })

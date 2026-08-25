@@ -1,6 +1,15 @@
 import * as React from "react"
 
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
   Button,
   Dialog,
   DialogClose,
@@ -103,6 +112,39 @@ export function ComponentSheet() {
               <a href="#dialog">Dialogへ移動</a>
             </Button>
           </div>
+        </SheetSection>
+
+        <SheetSection
+          description="取り消せない操作だけに使い、対象と影響範囲を示してから明示確認を求めます。"
+          title="AlertDialog"
+        >
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button tone="danger" variant="solid">
+                削除警告を開く
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>
+                  カテゴリ「#開発」を削除しますか？
+                </AlertDialogTitle>
+                <AlertDialogDescription>
+                  子タグ1件と関連付けを削除します。ブックマーク本体は残ります。
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel asChild>
+                  <Button>キャンセル</Button>
+                </AlertDialogCancel>
+                <AlertDialogAction asChild>
+                  <Button tone="danger" variant="solid">
+                    カテゴリを削除する
+                  </Button>
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </SheetSection>
 
         <SheetSection

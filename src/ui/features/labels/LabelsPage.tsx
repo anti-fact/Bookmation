@@ -6,6 +6,14 @@ import {
   LABEL_RIBBON_SEGMENT_CLASS
 } from "~/ui/components/LabelRibbonTrail"
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
   Button,
   Dialog,
   DialogContent,
@@ -57,6 +65,14 @@ export function LabelsPage({
   const [detail, setDetail] = React.useState<CategoryEditDetail | null>(null)
   const [status, setStatus] = React.useState("読み込み中です")
   const [submitting, setSubmitting] = React.useState(false)
+  const [categoryDeleteOpen, setCategoryDeleteOpen] = React.useState(false)
+  const [categoryDeleteError, setCategoryDeleteError] = React.useState("")
+  const [categoryDeleteNeedsRefresh, setCategoryDeleteNeedsRefresh] =
+    React.useState(false)
+  const [categoryDeleteRequestId, setCategoryDeleteRequestId] = React.useState<
+    `category-delete:${string}` | null
+  >(null)
+  const categoryDeleteTriggerRef = React.useRef<HTMLButtonElement>(null)
 
   const reload = React.useCallback(async () => {
     setStatus("読み込み中です")
@@ -82,6 +98,10 @@ export function LabelsPage({
   }, [createRequest, onCreateRequestHandled])
 
   const openEditor = async (next: Exclude<Editor, null>) => {
+    setCategoryDeleteOpen(false)
+    setCategoryDeleteError("")
+    setCategoryDeleteNeedsRefresh(false)
+    setCategoryDeleteRequestId(null)
     setEditor(next)
     setName(
       next.kind === "category"
@@ -169,25 +189,94 @@ export function LabelsPage({
     }
   }
 
-  const remove = async () => {
-    if (!editor || submitting) return
+  const removeTag = async () => {
+    if (editor?.kind !== "tag" || submitting) return
     setSubmitting(true)
     try {
-      if (editor.kind === "tag")
-        await port.deleteTag({
-          id: editor.tag.id,
-          revision: editor.tag.revision
-        })
-      if (editor.kind === "category" && detail)
-        await port.deleteCategory({
-          detail,
-          requestId: `category-delete:${crypto.randomUUID()}`
-        })
+      await port.deleteTag({
+        id: editor.tag.id,
+        revision: editor.tag.revision
+      })
       setEditor(null)
       await reload()
       setStatus("削除しました")
     } catch {
       setStatus("最新の状態を確認して、もう一度削除してください")
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const openCategoryDelete = () => {
+    if (editor?.kind !== "category" || !detail || submitting) return
+    setCategoryDeleteError("")
+    setCategoryDeleteNeedsRefresh(false)
+    setCategoryDeleteRequestId(`category-delete:${crypto.randomUUID()}`)
+    setCategoryDeleteOpen(true)
+  }
+
+  const refreshCategoryDeleteDetail = async () => {
+    if (editor?.kind !== "category" || submitting) return
+    setSubmitting(true)
+    try {
+      setDetail(await port.getCategoryDetail(editor.category.id))
+      setCategoryDeleteNeedsRefresh(false)
+      setCategoryDeleteRequestId(`category-delete:${crypto.randomUUID()}`)
+      setCategoryDeleteError(
+        "最新の影響範囲を表示しました。内容を確認して、もう一度削除してください"
+      )
+    } catch {
+      setCategoryDeleteError(
+        "最新の影響範囲を読み込めませんでした。時間を置いて再読み込みしてください"
+      )
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const removeCategory = async () => {
+    if (
+      editor?.kind !== "category" ||
+      !detail ||
+      categoryDeleteNeedsRefresh ||
+      submitting
+    )
+      return
+    const requestId =
+      categoryDeleteRequestId ??
+      (`category-delete:${crypto.randomUUID()}` as const)
+    setCategoryDeleteRequestId(requestId)
+    setSubmitting(true)
+    setCategoryDeleteError("")
+    try {
+      await port.deleteCategory({ detail, requestId })
+      setCategoryDeleteOpen(false)
+      setEditor(null)
+      await reload()
+      setStatus("削除しました")
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        error.message === "CATEGORY_DELETE_PREVIEW_STALE"
+      ) {
+        setCategoryDeleteNeedsRefresh(true)
+        try {
+          setDetail(await port.getCategoryDetail(editor.category.id))
+          setCategoryDeleteNeedsRefresh(false)
+          setCategoryDeleteRequestId(`category-delete:${crypto.randomUUID()}`)
+          setCategoryDeleteError(
+            "削除対象が更新されました。最新の内容を確認して、もう一度削除してください"
+          )
+        } catch {
+          setCategoryDeleteError(
+            "削除対象が更新されましたが、最新の影響範囲を読み込めませんでした"
+          )
+        }
+      } else {
+        setCategoryDeleteError(
+          "削除できませんでした。内容を保ったまま再試行できます"
+        )
+      }
     } finally {
       setSubmitting(false)
     }
@@ -262,7 +351,10 @@ export function LabelsPage({
 
       <Dialog
         onOpenChange={(open) => {
-          if (!open) setEditor(null)
+          if (!open) {
+            setCategoryDeleteOpen(false)
+            setEditor(null)
+          }
         }}
         open={editor !== null}
       >
@@ -313,7 +405,8 @@ export function LabelsPage({
               <div className="flex flex-wrap justify-between gap-3">
                 <Button
                   disabled={!detail || submitting}
-                  onClick={() => void remove()}
+                  onClick={openCategoryDelete}
+                  ref={categoryDeleteTriggerRef}
                   tone="danger"
                   variant="solid"
                 >
@@ -415,7 +508,7 @@ export function LabelsPage({
                 {editor?.kind === "tag" ? (
                   <Button
                     disabled={submitting}
-                    onClick={() => void remove()}
+                    onClick={() => void removeTag()}
                     tone="danger"
                     variant="solid"
                   >
@@ -444,6 +537,119 @@ export function LabelsPage({
           )}
         </DialogContent>
       </Dialog>
+
+      <AlertDialog
+        onOpenChange={(open) => {
+          if (!open && !submitting) {
+            setCategoryDeleteOpen(false)
+            setCategoryDeleteError("")
+            setCategoryDeleteNeedsRefresh(false)
+            setCategoryDeleteRequestId(null)
+          }
+        }}
+        open={categoryDeleteOpen}
+      >
+        <AlertDialogContent
+          onCloseAutoFocus={(event) => {
+            if (editor?.kind === "category") {
+              event.preventDefault()
+              categoryDeleteTriggerRef.current?.focus()
+            }
+          }}
+          onEscapeKeyDown={(event) => {
+            if (submitting) event.preventDefault()
+          }}
+        >
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              カテゴリ「#{detail?.category.name ?? "確認中"}」を削除しますか？
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-4">
+                <p className="m-0">
+                  この操作ではカテゴリと子タグを削除します。ブックマーク本体は削除されません。
+                </p>
+                <dl className="m-0 rounded-bm-field bg-bm-accent p-4 text-bm-ink">
+                  <div className="flex justify-between gap-4">
+                    <dt>削除する子タグ</dt>
+                    <dd className="m-0 font-semibold">
+                      {detail?.activeTagCount ?? "確認中"}件
+                    </dd>
+                  </div>
+                  <div className="mt-2 flex justify-between gap-4">
+                    <dt>影響するブックマーク</dt>
+                    <dd className="m-0 font-semibold">
+                      {detail?.referencedActiveBookmarkCount ?? "確認中"}件
+                    </dd>
+                  </div>
+                </dl>
+                {detail?.activeTags.length ? (
+                  <div>
+                    <p className="m-0 font-semibold text-bm-ink">
+                      削除するタグ
+                    </p>
+                    <ul className="mb-0 mt-2 flex list-none flex-wrap gap-2 p-0 text-bm-ink">
+                      {detail.activeTags.map((tag) => (
+                        <li
+                          className="rounded-bm-chip border-2 border-bm-border bg-bm-paper px-3 py-1"
+                          key={tag.id}
+                        >
+                          #{tag.name}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+                <p className="m-0 text-bm-danger">
+                  AI分類が有効な場合、確認後に影響するブックマークを再分類します。この操作は取り消せません。
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          {categoryDeleteError ? (
+            <p
+              aria-live="polite"
+              className="rounded-bm-field border-2 border-bm-danger px-4 py-3 text-sm text-bm-danger"
+            >
+              {categoryDeleteError}
+            </p>
+          ) : null}
+
+          <AlertDialogFooter>
+            <AlertDialogCancel asChild>
+              <Button disabled={submitting} variant="outline">
+                キャンセル
+              </Button>
+            </AlertDialogCancel>
+            {categoryDeleteNeedsRefresh ? (
+              <Button
+                loading={submitting}
+                onClick={() => void refreshCategoryDeleteDetail()}
+                variant="outline"
+              >
+                最新情報を再取得
+              </Button>
+            ) : null}
+            <AlertDialogAction
+              asChild
+              onClick={(event) => {
+                event.preventDefault()
+                void removeCategory()
+              }}
+            >
+              <Button
+                disabled={!detail || categoryDeleteNeedsRefresh}
+                loading={submitting}
+                tone="danger"
+                variant="solid"
+              >
+                削除する
+              </Button>
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </section>
   )
 }
