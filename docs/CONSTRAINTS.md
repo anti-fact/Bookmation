@@ -57,7 +57,8 @@
 
 ## AI と実行環境
 
-- P0 は Chrome Prompt API 候補を使う端末内 AI とし、外部 LLM へ自動 fallback しない。
+- 現行製品の自動分類はChrome Prompt API／Gemini Nanoに固定する。`ClassificationProvider` は内部境界であり、利用者向けのProvider／モデル選択、利用者別・Job別切替、実行時fallbackを作らない。別の端末内AIは将来この前提を一括置換するための技術評価に限り、採用時は仕様を改訂して単一の新前提へ移行する。
+- P0 は Chrome Prompt API／Gemini Nanoを使う端末内 AI とし、外部 LLM へ自動 fallback しない。
 - LanguageModel は Web Worker から利用できないため、MV3 Service Worker で availability、session、prompt を実行しない。
 - 対応を実証したトップレベル拡張ページだけを AI Host にする。Offscreen Document 対応を仮定しない。
 - AI出力は全体の外形と、各候補のID、kind、origin、revision、親、importance、根拠、文字列を再検証する。不正候補だけを棄却し、正常候補が1件以上なら同じ試行の全正常候補を原子的に適用する。

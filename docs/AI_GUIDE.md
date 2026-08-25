@@ -1,11 +1,11 @@
-# 端末内AI自動タグ分類仕様（Gemini Nano基準）
+# 端末内AI自動タグ分類仕様（Gemini Nano前提）
 
 - 状態: 確定仕様
 - 基準日: 2026-08-25
-- 適用範囲: Bookmark保存後にGemini Nanoまたは互換する端末内Providerで実行する自動分類
+- 適用範囲: Bookmark保存後にGemini Nanoで実行する自動分類
 - 関連: [要件](REQUIREMENTS.md) / [バックエンド](BACKEND.md) / [DBスキーマ](DB-SCHEMA.md) / [セキュリティ](SECURITY.md) / [テスト](TESTING.md)
 
-この文書を、Gemini Nanoへ渡すプロンプト、互換する端末内Provider、分類policy、出力形式、検証、再試行の正本とする。旧 `policyVersion: 1` の `0→0 / 1→1 / 2→2 / 3→4 / 4→6` 件という上限方式は廃止し、互換性のない新仕様を `policyVersion: 2` とする。
+この文書を、現行製品がGemini Nanoへ渡すプロンプト、分類policy、出力形式、検証、再試行の正本とする。`ClassificationProvider` はテストと将来の一括置換に備える内部境界であり、利用者へAIの選択肢を提供する契約ではない。旧 `policyVersion: 1` の `0→0 / 1→1 / 2→2 / 3→4 / 4→6` 件という上限方式は廃止し、互換性のない新仕様を `policyVersion: 2` とする。
 
 ## 固定する意味
 
@@ -401,15 +401,19 @@ JobにはattemptId、phase、quality／technical outcome、acceptedCount、rejec
 
 現行のGemini Nano分類は、実利用で待ち時間が長く、同じ種類の入力でも分類結果が安定しない状態を改善対象とする。Bookmark保存自体はAI完了を待たせず、分類中も手動Tag編集を利用できる現在の非同期境界を維持する。
 
-改善案は、固定fixtureと同一端末条件で次の順序を固定せず比較する。
+現行の製品仕様と実装対象はGemini Nanoに固定する。設定画面、API、Job入力にProvider／モデル選択を追加せず、同じ配布版で利用者ごとまたはJobごとにAIを切り替えない。Provider IDとモデルversionの記録は再現性と移行監査のためであり、利用者の選択状態ではない。
+
+Gemini Nano前提のまま実装する改善と、将来の仕様変更候補として行う技術評価を次のように分ける。
 
 1. 固定system promptと入力表現を簡潔化し、`promptVersion` を更新する。
 2. モデル入出力へ決定的なコードサニタイザーを追加し、入力の型・長さ・JSON escape・禁止制御文字と、出力のschema・ID・親Category・revision・Normalizer・重複を検査する。
-3. Gemini Nano以外の端末内AIを `ClassificationProvider` の別実装として評価する。
+3. Gemini Nano以外の端末内AIは、将来Gemini Nano前提を置き換える可能性を判断するため、隔離した評価実装として同じfixtureと端末条件で比較する。
+
+3は現行機能へAI選択肢を追加する作業ではない。代替AIが品質、安全性、速度、端末資源の基準を満たし、製品として採用すると別途決定した場合に限り、この仕様を改訂してGemini Nano前提を新しい単一AI前提へ置き換える。採用前に本番Providerへ接続せず、採用後もProvider選択UI、利用者別切替、Job単位切替、実行時fallbackは作らない。
 
 サニタイザーは `inputSanitizerVersion` と `outputSanitizerVersion` を持つ。許可された決定的変換と不正候補の棄却だけを行い、異なる正規化名の同義語推定、候補外IDの補完、Category変更、根拠の捏造、失敗応答の成功化を行わない。意味判断をコードへ移す場合は、版付きの規則・出典・fixtureを先に追加し、policy versionまたはcandidate query versionを上げる。
 
-代替Providerは、ページ情報とLabelを外部へ送らず端末内だけで処理し、既存の入力snapshot、出力schema、policy version 2、候補検証、再試行、Job冪等性をそのまま満たす必要がある。Provider ID、モデルversion、promptVersion、sanitizer versionをJob snapshotと評価artifactへ記録し、Job実行中にProviderを切り替えない。クラウドAIへの暗黙fallbackは行わない。
+将来の置換候補となるAIは、ページ情報とLabelを外部へ送らず端末内だけで処理し、既存の入力snapshot、出力schema、policy version 2、候補検証、再試行、Job冪等性を満たす必要がある。評価時はProvider ID、モデルversion、promptVersion、sanitizer versionをartifactへ記録する。採用時は移行後のJob snapshotにも採用した単一Providerの情報を固定する。クラウドAIへの暗黙fallbackは行わない。
 
 各候補は同じfixture setで、既存の意味的成功率に加えて、モデル呼出し時間とJob作成から終端までの時間のp50／p95、quality-zero率、technical failure率を測る。品質・安全基準を満たさない高速案と、基準端末で現行よりp95を改善しない案は採用しない。複数案が基準を満たす場合はp95が短く、端末資源消費が小さい案を選ぶ。いずれも満たさない場合は自動分類を確定結果として扱わず、PENDING／NEEDS_REVIEW／FAILEDの状態表示と手動分類を維持する。
 

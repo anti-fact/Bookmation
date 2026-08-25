@@ -128,7 +128,7 @@
 
 - [ ] AIが1試行で候補内のactive USER Categoryを厳密に1件選び、COREが同等なら同等USER Tagを持つCategory、次に他originの同等Tagを持つCategoryを優先し、それでも一意でなければquality-zeroにする。全AI Tag候補を選択Category配下にし、新規Category、既存Tagの親変更を拒否するschema / domain検証を作る。
 - [ ] [AI_GUIDE.md](AI_GUIDE.md) の固定promptとREUSE／CREATE出力を実装する。選択Category内の完全一致、正規化一致、同義語、正式名／略称、翻訳、表記揺れは全値でREUSEしてUSERタグを優先し、選択Category外にだけ同等Tagがある概念はREUSE／CREATE／親変更せず省くようGemini Nanoへ指示する。信頼側はID、親、revision、normalizedName一致を決定的に検証し、異名同義はversion付きoracleの実モデル評価で判定する。
-- [ ] 現行Gemini Nanoの分類速度と安定性をbaselineとして、版付きprompt最適化、決定的な入出力サニタイザー、別の端末内 `ClassificationProvider` を同一fixture・端末条件で比較する。既存品質基準を満たした候補だけでモデル呼出し時間／Job終端時間のp50・p95を評価し、Provider／prompt／sanitizer versionをJobとartifactへ固定する。外部AIへ暗黙fallbackしない。
+- [ ] 現行製品はGemini Nano固定のまま、版付きprompt最適化と決定的な入出力サニタイザーを同一fixture・端末条件で比較する。別の端末内 `ClassificationProvider` は将来Gemini Nano前提を製品全体で置き換える候補として隔離評価し、既存品質基準を満たした候補だけでモデル呼出し時間／Job終端時間のp50・p95を評価する。採用は別の仕様変更とし、Provider選択UI、利用者別・Job別切替、実行時fallbackを実装しない。Provider／prompt／sanitizer versionは再現性のためJobとartifactへ固定する。
 - [ ] 全画面Settingsの細分化sliderを整数 `0`〜`4` に限定し、Jobへpolicy version 2のgranularity／reusePolicy／allowedCreateImportanceをsnapshotする。Tag件数上限へ変換しない。
 - [ ] 0／1はCORE、2はMAJORまで、3はSUPPORTINGまで、4はDETAILまでCREATEできるようにし、再利用できる意味範囲も値ごとに変える。値0でも中心主題を既存Tagで表せなければ必要最小限のCOREをCREATEできる。
 - [ ] lease、revision、creationRequestId で中断・再送を冪等にする。

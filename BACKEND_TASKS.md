@@ -310,7 +310,7 @@ sequenceDiagram
 - [ ] USERカテゴリ、USERタグ、AIタグのID付き候補を作る。
 - [ ] [AI_GUIDE.md](docs/AI_GUIDE.md) の固定system prompt、未信頼JSON入力、Category 1件、REUSE／CREATE、importance、evidenceText、confidenceを持つ厳格schemaを実装する。Tag配列へ業務上の `maxItems` を置かない。
 - [ ] 固定promptで、選択Category内の完全一致、正規化一致、同義語、正式名／略称、翻訳、表記揺れを全細分化度でREUSEして意味が合うUSERタグを優先し、選択Category外にだけ同等Tagがある概念はREUSE／CREATE／親変更せず省くようGemini Nanoへ指示する。信頼側はID、親、revision、normalizedName一致を決定的に検証し、異なるnormalizedNameの意味同等性はversion付きoracleの実モデル評価で判定する。
-- [ ] 現行Gemini Nanoを速度・安定性のbaselineとして、promptVersionごとの最適化、意味推測を行わない版付き入出力サニタイザー、別の端末内ClassificationProviderを同一fixtureと基準端末で比較する。既存品質基準に合格した案だけをモデル呼出し時間／Job終端時間のp50・p95で選び、Provider／model／prompt／sanitizer versionをJob snapshotと評価artifactへ固定する。外部AIへの暗黙fallbackは行わない。
+- [ ] 現行製品はGemini Nano固定のまま、promptVersionごとの最適化と意味推測を行わない版付き入出力サニタイザーを同一fixtureと基準端末で比較する。別の端末内ClassificationProviderは将来Gemini Nano前提を製品全体で置き換える候補として隔離評価し、既存品質基準に合格した案だけをモデル呼出し時間／Job終端時間のp50・p95で比較する。採用は別の仕様変更とし、Provider選択UI、利用者別・Job別切替、実行時fallbackを実装しない。Provider／model／prompt／sanitizer versionは再現性のためJob snapshotと評価artifactへ固定する。
 - [ ] policy version 2の全5組を実装する。0／1は`CORE`、2は`MAJOR`まで、3は`SUPPORTING`まで、4は`DETAIL`までCREATEを許し、再利用範囲も値ごとに変える。値0でも必要最小限のCOREをCREATEでき、`maxNewTags`／`maxAssignedTags`を使わない。
 - [ ] 新規AIタグproposalが `tagUniqueName` と競合したらoriginを問わず既存Tagを再評価する。選択Category内の同じnormalizedNameのactive Tagは信頼側でREUSEへ解決し、親不一致またはtombstone競合はその候補だけを棄却する。異名同義を未定義のalias推測で変換・棄却しない。
 - [ ] AIによるカテゴリ作成・改名・削除と、候補外IDを拒否する。

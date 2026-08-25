@@ -22,7 +22,6 @@ Bookmation は、閲覧中のページまたは指定URLを専用ストアへ保
 | [SECURITY.md](SECURITY.md)                       | 権限、個人データ、AI、共有・同期の安全要件                                                                                         |
 | [TESTING.md](TESTING.md)                         | 最新画面・設定・共有状態のWeb fixture、実拡張機能E2E、証拠、人間の最終受入                                                         |
 | [AI_GUIDE.md](AI_GUIDE.md)                       | Gemini Nano自動タグ分類の固定プロンプト、policy version 2、入出力型、候補検証、再試行仕様の正本                                    |
-| [IMPLEMENTATION-GAPS.md](IMPLEMENTATION-GAPS.md) | 現mainに対して未実装・未完成の利用者向け機能と、対応するGitHub Issue                                                               |
 
 ## 計画と運用
 

@@ -127,7 +127,7 @@ interface UnitOfWork {
 }
 ~~~
 
-ClassificationProviderとAiAssistantProviderはトップレベルのAI Host Document内だけで生成・呼び出す。戻り値はあえてUnknown相当として受け、ホスト側のアダプター境界で外形JSONスキーマを検証する。Service Worker側アプリケーション層でも候補ID、TAGの親カテゴリID、Domain不変条件を再検証し、AI出力を信頼済みDomainオブジェクトとして直接受け取らない。
+ClassificationProviderとAiAssistantProviderはトップレベルのAI Host Document内だけで生成・呼び出す。`ClassificationProvider` はテスト差替えと将来の製品全体での一括置換に備える内部Portであり、利用者がProviderを選ぶための抽象化ではない。戻り値はあえてUnknown相当として受け、ホスト側のアダプター境界で外形JSONスキーマを検証する。Service Worker側アプリケーション層でも候補ID、TAGの親カテゴリID、Domain不変条件を再検証し、AI出力を信頼済みDomainオブジェクトとして直接受け取らない。
 
 ## 保存処理
 
@@ -187,13 +187,13 @@ Bookmark保存、Bookmark追加画面で明示選択したTag edge、そのactiv
 
 ### Provider境界
 
-Chrome Prompt API / Gemini Nano候補を、分類とAIアシスタントで共有するChromePromptProvider境界の後ろに置く。Chrome Prompt APIのLanguageModelはWeb Workerから利用できないため、このProviderをManifest V3 Service Workerで生成・実行してはならない。
+現行製品ではChrome Prompt API／Gemini Nanoを、分類とAIアシスタントで共有する唯一の本番 `ChromePromptProvider` として境界の後ろに置く。Chrome Prompt APIのLanguageModelはWeb Workerから利用できないため、このProviderをManifest V3 Service Workerで生成・実行してはならない。
 
 Providerは、対応を実証したトップレベル拡張機能ドキュメント内だけで生成する。DashboardとSide Panelを候補とし、正確なホスト、Prompt APIのメソッド、可用性、モデル準備、ユーザーアクティベーション、対象Chrome、配布要件は [ISSUE-001](./ISSUES.md) の技術スパイクで確認する。Offscreen Document対応を仮定せず、現時点では動作確認済みとしない。
 
-将来、明示的なユーザー同意がある場合だけRemoteAiProviderを追加できる構造にする。MVPでは実装しない。
+`RemoteAiProvider` とProvider選択機能は現行仕様の対象外とする。将来クラウドAIを検討する場合も、同意を得れば既存画面へ選択肢を追加できるとはみなさず、データ送信、権限、移行を含む別の仕様変更として判断する。
 
-Gemini Nanoの速度または分類品質が基準を満たさない場合は、固定promptの最適化、決定的な入出力サニタイザー、または別の端末内AIを同じ `ClassificationProvider` 境界で比較できるようにする。代替Providerも端末外へページ情報を送らず、同じpolicy snapshot、出力schema、候補検証、再試行、冪等性を満たす。Provider ID／model version、promptVersion、input／output sanitizer versionをJobと評価artifactへ固定し、実行中のJobでは切り替えない。選定条件と測定方法は [AI_GUIDE.md](./AI_GUIDE.md#分類速度安定性の最適化) を正本とする。
+Gemini Nanoの速度または分類品質が基準を満たさない場合は、まず固定promptの最適化と決定的な入出力サニタイザーをGemini Nano前提で評価する。別の端末内AIは、将来Gemini Nano前提を製品全体で置き換える候補として、隔離した実装を同じ `ClassificationProvider` 契約で比較する。品質、安全性、速度、端末資源の基準を満たして採用を別途決定した場合だけ仕様と移行を更新し、本番の単一Providerを置き換える。複数Providerを本番で併存させる選択UI、利用者別・Job別切替、実行時fallbackは作らない。Provider ID／model version、promptVersion、input／output sanitizer versionは選択状態ではなく再現性のためJobと評価artifactへ固定する。選定条件と測定方法は [AI_GUIDE.md](./AI_GUIDE.md#分類速度安定性の最適化) を正本とする。
 
 ### AI Hostの実行手順
 

@@ -31,6 +31,9 @@ dist/
 # Local development reference implementation
 /Bookmation-dev/
 
+# Local audit notes
+/docs/IMPLEMENTATION-GAPS.md
+
 # plasmo - https://docs.plasmo.com
 .plasmo
 
